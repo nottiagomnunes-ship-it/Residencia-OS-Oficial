@@ -30,3 +30,6 @@
 29. PWA (instalável, ícone, tela offline) e menu "Mais" no celular. Sem migração nova.
 30. Celular: painel da tarefa acima da barra inferior, etapas que quebram linha e tabelas em formato de cartões.
 31. Celular: corrige a página que "dava zoom out" por causa de campos largos (min-width nas grades, minimum-scale 1).
+32. Tarefas ficam "atrasadas" quando o horário marcado termina sem conclusão (Calendário e Cronograma). Sem migração.
+32. Tarefa com horário vira "atrasada" quando o horário de término passa sem concluir (Calendário e Cronograma; sem migração).
+33. Etapas (subtópicos) dentro do painel da tarefa no Calendário, com contador nos cartões (sem migração).

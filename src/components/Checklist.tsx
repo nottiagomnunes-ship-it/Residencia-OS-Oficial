@@ -8,7 +8,7 @@ import { TIPOS_ETAPA, tituloPadrao, progressoEtapas, type Etapa, type Modelo } f
 
 const COR: Record<string, string> = { video: 'text-info', leitura: 'text-violet', questoes: 'text-pink', flashcards: 'text-warn', outro: 'text-muted' }
 
-export default function Checklist({ topicId, inicial, modelos: modelosIniciais, concluido }: { topicId: string; inicial: Etapa[]; modelos: Modelo[]; concluido: boolean }) {
+export default function Checklist({ topicId, inicial, modelos: modelosIniciais, concluido, compacto = false }: { topicId: string; inicial: Etapa[]; modelos: Modelo[]; concluido: boolean; compacto?: boolean }) {
   const [itens, setItens] = useState(inicial), [modelos, setModelos] = useState(modelosIniciais), [gerenciar, setGerenciar] = useState(false)
   const [tipo, setTipo] = useState('video'), [titulo, setTitulo] = useState(''), [qtd, setQtd] = useState(''), [salvar, setSalvar] = useState(false)
   const [edId, setEdId] = useState<string | null>(null), [edTxt, setEdTxt] = useState(''), [edQtd, setEdQtd] = useState('')
@@ -41,7 +41,7 @@ export default function Checklist({ topicId, inicial, modelos: modelosIniciais, 
   }
   return (
     <div className="space-y-4">
-      <section className="space-y-3 rounded-2xl border border-line bg-surface p-5">
+      <section className={compacto ? 'space-y-3' : 'space-y-3 rounded-2xl border border-line bg-surface p-5'}>
         <div className="flex items-baseline justify-between"><h2 className="font-medium">Etapas</h2><span className="text-sm text-muted">{p.feitas}/{p.total}</span></div>
         {p.total > 0 && <Bar pct={p.pct} />}
         <ul className="space-y-1">{itens.map(i => (
@@ -91,7 +91,7 @@ export default function Checklist({ topicId, inicial, modelos: modelosIniciais, 
         </form>
         {erro && <p role="alert" className="text-sm text-danger">{erro}</p>}
       </section>
-      {!concluido && (
+      {!concluido && !compacto && (
         <section className={`rounded-2xl border p-5 ${p.completo ? 'border-brand/50 bg-brand/10' : 'border-line bg-surface'}`}>
           <h2 className="font-medium">{p.completo ? 'Todas as etapas concluídas' : 'Concluir o assunto'}</h2>
           <p className="text-sm text-muted">Ao concluir, o sistema registra o tempo, gera as revisões (D1, D7, D30…) e atualiza o progresso.</p>

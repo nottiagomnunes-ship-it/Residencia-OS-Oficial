@@ -1,8 +1,11 @@
 'use client'
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
+import { agoraBR } from '@/lib/dates'
 import Link from 'next/link'
 import { moverItem, adiarItem, concluirItem, excluirItem, editarItem } from '@/lib/calendar'
 import { statusDe } from '@/lib/engine/calendar'
+import { progressoEtapas, type Etapa, type Modelo } from '@/lib/engine/etapas'
+import Checklist from '@/components/Checklist'
 import { minParaHhmm, type Intervalo } from '@/lib/engine/compromissos'
 import { fmtData, inputCls } from '@/components/ui'
 
@@ -13,10 +16,12 @@ const TIPO: Record<string, string> = { estudo: 'Estudo', revisao: 'Revisão', qu
 const TIPO_COR: Record<string, string> = { questoes: 'text-violet', flashcards: 'text-pink', simulado: 'text-violet' }
 const SEMANA = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 
-export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados }: { items: Item[]; dias: string[]; view: string; hoje: string; mes: string; ocupados: Record<string, Intervalo[]> }) {
+export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, agora: agoraInicial, etapas, modelos }: { items: Item[]; dias: string[]; view: string; hoje: string; mes: string; ocupados: Record<string, Intervalo[]>; agora: number; etapas: Record<string, Etapa[]>; modelos: Modelo[] }) {
   const [sel, setSel] = useState<Item | null>(null)
   const [novaData, setNovaData] = useState('')
   const [pending, start] = useTransition()
+  const [agora, setAgora] = useState(agoraInicial)
+  useEffect(() => { setAgora(agoraBR()); const t = setInterval(() => setAgora(agoraBR()), 60_000); return () => clearInterval(t) }, []) // reavalia os atrasos a cada minuto
   const [editandoId, setEditandoId] = useState<string | null>(null), [ed, setEd] = useState({ titulo: '', hora: '', dur: '', qtd: '' }), [erro, setErro] = useState<string | null>(null)
   const run = (fn: () => Promise<unknown>) => start(async () => { await fn(); setSel(null) })
   /** Move/adia; se cair sobre um compromisso, pergunta antes de forçar. Cancelar não muda nada. */
@@ -56,7 +61,7 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados }
                   className={`rounded-lg border-l-4 border-line bg-line/40 px-2 py-1 text-muted ${compacto ? 'truncate text-[11px]' : 'text-xs'}`}>
                   {compacto ? minParaHhmm(o.ini) : `${minParaHhmm(o.ini)}–${o.fim >= 1440 ? '24:00' : minParaHhmm(o.fim)}`} {o.titulo}</div>))}
               {lista.map(i => {
-                const st = statusDe(i, hoje)
+                const st = statusDe(i, hoje, agora)
                 return (
                   <div key={i.id} role="button" tabIndex={0} draggable={i.status !== 'concluido'}
                     onDragStart={e => e.dataTransfer.setData('text/plain', i.id)} onClick={() => { setSel(i); setNovaData(i.data) }}
@@ -64,6 +69,7 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados }
                     className={`cursor-pointer rounded-lg border-l-4 px-2 py-1.5 ${compacto ? 'truncate text-[11px]' : 'text-sm'} ${COR[st]}`}>
                     {!compacto && <span className={`block text-xs ${TIPO_COR[i.tipo] ?? 'text-muted'}`}>{TIPO[i.tipo]}{i.hora_ini ? ` · ${i.hora_ini.slice(0, 5)}` : ''}</span>}
                     <span className={st === 'concluido' ? 'line-through opacity-70' : ''}>{i.titulo}</span>
+                    {!compacto && i.topic_id && (i.tipo === 'estudo' || i.tipo === 'revisao') && etapas[i.topic_id]?.length > 0 && (() => { const p = progressoEtapas(etapas[i.topic_id!]); return <span className={`ml-2 text-xs ${p.completo ? 'text-brand' : 'text-muted'}`}>✓ {p.feitas}/{p.total}</span> })()}
                   </div>)
               })}
             </section>)
@@ -74,10 +80,12 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados }
         <div className="fixed inset-0 z-40 grid place-items-end bg-black/60 md:place-items-center" onClick={() => setSel(null)}>
           <div role="dialog" aria-modal="true" aria-label={sel.titulo} onClick={e => e.stopPropagation()} className="max-h-[90dvh] w-full max-w-md space-y-4 overflow-y-auto rounded-t-2xl border border-line bg-surface p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:rounded-2xl">
             <div className="flex items-start justify-between gap-4">
-              <div><p className={`text-sm ${TIPO_COR[sel.tipo] ?? 'text-muted'}`}>{TIPO[sel.tipo]} · {ROTULO[statusDe(sel, hoje)]}</p><h2 className="text-lg font-semibold">{sel.titulo}</h2></div>
+              <div><p className={`text-sm ${TIPO_COR[sel.tipo] ?? 'text-muted'}`}>{TIPO[sel.tipo]} · {ROTULO[statusDe(sel, hoje, agora)]}</p><h2 className="text-lg font-semibold">{sel.titulo}</h2></div>
               <button onClick={() => setSel(null)} aria-label="Fechar" className="p-2 text-muted">✕</button>
             </div>
             <p className="text-sm text-muted">{fmtData(sel.data)}{sel.hora_ini ? ` · ${sel.hora_ini.slice(0, 5)}${sel.hora_fim ? `–${sel.hora_fim.slice(0, 5)}` : ''}` : ''}{sel.duracao_min ? ` · ${sel.duracao_min} min` : ''}{sel.qtd_questoes ? ` · ${sel.qtd_questoes} questões` : ''}{sel.origem === 'auto' ? ' · gerada pelo sistema' : ''}</p>
+            {sel.topic_id && (sel.tipo === 'estudo' || sel.tipo === 'revisao') && (
+              <Checklist key={sel.topic_id} topicId={sel.topic_id} inicial={etapas[sel.topic_id] ?? []} modelos={modelos} concluido={sel.status === 'concluido'} compacto />)}
             {sel.status !== 'concluido' && <>
               <div className="flex flex-wrap gap-2">
                 <button onClick={() => run(() => concluirItem(sel.id))} className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Concluir</button>

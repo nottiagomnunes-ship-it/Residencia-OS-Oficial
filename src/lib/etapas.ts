@@ -13,7 +13,7 @@ async function ctx() {
   if (!user) redirect('/login')
   return { sb, uid: user.id }
 }
-const refresh = () => ['/conteudos', '/disciplinas'].forEach(p => revalidatePath(p, 'layout'))
+const refresh = () => ['/conteudos', '/disciplinas', '/calendario'].forEach(p => revalidatePath(p, 'layout'))
 const COLS = 'id,tipo,titulo,qtd_questoes,concluida'
 
 export async function adicionarEtapa(topicId: string, tipo: string, titulo: string, qtd: number | null): Promise<Etapa | null> {

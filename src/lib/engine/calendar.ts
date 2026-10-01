@@ -20,10 +20,21 @@ export function mover(v: Visao, ancora: string, dir: 1 | -1) {
   const [y, m] = ancora.split('-').map(Number)
   return new Date(Date.UTC(y, m - 1 + dir, 1)).toISOString().slice(0, 10)
 }
-/** Status visual derivado da data: concluído, atrasado, próximo (hoje/amanhã) ou agendado. */
-export function statusDe(i: { status: string; data: string }, hoje: string) {
+type ItemStatus = { status: string; data: string; hora_ini?: string | null; hora_fim?: string | null; duracao_min?: number | null }
+/** Minuto do dia em que o horário da tarefa termina (hora de fim, ou início + duração); sem isso, não há como saber (null). */
+export function fimDoItem(i: ItemStatus) {
+  if (i.hora_fim) return hhmmParaMin(i.hora_fim)
+  if (i.hora_ini && i.duracao_min) return hhmmParaMin(i.hora_ini) + i.duracao_min
+  return null
+}
+/**
+ * Status visual derivado: concluído; atrasado (dia anterior, ou hoje depois do fim do horário marcado); próximo (hoje/amanhã); agendado.
+ * Sem horário de término conhecido, a tarefa só fica atrasada quando o dia acaba. `agoraMin` = minutos desde 00:00 (Brasília).
+ */
+export function statusDe(i: ItemStatus, hoje: string, agoraMin?: number) {
   if (i.status === 'concluido') return 'concluido'
   if (i.data < hoje) return 'atrasado'
+  if (i.data === hoje && agoraMin != null) { const fim = fimDoItem(i); if (fim != null && agoraMin >= fim) return 'atrasado' }
   return diffDays(hoje, i.data) <= 1 ? 'proximo' : 'agendado'
 }
 
