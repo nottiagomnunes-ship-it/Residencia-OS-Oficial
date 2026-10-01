@@ -34,6 +34,6 @@ describe('recomendacoes', () => {
   it('exige amostra mínima', () => { expect(recomendacoes([s({ total: 20, acertos: 5 })], d)).toHaveLength(0) })
 })
 it('série semanal agrupa de segunda a domingo', () => {
-  const r = serieSemanal([s({ total: 40, acertos: 30, realizado_em: '2026-09-29' }), s({ total: 10, acertos: 5, realizado_em: '2026-09-20' })], [{ data: '2026-09-30', minutos: 90 }], '2026-09-30', 2)
+  const r = serieSemanal([s({ total: 40, acertos: 30, realizado_em: '2026-09-29' }), s({ total: 10, acertos: 5, realizado_em: '2026-09-22' })], [{ data: '2026-09-30', minutos: 90 }], '2026-09-30', 2)
   expect(r).toHaveLength(2); expect(r[1]).toEqual({ semana: '28/09', questoes: 40, acerto: 75, horas: 1.5 }); expect(r[0].questoes).toBe(10)
 })

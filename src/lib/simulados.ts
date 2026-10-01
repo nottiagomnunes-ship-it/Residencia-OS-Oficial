@@ -30,8 +30,9 @@ export async function registrarSimulado(fd: FormData) {
 
   const { data: m } = await sb.from('mock_exams').insert({ user_id: uid, nome, data: dia, total, acertos, tempo_min: tempo, por_disciplina: linhas }).select('id').single()
   const base = { user_id: uid, banca: 'Simulado', prova: nome, realizado_em: dia, mock_exam_id: m!.id }
-  await sb.from('question_sets').insert(linhas.length ? linhas.map(l => ({ ...base, discipline_id: l.discipline_id, total: l.total, acertos: l.acertos }))
-    : [{ ...base, discipline_id: null, total, acertos, tempo_min: tempo }])
+  const filhas: Record<string, unknown>[] = linhas.length ? linhas.map(l => ({ ...base, discipline_id: l.discipline_id, total: l.total, acertos: l.acertos }))
+    : [{ ...base, discipline_id: null, total, acertos, tempo_min: tempo }]
+  await sb.from('question_sets').insert(filhas)
   await somarDia(sb, uid, dia, { xp: xpSimulado(total), minutos: tempo ?? 0, questoes: total, acertos })
   const { data: plan } = await sb.from('schedule_items').select('id').eq('tipo', 'simulado').eq('data', dia).neq('status', 'concluido').limit(1)
   if (plan?.[0]) await sb.from('schedule_items').update({ status: 'concluido' }).eq('id', plan[0].id)

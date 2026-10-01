@@ -19,7 +19,7 @@ export default function Checklist({ topicId, inicial, modelos: modelosIniciais, 
   const alternar = (i: Etapa) => { setItens(l => l.map(x => (x.id === i.id ? { ...x, concluida: !x.concluida } : x))); start(() => alternarEtapa(i.id, !i.concluida)) }
   const remover = (i: Etapa) => { setItens(l => l.filter(x => x.id !== i.id)); start(() => excluirEtapa(i.id)) }
   const usarModelo = (m: Modelo) => start(async () => { const n = await adicionarDoModelo(topicId, m.id); if (n) setItens(l => [...l, n]) })
-  const aplicarConjunto = () => start(async () => setItens(l => [...l, ...(await adicionarModelo(topicId))]))
+  const aplicarConjunto = () => start(async () => { const novas = await adicionarModelo(topicId); setItens(l => [...l, ...novas]) })
   const removerPadrao = (m: Modelo) => { setModelos(l => l.filter(x => x.id !== m.id)); start(() => excluirPadrao(m.id)) }
   const marcarConjunto = (m: Modelo) => { setModelos(l => l.map(x => (x.id === m.id ? { ...x, conjunto: !x.conjunto } : x))); start(() => alternarConjunto(m.id, !m.conjunto)) }
   const editar = (i: Etapa) => { setEdId(i.id); setEdTxt(i.titulo); setEdQtd(i.qtd_questoes ? String(i.qtd_questoes) : ''); setErro(null) }
