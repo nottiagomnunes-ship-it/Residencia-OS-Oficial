@@ -102,10 +102,12 @@ export function gerarCronograma(e: Entrada) {
     ts.forEach((t, j) => alvo.set(t.id, dd[Math.floor((j * dd.length) / ts.length)]))
   })
 
-  // Foco das questões do dia: revisões marcadas nesse dia, um assunto fraco (em dias alternados, em rodízio) e o que foi estudado
-  // na semana até aqui. O primeiro assunto da lista vira o assunto da tarefa, para o atalho "Registrar questões" abrir já preenchido.
+  // Foco das questões do dia: UM assunto por bloco. Prioridade: revisão marcada para o dia, assunto fraco (em dias alternados, em rodízio)
+  // e o que foi estudado na semana (o mais recente primeiro). Dentro da mesma semana não repete assunto até todos terem tido a vez.
+  // O assunto escolhido vira o assunto da tarefa, para o atalho "Registrar questões" abrir já preenchido.
   const corta = (s: string) => (s.length > 40 ? s.slice(0, 39) + '…' : s)
   const idxDia = new Map(estudoDias.map((d, k) => [d, k]))
+  const usadosNaSemana = new Map<string, Set<string>>()
   const focoQuestoes = (d: string): { texto: string; id: string | null } | null => {
     const sem = weekStart(d), k = idxDia.get(d) ?? -1
     const fraco = e.fracos?.length && k % 2 === 1 ? [e.fracos[Math.floor(k / 2) % e.fracos.length]] : []
@@ -114,7 +116,11 @@ export function gerarCronograma(e: Entrada) {
     for (const x of [...(e.revisoesPorDia?.[d] ?? []).map(r => ({ nome: r.nome, id: r.id ?? null })), ...fraco.map(f => ({ nome: f.nome, id: f.id })), ...estudados])
       if (!vistos.has(x.nome)) { vistos.add(x.nome); itens.push(x) }
     if (!itens.length) return null
-    return { texto: itens.slice(0, 3).map(x => corta(x.nome)).join(', ') + (itens.length > 3 ? ` e mais ${itens.length - 3}` : ''), id: itens[0].id }
+    const ja = usadosNaSemana.get(sem) ?? usadosNaSemana.set(sem, new Set()).get(sem)!
+    if (!itens.some(x => !ja.has(x.nome))) ja.clear() // todos já tiveram a vez: recomeça o rodízio
+    const escolhido = itens.find(x => !ja.has(x.nome))!
+    ja.add(escolhido.nome)
+    return { texto: corta(escolhido.nome), id: escolhido.id }
   }
 
   let i = 0
@@ -126,7 +132,10 @@ export function gerarCronograma(e: Entrada) {
       blocos.push({ tipo: 'estudo', topic_id: t.reforco ? null : t.id, titulo: t.reforco ? `Reforço — ${t.nome}` : t.nome, data: d, duracao_min: dur, qtd_questoes: null })
       primeira ??= t; livre -= dur; i++
     }
-    if (qMin && livreTotal(d) >= MIN_BLOCO) blocos.push({ tipo: 'questoes', topic_id: focoQuestoes(d)?.id ?? null, titulo: `${e.questoesDia} questões — ${focoQuestoes(d)?.texto ?? discFoco}`, data: d, duracao_min: qMin, qtd_questoes: e.questoesDia })
+    if (qMin && livreTotal(d) >= MIN_BLOCO) {
+      const fq = focoQuestoes(d)
+      blocos.push({ tipo: 'questoes', topic_id: fq?.id ?? null, titulo: `${e.questoesDia} questões — ${fq?.texto ?? discFoco}`, data: d, duracao_min: qMin, qtd_questoes: e.questoesDia })
+    }
   }
 
   // reta final: por semana, o simulado vai para o dia com a maior janela contínua (se couber 90+ min); nos demais, questões
@@ -138,7 +147,8 @@ export function gerarCronograma(e: Entrada) {
       if (d === melhor && durSim >= 90) blocos.push({ tipo: 'simulado', topic_id: null, titulo: 'Simulado', data: d, duracao_min: durSim, qtd_questoes: null })
       else if (e.questoesDia > 0 && livreTotal(d) >= MIN_BLOCO) {
         const q = Math.round(e.questoesDia * 1.5)
-        blocos.push({ tipo: 'questoes', topic_id: focoQuestoes(d)?.id ?? null, titulo: `${q} questões — ${focoQuestoes(d)?.texto ?? 'Revisão geral'}`, data: d, duracao_min: Math.min(q * 2, Math.round(e.minutosDia * 0.6), maior(d)), qtd_questoes: q })
+        const fq = focoQuestoes(d)
+        blocos.push({ tipo: 'questoes', topic_id: fq?.id ?? null, titulo: `${q} questões — ${fq?.texto ?? 'Revisão geral'}`, data: d, duracao_min: Math.min(q * 2, Math.round(e.minutosDia * 0.6), maior(d)), qtd_questoes: q })
       }
     }
   }

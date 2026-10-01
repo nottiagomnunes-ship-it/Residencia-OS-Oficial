@@ -89,12 +89,12 @@ describe('foco das questões do dia', () => {
   it('usa as revisões do dia e os assuntos estudados na semana (mais recente primeiro)', () => {
     const r = gerarCronograma(base({ prova: '2026-12-15', topicos: [g('a', 0), g('b', 1), g('c', 2)], revisoesPorDia: { '2026-10-01': [{ nome: 'Pneumonia' }] } }))
     expect(titulo(r, '2026-09-30')).toBe('40 questões — a')
-    expect(titulo(r, '2026-10-01')).toBe('40 questões — Pneumonia, b, a')
-    expect(titulo(r, '2026-10-02')).toBe('40 questões — c, b, a')
+    expect(titulo(r, '2026-10-01')).toBe('40 questões — Pneumonia')
+    expect(titulo(r, '2026-10-02')).toBe('40 questões — c')
   })
-  it('só mostra até 3 assuntos e resume o resto', () => {
+  it('com várias revisões no mesmo dia, o bloco fica com um assunto só', () => {
     const rev = ['R1', 'R2', 'R3', 'R4', 'R5'].map(nome => ({ nome }))
-    expect(titulo(gerarCronograma(base({ topicos: [], revisoesPorDia: { '2026-10-01': rev } })), '2026-10-01')).toBe('40 questões — R1, R2, R3 e mais 2')
+    expect(titulo(gerarCronograma(base({ topicos: [], revisoesPorDia: { '2026-10-01': rev } })), '2026-10-01')).toBe('40 questões — R1')
   })
   it('sem revisões nem assuntos na semana, cai na disciplina de maior peso', () => {
     expect(titulo(gerarCronograma(base({ topicos: [] })), '2026-10-01')).toBe('40 questões — Clínica')
@@ -121,5 +121,23 @@ describe('assuntos fracos e atalho nas questões', () => {
   it('a vinculação do bloco de questões não conta como assunto atrasado da semana', () => {
     const t: Topico = { id: 'a', nome: 'a', disciplineId: 'A', prioridade: 2, dificuldade: 2, ordem: 0, grupo: 'Semana 1' }
     expect(gerarCronograma(base({ topicos: [t] })).avisos.join(' ')).not.toMatch(/Semana 1/)
+  })
+})
+
+describe('um bloco de questões, um assunto', () => {
+  const t = (id: string, ordem: number): Topico => ({ id, nome: id, disciplineId: 'A', prioridade: 2, dificuldade: 2, ordem, grupo: 'Semana 1' })
+  const blocosQ = (r: ReturnType<typeof gerarCronograma>) => r.blocos.filter(b => b.tipo === 'questoes')
+  it('nenhum bloco junta vários assuntos, e o assunto do título é o assunto da tarefa', () => {
+    const r = gerarCronograma(base({ prova: '2026-12-15', topicos: [t('a', 0), t('b', 1), t('c', 2)], revisoesPorDia: { '2026-10-01': [{ nome: 'Pneumonia', id: 'p1' }, { nome: 'Asma', id: 'p2' }] }, fracos: [{ id: 'w1', nome: 'HAS', disciplineId: 'A' }] }))
+    for (const b of blocosQ(r)) { expect(b.titulo).not.toMatch(/,| e mais /); expect(b.titulo.split(' — ').length).toBe(2) }
+    expect(blocosQ(r).find(b => b.data === '2026-10-01')).toMatchObject({ titulo: '40 questões — Pneumonia', topic_id: 'p1' })
+  })
+  it('os assuntos da semana se revezam, um por bloco, sem repetir até todos terem a vez', () => {
+    const r = gerarCronograma(base({ prova: '2026-12-15', topicos: [t('a', 0), t('b', 1), t('c', 2)] }))
+    expect(blocosQ(r).filter(b => b.data <= '2026-10-02').map(b => b.titulo)).toEqual(['40 questões — a', '40 questões — b', '40 questões — c'])
+  })
+  it('quando todos já tiveram a vez, o rodízio recomeça', () => {
+    const r = gerarCronograma(base({ prova: '2026-12-15', topicos: [t('a', 0), t('b', 1)] }))
+    expect(blocosQ(r).filter(b => b.data <= '2026-10-02').map(b => b.titulo)).toEqual(['40 questões — a', '40 questões — b', '40 questões — b'])
   })
 })

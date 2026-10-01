@@ -20,3 +20,13 @@ export function estatisticasErros(erros: { motivo: string }[]) {
   const topo = linhas[0]
   return { total, linhas, frase: total && topo.n ? `${topo.pct}% dos seus erros ${MOTIVOS[topo.motivo].frase}.` : null }
 }
+
+/** Resumo ao vivo enquanto se digita: erros e aproveitamento, ou o motivo de o registro ainda não poder ser feito. */
+export function resumoQuestoes(total: string, acertos: string) {
+  const t = Number(total), a = Number(acertos)
+  const totalOk = total !== '' && Number.isInteger(t) && t >= 1, acertosOk = acertos !== '' && Number.isInteger(a) && a >= 0
+  if (!totalOk || !acertosOk) return { valido: false, mensagem: null as string | null, tipo: 'neutro' as const }
+  if (a > t) return { valido: false, mensagem: `Os acertos (${a}) não podem passar do total (${t}).`, tipo: 'erro' as const }
+  const pct = aproveitamento(a, t)!, erros = t - a
+  return { valido: true, mensagem: `${erros} ${erros === 1 ? 'erro' : 'erros'} · ${pct}% de aproveitamento`, tipo: (pct >= 75 ? 'bom' : pct >= 60 ? 'medio' : 'baixo') as 'bom' | 'medio' | 'baixo' }
+}

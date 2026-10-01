@@ -4,7 +4,7 @@ import { registrarQuestoes, excluirQuestoes } from '@/lib/questoes'
 import { hojeBR } from '@/lib/dates'
 import { aproveitamento } from '@/lib/engine/questoes'
 import { fmtData, inputCls } from '@/components/ui'
-import { AlvoSelect } from '@/components/AlvoSelect'
+import QuestoesForm from '@/components/QuestoesForm'
 
 const corAcerto = (p: number | null) => (p == null ? '' : p >= 75 ? 'text-brand' : p >= 60 ? 'text-warn' : 'text-danger')
 
@@ -24,23 +24,13 @@ export default async function Questoes({ searchParams }: { searchParams: Promise
       <h1 className="text-2xl font-semibold">Questões</h1>
       {ok && t > 0 && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-4 text-sm">Registrado: {t} questões, {aproveitamento(a, t)}% de aproveitamento.{t - a > 0 && <> Você errou {t - a}: <Link href="/caderno-de-erros" className="text-brand underline">adicione ao Caderno de Erros</Link>.</>}</p>}
       {erro && <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">{erro}</p>}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+      <div className="space-y-6 lg:grid lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start lg:gap-6 lg:space-y-0">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4 lg:col-start-2 lg:row-start-1 lg:grid-cols-2 xl:grid-cols-4">
         {card('Questões realizadas', String(total))}{card('Aproveitamento', total ? `${aproveitamento(acertos, total)}%` : '—', corAcerto(aproveitamento(acertos, total)))}
         {card('Acertos', String(acertos))}{card('Erros', String(total - acertos))}
       </div>
-      <form action={registrarQuestoes} className="grid gap-3 rounded-2xl border border-line bg-surface p-5 sm:grid-cols-2 xl:grid-cols-4">
-        <h2 className="font-medium sm:col-span-2 xl:col-span-4">Registrar questões</h2>
-        <AlvoSelect ds={ds ?? []} ts={ts ?? []} defaultValue={alvo} />
-        <input name="banca" placeholder="Banca" className={inputCls} /><input name="prova" placeholder="Prova" className={inputCls} />
-        <input name="ano" type="number" inputMode="numeric" min={1990} max={2100} placeholder="Ano" className={inputCls} />
-        <input name="total" type="number" inputMode="numeric" min={1} required defaultValue={totalSugerido} placeholder="Questões feitas" className={inputCls} />
-        <input name="acertos" type="number" inputMode="numeric" min={0} required placeholder="Acertos" className={inputCls} />
-        <input name="tempo_min" type="number" inputMode="numeric" min={0} placeholder="Tempo (min)" className={inputCls} />
-        <select name="dificuldade" defaultValue="" aria-label="Dificuldade" className={inputCls}><option value="">Dificuldade</option><option value={1}>Fácil</option><option value={2}>Médio</option><option value={3}>Difícil</option></select>
-        <input name="data" type="date" defaultValue={hoje} aria-label="Data" className={inputCls} />
-        <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black sm:col-span-2 xl:col-span-4">Registrar</button>
-      </form>
-      <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
+      <QuestoesForm ds={ds ?? []} ts={ts ?? []} alvo={alvo} totalInicial={totalSugerido} hoje={hoje} className="lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:sticky lg:top-6 lg:self-start" />
+      <div className="overflow-x-auto rounded-2xl border border-line bg-surface lg:hidden">
         <table className="w-full text-left text-sm max-md:block">
           <thead className="text-muted max-md:hidden"><tr className="border-b border-line">{['Data', 'Assunto', 'Prova', 'Questões', 'Acertos', 'Aproveitamento', 'Tempo', ''].map(h => <th key={h} className="px-4 py-3 font-normal">{h}</th>)}</tr></thead>
           <tbody className="max-md:block">{((hist ?? []) as any[]).map(q => { const p = aproveitamento(q.acertos, q.total); return (
@@ -53,6 +43,16 @@ export default async function Questoes({ searchParams }: { searchParams: Promise
               <td className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]"><form action={excluirQuestoes}><input type="hidden" name="id" value={q.id} /><button className="text-danger hover:underline">Excluir</button></form></td></tr>) })}</tbody>
         </table>
         {!hist?.length && <p className="p-6 text-center text-muted">Nenhuma questão registrada. Use o formulário acima depois da sua próxima sessão de questões.</p>}
+      </div>
+      <div className="hidden space-y-3 lg:col-start-2 lg:row-start-2 lg:block">
+        {((hist ?? []) as any[]).map(q => { const p = aproveitamento(q.acertos, q.total); const prova = [q.banca, q.prova, q.ano].filter(Boolean).join(' · '); return (
+          <article key={q.id} className="rounded-2xl border border-line bg-surface p-4">
+            <div className="flex items-baseline justify-between gap-3"><span className="font-medium">{q.topics?.nome ?? q.disciplines?.nome ?? 'Sem assunto'}</span><span className={`font-semibold ${corAcerto(p)}`}>{p}%</span></div>
+            <p className="mt-1 text-sm text-muted">{fmtData(q.realizado_em)} · {q.acertos}/{q.total} acertos{q.tempo_min ? ` · ${q.tempo_min} min` : ''}{prova ? ` · ${prova}` : ''}</p>
+            <form action={excluirQuestoes} className="mt-2"><input type="hidden" name="id" value={q.id} /><button className="text-sm text-danger hover:underline">Excluir</button></form>
+          </article>) })}
+        {!hist?.length && <p className="rounded-2xl border border-dashed border-line p-8 text-center text-muted">Nenhuma questão registrada. Use o formulário ao lado depois da sua próxima sessão de questões.</p>}
+      </div>
       </div>
     </div>
   )

@@ -47,3 +47,5 @@
 45. Tablet/celular: lista "Hoje" no Início, alvos de toque de 44 px e mais espaço entre botões, calendário em 2 colunas no tablet, lateral só a partir de 1024 px, teclado numérico. Sem migração.
 46. Calendário no celular: mês com pontinhos coloridos e lista do dia embaixo; controle de visão (Dia/Semana/Mês) em um bloco; título "Outubro de 2026".
 47. Lembrete por e-mail: se o envio for recusado por causa do destinatário (modo de teste do Resend), a conta é desligada sozinha e mostra o motivo. Rode `supabase/migrations/0016_lembrete_aviso.sql`.
+48. Questões: atalhos de quantidade, resumo ao vivo (erros e %) e detalhes recolhidos; Caderno de erros: motivo em botões; formulário ao lado do histórico no tablet deitado.
+49. Questões do dia: cada bloco tem UM assunto (rodízio dentro da semana), em vez de listar vários.

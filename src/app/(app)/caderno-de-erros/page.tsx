@@ -46,23 +46,31 @@ export default async function CadernoDeErros({ searchParams }: { searchParams: P
               <span className="text-right text-muted">{l.n}</span>
             </div>))}
         </div>)}
-      {paraHoje.length > 0 && <section className="space-y-3"><h2 className="font-medium text-warn">Para revisar hoje ({paraHoje.length})</h2><ul className="space-y-3">{paraHoje.map(e => <Item key={e.id} e={e} />)}</ul></section>}
-      <form action={adicionarErro} className="grid gap-3 rounded-2xl border border-line bg-surface p-5 sm:grid-cols-2">
-        <h2 className="font-medium sm:col-span-2">Adicionar erro</h2>
+      <div className="space-y-6 lg:grid lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start lg:gap-6 lg:space-y-0">
+      {paraHoje.length > 0 && <section className="space-y-3 lg:col-start-2"><h2 className="font-medium text-warn">Para revisar hoje ({paraHoje.length})</h2><ul className="space-y-3">{paraHoje.map(e => <Item key={e.id} e={e} />)}</ul></section>}
+      <form action={adicionarErro} className="space-y-4 rounded-2xl border border-line bg-surface p-5 lg:col-start-1 lg:row-span-4 lg:row-start-1 lg:sticky lg:top-6 lg:self-start">
+        <h2 className="font-medium">Adicionar erro</h2>
         <AlvoSelect ds={ds ?? []} ts={ts ?? []} />
-        <select name="motivo" required defaultValue="" aria-label="Motivo do erro" className={inputCls}><option value="" disabled>Motivo do erro</option>
-          {(Object.keys(MOTIVOS) as Motivo[]).map(k => <option key={k} value={k}>{MOTIVOS[k].rotulo}</option>)}</select>
-        <textarea name="enunciado" rows={3} placeholder="Questão (enunciado ou referência: banca, ano, número)" className={inputCls + ' sm:col-span-2'} />
-        <textarea name="comentario" rows={2} placeholder="O que você aprendeu com este erro?" className={inputCls + ' sm:col-span-2'} />
-        <label className="flex items-center gap-2 text-sm text-muted">Revisar em <input name="revisar_em" type="date" defaultValue={addDays(hoje, 7)} className={inputCls} /></label>
-        <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Adicionar ao caderno</button>
+        <fieldset>
+          <legend className="mb-2 text-sm text-muted">Por que você errou?</legend>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2">{(Object.keys(MOTIVOS) as Motivo[]).map((k, i) => (
+            <label key={k} className="cursor-pointer">
+              <input type="radio" name="motivo" value={k} required={i === 0} className="peer sr-only" />
+              <span className="flex min-h-12 items-center justify-center rounded-xl border border-line px-3 text-center text-sm peer-checked:border-brand peer-checked:bg-brand/15 peer-checked:text-brand peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-brand">{MOTIVOS[k].rotulo}</span>
+            </label>))}</div>
+        </fieldset>
+        <textarea name="enunciado" rows={3} placeholder="Questão (enunciado ou referência: banca, ano, número)" className={inputCls + ' w-full'} />
+        <textarea name="comentario" rows={2} placeholder="O que você aprendeu com este erro?" className={inputCls + ' w-full'} />
+        <label className="flex flex-wrap items-center gap-2 text-sm text-muted">Revisar em <input name="revisar_em" type="date" defaultValue={addDays(hoje, 7)} className={inputCls} /></label>
+        <button className="w-full rounded-xl bg-brand px-4 py-3 font-medium text-black">Adicionar ao caderno</button>
       </form>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 lg:col-start-2">
         <Link href="/caderno-de-erros" className={chip(!filtro)}>Todos</Link>
         {(Object.keys(MOTIVOS) as Motivo[]).map(k => <Link key={k} href={`/caderno-de-erros?m=${k}`} className={chip(filtro === k)}>{MOTIVOS[k].rotulo}</Link>)}
       </div>
-      <ul className="space-y-3">{lista.map(e => <Item key={e.id} e={e} />)}</ul>
-      {!lista.length && <p className="rounded-2xl border border-dashed border-line p-8 text-center text-muted">Nenhum erro por aqui. Depois de registrar questões, anote os erros para transformá-los em revisão.</p>}
+      <ul className="space-y-3 lg:col-start-2">{lista.map(e => <Item key={e.id} e={e} />)}</ul>
+      {!lista.length && <p className="rounded-2xl border border-dashed border-line p-8 text-center text-muted lg:col-start-2">Nenhum erro por aqui. Depois de registrar questões, anote os erros para transformá-los em revisão.</p>}
+      </div>
     </div>
   )
 }
