@@ -37,3 +37,5 @@
 35. Toda conta nova começa com 0 assuntos: o onboarding não carrega mais o catálogo sugerido (ele continua disponível, só se você pedir, em Conteúdos).
 36. Gravações "tudo ou nada": rode `supabase/migrations/0013_funcoes_atomicas.sql` ANTES de publicar esta versão (concluir assunto/revisão, gerar cronograma e registrar questões).
 37. Importar plano e "Só limpar" também são "tudo ou nada": rode `supabase/migrations/0014_importar_plano_atomico.sql` ANTES de publicar esta versão.
+38. "Esqueci minha senha" (/recuperar-senha, /auth/confirm, /redefinir-senha): veja o final do DEPLOY.md. Sem migração.
+39. Recuperação de senha sem editar o modelo do e-mail: o link traz a sessão no "#" e a página /auth/recuperar a grava (funciona em qualquer aparelho).

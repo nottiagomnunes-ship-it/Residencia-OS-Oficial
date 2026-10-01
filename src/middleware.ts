@@ -15,7 +15,8 @@ export async function middleware(req: NextRequest) {
   })
   const { data: { user } } = await sb.auth.getUser()
   const onLogin = ['/login', '/cadastro'].some(p => req.nextUrl.pathname.startsWith(p)) // páginas públicas
-  if (!user && !onLogin) return NextResponse.redirect(new URL('/login', req.url))
+  const publica = onLogin || ['/recuperar-senha', '/auth'].some(p => req.nextUrl.pathname.startsWith(p))
+  if (!user && !publica) return NextResponse.redirect(new URL('/login', req.url))
   if (user && onLogin) return NextResponse.redirect(new URL('/inicio', req.url))
   return res
 }

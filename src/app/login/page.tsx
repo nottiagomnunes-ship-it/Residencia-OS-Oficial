@@ -12,6 +12,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
         <label className="block space-y-1"><span className="text-sm">E-mail</span><input name="email" type="email" required autoComplete="email" className={input} /></label>
         <label className="block space-y-1"><span className="text-sm">Senha</span><input name="password" type="password" required autoComplete="current-password" className={input} /></label>
         {erro && <p role="alert" className="text-sm text-danger">{erro}</p>}
+        <p className="text-right text-sm"><Link href="/recuperar-senha" className="text-brand underline">Esqueci minha senha</Link></p>
         <button className="w-full rounded-xl bg-brand py-3 font-medium text-black">Entrar</button>
         <p className="text-center text-sm text-muted">Ainda não tem conta? <Link href="/cadastro" className="text-brand underline">Criar conta</Link></p>
       </form>

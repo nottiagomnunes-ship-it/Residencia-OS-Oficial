@@ -17,3 +17,8 @@
 7. **Opcional:** em Vercel → Settings → Functions, escolha a região mais próxima do seu projeto Supabase (ex.: São Paulo).
 
 Problemas comuns: build falha (leia o log da Vercel); tela de login em loop (variáveis de ambiente ausentes ou com valor errado); app lento (regiões distantes entre Vercel e Supabase); projeto Supabase gratuito pausa após 7 dias sem uso (reative no painel).
+
+## Esqueci minha senha (e-mail de recuperação)
+Funciona com o e-mail **padrão** do Supabase (em inglês). Não é preciso editar o modelo do e-mail, que fica bloqueado sem SMTP próprio.
+1. **Supabase → Authentication → URL Configuration:** *Site URL* = endereço da Vercel e, em *Redirect URLs*, `https://SEU-APP.vercel.app/**`. Sem isso, o link do e-mail não volta para o app.
+2. Opcional, mais tarde: configurar um SMTP próprio (por exemplo, Resend) melhora a entrega, tira o limite de poucos e-mails por hora e permite escrever o e-mail em português.

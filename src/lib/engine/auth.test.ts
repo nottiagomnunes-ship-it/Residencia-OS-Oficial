@@ -15,3 +15,18 @@ it('valida o cadastro: e-mail, tamanho da senha e confirmação', () => {
   expect(validarCadastro('a@b.com', '1234567', '1234567')).toMatch(/8 caracteres/)
   expect(validarCadastro('a@b.com', '12345678', '12345679')).toMatch(/não são iguais/)
 })
+
+import { validarSenhaNova, caminhoSeguro } from './auth'
+it('nova senha: tamanho e confirmação', () => {
+  expect(validarSenhaNova('12345678', '12345678')).toBeNull()
+  expect(validarSenhaNova('1234567', '1234567')).toMatch(/8 caracteres/)
+  expect(validarSenhaNova('12345678', 'abcdefgh')).toMatch(/não são iguais/)
+})
+it('o link de recuperação só pode levar a páginas do próprio site', () => {
+  expect(caminhoSeguro('/redefinir-senha')).toBe('/redefinir-senha'); expect(caminhoSeguro(null)).toBe('/inicio')
+  for (const ruim of ['https://outro.site', '//outro.site', '/\\outro', 'javascript:alert(1)', '', 'redefinir']) expect(caminhoSeguro(ruim)).toBe('/inicio')
+})
+it('mensagens de link vencido e senha repetida', () => {
+  expect(mensagemAuth('Auth session missing!')).toMatch(/link expirou/)
+  expect(mensagemAuth('New password should be different from the old password.')).toMatch(/diferente da atual/)
+})
