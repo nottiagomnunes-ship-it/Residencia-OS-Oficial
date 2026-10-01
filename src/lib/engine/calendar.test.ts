@@ -1,6 +1,5 @@
 import { it, expect, describe } from 'vitest'
 import { weekStart, diasDaVisao, mover, statusDe, validarEdicaoTarefa } from './calendar'
-import { hhmmParaMin } from './compromissos'
 
 it('semana começa na segunda', () => { expect(weekStart('2026-09-29')).toBe('2026-09-28'); expect(weekStart('2026-09-27')).toBe('2026-09-21') })
 it('grade do mês tem semanas completas', () => {
@@ -27,27 +26,4 @@ it('edição de tarefa: erros', () => {
   expect(e({ dur: '3' })).toHaveProperty('erro'); expect(e({ dur: '30.5' })).toHaveProperty('erro'); expect(e({ qtd: '0' })).toHaveProperty('erro')
   expect(e({ hora: '23:30', dur: '45' })).toHaveProperty('erro')
   expect(e({ titulo: '' }, true)).not.toHaveProperty('erro') // revisão: o título não é editável
-})
-
-describe('atrasado pelo horário', () => {
-  const hoje = '2026-10-05', t = (h: string) => hhmmParaMin(h)
-  const item = (o: object = {}) => ({ status: 'agendado', data: hoje, hora_ini: '08:00', hora_fim: '09:00', duracao_min: 60, ...o })
-  it('hoje, depois do fim do horário, a tarefa não concluída fica atrasada (no minuto exato do fim também)', () => {
-    expect(statusDe(item(), hoje, t('09:01'))).toBe('atrasado'); expect(statusDe(item(), hoje, t('09:00'))).toBe('atrasado')
-    expect(statusDe(item(), hoje, t('08:59'))).toBe('proximo'); expect(statusDe(item(), hoje, t('07:00'))).toBe('proximo')
-  })
-  it('sem hora de fim, usa início + duração', () => {
-    const i = item({ hora_fim: null, duracao_min: 45 })
-    expect(statusDe(i, hoje, t('08:44'))).toBe('proximo'); expect(statusDe(i, hoje, t('08:45'))).toBe('atrasado')
-  })
-  it('sem duração nem fim, ou sem horário, só fica atrasada quando o dia acaba', () => {
-    expect(statusDe(item({ hora_fim: null, duracao_min: null }), hoje, t('23:00'))).toBe('proximo')
-    expect(statusDe(item({ hora_ini: null, hora_fim: null, duracao_min: null }), hoje, t('23:00'))).toBe('proximo')
-    expect(statusDe(item({ hora_ini: null, hora_fim: null }), '2026-10-06', t('00:10'))).toBe('atrasado') // virou o dia
-  })
-  it('concluída nunca fica atrasada; dia futuro ignora a hora; sem "agora" não usa o horário', () => {
-    expect(statusDe(item({ status: 'concluido' }), hoje, t('23:00'))).toBe('concluido')
-    expect(statusDe(item({ data: '2026-10-08' }), hoje, t('23:00'))).toBe('agendado')
-    expect(statusDe(item(), hoje)).toBe('proximo')
-  })
 })

@@ -42,6 +42,14 @@ export default async function Configuracoes({ searchParams }: { searchParams: Pr
       </form>
       <section className={sec}><h2 className="font-medium">Disciplinas e conteúdos</h2>
         <p className="text-sm text-muted">Pesos, novas disciplinas e o catálogo de assuntos ficam em <Link href="/disciplinas" className="text-brand underline">Disciplinas</Link> e <Link href="/conteudos" className="text-brand underline">Conteúdos</Link>. Para trazer o seu próprio plano, em texto ou PDF, use <Link href="/importar" className="text-brand underline">Importar cronograma</Link>.</p></section>
+      <section className={sec}><h2 className="font-medium">Meus dados</h2>
+        <p className="text-sm text-muted">Baixe uma cópia do que você registrou. O backup completo guarda tudo; as planilhas abrem direto no Excel.</p>
+        <div className="flex flex-wrap gap-2 text-sm">
+          <a href="/exportar/backup" className="rounded-xl bg-brand px-4 py-2 font-medium text-black">Baixar backup completo (.json)</a>
+          {[['assuntos', 'Assuntos'], ['questoes', 'Questões'], ['erros', 'Caderno de erros'], ['simulados', 'Simulados']].map(([k, n]) => (
+            <a key={k} href={`/exportar/${k}`} className="rounded-xl border border-line px-4 py-2 hover:border-brand">{n} (.csv)</a>))}
+        </div>
+        <p className="text-xs text-muted">Guarde o backup em um lugar seguro: ele contém todo o seu histórico de estudo.</p></section>
       <section className={sec}><h2 className="font-medium">Instalar no celular</h2>
         <p className="text-sm text-muted">O app abre em tela cheia, com ícone na tela inicial, como um aplicativo.</p>
         <ul className="list-disc space-y-1 pl-5 text-sm">

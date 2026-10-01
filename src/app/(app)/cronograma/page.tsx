@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { supabaseServer } from '@/lib/supabase/server'
 import { gerarCronogramaAction } from '@/lib/schedule'
-import { agoraBR, hojeBR } from '@/lib/dates'
+import { hojeBR } from '@/lib/dates'
 import { addDays, diffDays } from '@/lib/engine/review'
 import { statusDe } from '@/lib/engine/calendar'
 import { hhmmParaMin, minParaHhmm, ocupadosPorData, ordenarDia, paraCompromisso } from '@/lib/engine/compromissos'
@@ -49,7 +49,7 @@ export default async function Cronograma({ searchParams }: { searchParams: Promi
                   <li key={'o' + k} className="flex flex-wrap items-baseline gap-x-3 border-l-4 border-line pl-3 text-sm text-muted">
                     <span className="w-24">{minParaHhmm(l.o.ini)}–{l.o.fim >= 1440 ? '24:00' : minParaHhmm(l.o.fim)}</span><span>{l.o.titulo}</span></li>
                 ) : (
-                  <li key={l.x.id} className={`flex flex-wrap items-baseline gap-x-3 border-l-4 pl-3 text-sm ${COR[statusDe(l.x, hoje, agoraBR())]}`}>
+                  <li key={l.x.id} className={`flex flex-wrap items-baseline gap-x-3 border-l-4 pl-3 text-sm ${COR[statusDe(l.x, hoje)]}`}>
                     <span className="w-24 text-muted">{l.x.hora_ini ? `${l.x.hora_ini.slice(0, 5)}–${l.x.hora_fim?.slice(0, 5)}` : 'Sem horário'}</span>
                     <span className="text-muted">{TIPO[l.x.tipo]}</span><span>{l.x.titulo}</span></li>))}</ul>)}
             </section>)

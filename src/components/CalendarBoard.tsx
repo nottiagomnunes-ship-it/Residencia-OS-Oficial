@@ -1,6 +1,5 @@
 'use client'
-import { useEffect, useState, useTransition } from 'react'
-import { agoraBR } from '@/lib/dates'
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { moverItem, adiarItem, concluirItem, excluirItem, editarItem } from '@/lib/calendar'
 import { statusDe } from '@/lib/engine/calendar'
@@ -16,12 +15,10 @@ const TIPO: Record<string, string> = { estudo: 'Estudo', revisao: 'Revisão', qu
 const TIPO_COR: Record<string, string> = { questoes: 'text-violet', flashcards: 'text-pink', simulado: 'text-violet' }
 const SEMANA = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 
-export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, agora: agoraInicial, etapas, modelos }: { items: Item[]; dias: string[]; view: string; hoje: string; mes: string; ocupados: Record<string, Intervalo[]>; agora: number; etapas: Record<string, Etapa[]>; modelos: Modelo[] }) {
+export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, etapas, modelos }: { items: Item[]; dias: string[]; view: string; hoje: string; mes: string; ocupados: Record<string, Intervalo[]>; etapas: Record<string, Etapa[]>; modelos: Modelo[] }) {
   const [sel, setSel] = useState<Item | null>(null)
   const [novaData, setNovaData] = useState('')
   const [pending, start] = useTransition()
-  const [agora, setAgora] = useState(agoraInicial)
-  useEffect(() => { setAgora(agoraBR()); const t = setInterval(() => setAgora(agoraBR()), 60_000); return () => clearInterval(t) }, []) // reavalia os atrasos a cada minuto
   const [editandoId, setEditandoId] = useState<string | null>(null), [ed, setEd] = useState({ titulo: '', hora: '', dur: '', qtd: '' }), [erro, setErro] = useState<string | null>(null)
   const run = (fn: () => Promise<unknown>) => start(async () => { await fn(); setSel(null) })
   /** Move/adia; se cair sobre um compromisso, pergunta antes de forçar. Cancelar não muda nada. */
@@ -61,7 +58,7 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
                   className={`rounded-lg border-l-4 border-line bg-line/40 px-2 py-1 text-muted ${compacto ? 'truncate text-[11px]' : 'text-xs'}`}>
                   {compacto ? minParaHhmm(o.ini) : `${minParaHhmm(o.ini)}–${o.fim >= 1440 ? '24:00' : minParaHhmm(o.fim)}`} {o.titulo}</div>))}
               {lista.map(i => {
-                const st = statusDe(i, hoje, agora)
+                const st = statusDe(i, hoje)
                 return (
                   <div key={i.id} role="button" tabIndex={0} draggable={i.status !== 'concluido'}
                     onDragStart={e => e.dataTransfer.setData('text/plain', i.id)} onClick={() => { setSel(i); setNovaData(i.data) }}
@@ -80,7 +77,7 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
         <div className="fixed inset-0 z-40 grid place-items-end bg-black/60 md:place-items-center" onClick={() => setSel(null)}>
           <div role="dialog" aria-modal="true" aria-label={sel.titulo} onClick={e => e.stopPropagation()} className="max-h-[90dvh] w-full max-w-md space-y-4 overflow-y-auto rounded-t-2xl border border-line bg-surface p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:rounded-2xl">
             <div className="flex items-start justify-between gap-4">
-              <div><p className={`text-sm ${TIPO_COR[sel.tipo] ?? 'text-muted'}`}>{TIPO[sel.tipo]} · {ROTULO[statusDe(sel, hoje, agora)]}</p><h2 className="text-lg font-semibold">{sel.titulo}</h2></div>
+              <div><p className={`text-sm ${TIPO_COR[sel.tipo] ?? 'text-muted'}`}>{TIPO[sel.tipo]} · {ROTULO[statusDe(sel, hoje)]}</p><h2 className="text-lg font-semibold">{sel.titulo}</h2></div>
               <button onClick={() => setSel(null)} aria-label="Fechar" className="p-2 text-muted">✕</button>
             </div>
             <p className="text-sm text-muted">{fmtData(sel.data)}{sel.hora_ini ? ` · ${sel.hora_ini.slice(0, 5)}${sel.hora_fim ? `–${sel.hora_fim.slice(0, 5)}` : ''}` : ''}{sel.duracao_min ? ` · ${sel.duracao_min} min` : ''}{sel.qtd_questoes ? ` · ${sel.qtd_questoes} questões` : ''}{sel.origem === 'auto' ? ' · gerada pelo sistema' : ''}</p>

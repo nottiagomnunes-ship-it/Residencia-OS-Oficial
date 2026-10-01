@@ -39,3 +39,5 @@
 37. Importar plano e "Só limpar" também são "tudo ou nada": rode `supabase/migrations/0014_importar_plano_atomico.sql` ANTES de publicar esta versão.
 38. "Esqueci minha senha" (/recuperar-senha, /auth/confirm, /redefinir-senha): veja o final do DEPLOY.md. Sem migração.
 39. Recuperação de senha sem editar o modelo do e-mail: o link traz a sessão no "#" e a página /auth/recuperar a grava (funciona em qualquer aparelho).
+40. Exportar dados: backup completo (JSON) e planilhas CSV (assuntos, questões, caderno de erros, simulados) em Configurações → Meus dados. Sem migração.
+41. O atraso voltou a valer só no fim do dia (a tarefa fica "Atrasada" quando o dia dela termina), como antes do atraso por horário.

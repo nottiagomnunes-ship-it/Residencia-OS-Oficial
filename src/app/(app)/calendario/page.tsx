@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { supabaseServer } from '@/lib/supabase/server'
-import { agoraBR, hojeBR } from '@/lib/dates'
+import { hojeBR } from '@/lib/dates'
 import { addDays } from '@/lib/engine/review'
 import { ocupadosPorData, paraCompromisso } from '@/lib/engine/compromissos'
 import { diasDaVisao, mover, type Visao } from '@/lib/engine/calendar'
@@ -43,7 +43,7 @@ export default async function Calendario({ searchParams }: { searchParams: Promi
         </div>
       </div>
       <NovaTarefa ancora={ancora} />
-      <CalendarBoard items={(data ?? []) as Item[]} dias={dias} view={v} hoje={hoje} agora={agoraBR()} mes={ancora.slice(0, 7)} ocupados={ocupados} etapas={etapas} modelos={modelos} />
+      <CalendarBoard items={(data ?? []) as Item[]} dias={dias} view={v} hoje={hoje} mes={ancora.slice(0, 7)} ocupados={ocupados} etapas={etapas} modelos={modelos} />
       <p className="text-xs text-muted">Os blocos em cinza são seus compromissos (cadastrados em Minha semana). No computador, arraste uma tarefa para outro dia. No celular, toque na tarefa e use “Mover para esta data”.</p>
     </div>
   )
