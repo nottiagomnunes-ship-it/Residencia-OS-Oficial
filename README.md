@@ -43,3 +43,4 @@
 41. O atraso voltou a valer só no fim do dia (a tarefa fica "Atrasada" quando o dia dela termina), como antes do atraso por horário.
 42. Lembrete diário por e-mail (Resend + agendador da Vercel): rode `supabase/migrations/0015_lembretes_email.sql` e configure as variáveis (veja o final do DEPLOY.md).
 43. Página /diagnostico (login): mostra se o servidor enxerga as variáveis (sem revelar valores) e qual commit está no ar.
+44. Endurecimento: unpdf 1.x (corrige 6 vulnerabilidades de dependência) e cabeçalhos de segurança HTTP.
