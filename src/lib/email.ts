@@ -4,7 +4,7 @@ export const siteUrl = (fallback?: string) =>
 
 /** Envia um e-mail pelo Resend (https://resend.com). Sem a chave RESEND_API_KEY, devolve um erro explicando o que falta. */
 export async function enviarEmail(para: string, assunto: string, html: string, texto: string): Promise<{ ok: boolean; erro?: string }> {
-  const chave = process.env.RESEND_API_KEY
+  const chave = process.env.RESEND_API_KEY?.trim()
   if (!chave) return { ok: false, erro: 'O envio de e-mails ainda não foi configurado no servidor (falta a chave RESEND_API_KEY).' }
   try {
     const r = await fetch('https://api.resend.com/emails', {
