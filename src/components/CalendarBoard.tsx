@@ -19,6 +19,7 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
   const [sel, setSel] = useState<Item | null>(null)
   const [novaData, setNovaData] = useState('')
   const [pending, start] = useTransition()
+  const [diaSel, setDiaSel] = useState('') // dia aberto na visão de mês do celular
   const [editandoId, setEditandoId] = useState<string | null>(null), [ed, setEd] = useState({ titulo: '', hora: '', dur: '', qtd: '' }), [erro, setErro] = useState<string | null>(null)
   const run = (fn: () => Promise<unknown>) => start(async () => { await fn(); setSel(null) })
   /** Move/adia; se cair sobre um compromisso, pergunta antes de forçar. Cancelar não muda nada. */
@@ -41,37 +42,65 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
   const nomeDia = (d: string) => new Date(d + 'T12:00:00Z').toLocaleDateString('pt-BR', { weekday: 'long', timeZone: 'UTC' }).replace('-feira', '')
   const cols = view === 'dia' ? 'grid-cols-1' : view === 'semana' ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-7' : 'grid-cols-7'
   const compacto = view === 'mes'
+  const diaAtivo = dias.includes(diaSel) ? diaSel : dias.includes(hoje) ? hoje : (dias.find(d => d.slice(0, 7) === mes) ?? dias[0])
+  const doDia = (d: string) => ({ lista: items.filter(i => i.data === d), ocup: [...(ocupados[d] ?? [])].sort((a, b) => a.ini - b.ini) })
+  const PONTO: Record<string, string> = { concluido: 'bg-brand', agendado: 'bg-info', proximo: 'bg-warn', atrasado: 'bg-danger' }
+  const faixa = (o: Intervalo, k: number, miudo: boolean) => (
+    <div key={'o' + k} title={`${o.titulo}: ${minParaHhmm(o.ini)} às ${o.fim >= 1440 ? '24:00' : minParaHhmm(o.fim)}`}
+      className={`rounded-lg border-l-4 border-line bg-line/40 px-2 py-1 text-muted ${miudo ? 'hidden truncate text-[11px] md:block' : 'text-xs'}`}>
+      {miudo ? minParaHhmm(o.ini) : `${minParaHhmm(o.ini)}–${o.fim >= 1440 ? '24:00' : minParaHhmm(o.fim)}`} {o.titulo}</div>)
+  const cartao = (i: Item, miudo: boolean) => {
+    const st = statusDe(i, hoje)
+    return (
+      <div key={i.id} role="button" tabIndex={0} draggable={i.status !== 'concluido'}
+        onDragStart={e => e.dataTransfer.setData('text/plain', i.id)} onClick={() => { setSel(i); setNovaData(i.data) }}
+        onKeyDown={e => e.key === 'Enter' && (setSel(i), setNovaData(i.data))}
+        className={`cursor-pointer rounded-lg border-l-4 ${miudo ? 'hidden truncate px-1.5 py-1.5 text-xs md:block' : 'px-3 py-2.5 text-sm'} ${COR[st]}`}>
+        {!miudo && <span className={`block text-xs ${TIPO_COR[i.tipo] ?? 'text-muted'}`}>{TIPO[i.tipo]}{i.hora_ini ? ` · ${i.hora_ini.slice(0, 5)}` : ''}</span>}
+        <span className={st === 'concluido' ? 'line-through opacity-70' : ''}>{i.titulo}</span>
+        {!miudo && i.topic_id && (i.tipo === 'estudo' || i.tipo === 'revisao') && etapas[i.topic_id]?.length > 0 && (() => { const p = progressoEtapas(etapas[i.topic_id!]); return <span className={`ml-2 text-xs ${p.completo ? 'text-brand' : 'text-muted'}`}>✓ {p.feitas}/{p.total}</span> })()}
+      </div>)
+  }
 
   return (
     <div className={pending ? 'opacity-60' : ''}>
       {compacto && <div className="mb-1 grid grid-cols-7 text-center text-xs text-muted">{SEMANA.map(s => <div key={s}>{s}</div>)}</div>}
       <div className={`grid gap-2 ${cols}`}>
         {dias.map(d => {
-          const lista = items.filter(i => i.data === d)
-          return (
-            <section key={d} onDragOver={e => e.preventDefault()}
+          const { lista, ocup } = doDia(d), fora = compacto && d.slice(0, 7) !== mes
+          const pontos = [...(ocup.length ? ['bg-muted'] : []), ...lista.map(i => PONTO[statusDe(i, hoje)])]
+          const secao = (
+            <section onDragOver={e => e.preventDefault()}
               onDrop={e => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) mover(f => moverItem(id, d, f)) }}
-              className={`min-h-24 space-y-2.5 rounded-xl border bg-surface p-3 ${d === hoje ? 'border-brand' : 'border-line'} ${compacto && d.slice(0, 7) !== mes ? 'opacity-40' : ''}`}>
+              className={`min-h-24 space-y-2.5 rounded-xl border bg-surface p-3 ${compacto ? 'hidden md:block' : ''} ${d === hoje ? 'border-brand' : 'border-line'} ${fora ? 'opacity-40' : ''}`}>
               <h3 className="text-sm">{compacto ? +d.slice(8) : <><span className="capitalize">{nomeDia(d)}</span> <span className="text-muted">{d.slice(8)}/{d.slice(5, 7)}</span></>}</h3>
-              {[...(ocupados[d] ?? [])].sort((a, b) => a.ini - b.ini).map((o, k) => (
-                <div key={'o' + k} title={`${o.titulo}: ${minParaHhmm(o.ini)} às ${o.fim >= 1440 ? '24:00' : minParaHhmm(o.fim)}`}
-                  className={`rounded-lg border-l-4 border-line bg-line/40 px-2 py-1 text-muted ${compacto ? 'truncate text-[11px]' : 'text-xs'}`}>
-                  {compacto ? minParaHhmm(o.ini) : `${minParaHhmm(o.ini)}–${o.fim >= 1440 ? '24:00' : minParaHhmm(o.fim)}`} {o.titulo}</div>))}
-              {lista.map(i => {
-                const st = statusDe(i, hoje)
-                return (
-                  <div key={i.id} role="button" tabIndex={0} draggable={i.status !== 'concluido'}
-                    onDragStart={e => e.dataTransfer.setData('text/plain', i.id)} onClick={() => { setSel(i); setNovaData(i.data) }}
-                    onKeyDown={e => e.key === 'Enter' && (setSel(i), setNovaData(i.data))}
-                    className={`cursor-pointer rounded-lg border-l-4 ${compacto ? 'truncate px-1.5 py-1.5 text-xs' : 'px-3 py-2.5 text-sm'} ${COR[st]}`}>
-                    {!compacto && <span className={`block text-xs ${TIPO_COR[i.tipo] ?? 'text-muted'}`}>{TIPO[i.tipo]}{i.hora_ini ? ` · ${i.hora_ini.slice(0, 5)}` : ''}</span>}
-                    <span className={st === 'concluido' ? 'line-through opacity-70' : ''}>{i.titulo}</span>
-                    {!compacto && i.topic_id && (i.tipo === 'estudo' || i.tipo === 'revisao') && etapas[i.topic_id]?.length > 0 && (() => { const p = progressoEtapas(etapas[i.topic_id!]); return <span className={`ml-2 text-xs ${p.completo ? 'text-brand' : 'text-muted'}`}>✓ {p.feitas}/{p.total}</span> })()}
-                  </div>)
-              })}
+              {ocup.map((o, k) => faixa(o, k, compacto))}
+              {lista.map(i => cartao(i, compacto))}
             </section>)
+          if (!compacto) return <div key={d} className="contents">{secao}</div>
+          return (
+            <div key={d} className="contents">
+              <button type="button" onClick={() => setDiaSel(d)} aria-pressed={d === diaAtivo}
+                aria-label={`${nomeDia(d)}, ${d.slice(8)}/${d.slice(5, 7)}: ${lista.length} ${lista.length === 1 ? 'tarefa' : 'tarefas'}`}
+                className={`flex min-h-16 w-full flex-col items-center gap-1.5 rounded-xl border p-1.5 text-sm md:hidden ${d === hoje ? 'border-brand' : 'border-line'} ${d === diaAtivo ? 'bg-brand/15' : 'bg-surface'} ${fora ? 'opacity-40' : ''}`}>
+                <span>{+d.slice(8)}</span>
+                <span aria-hidden className="flex flex-wrap justify-center gap-1">{pontos.slice(0, 6).map((c, k) => <span key={k} className={`size-2 rounded-full ${c}`} />)}{pontos.length > 6 && <span className="text-[10px] leading-none text-muted">+</span>}</span>
+              </button>
+              {secao}
+            </div>)
         })}
       </div>
+
+      {compacto && (() => {
+        const { lista, ocup } = doDia(diaAtivo)
+        return (
+          <section className="mt-4 space-y-2.5 md:hidden" aria-label="Tarefas do dia selecionado">
+            <h3 className="font-medium"><span className="capitalize">{nomeDia(diaAtivo)}</span> <span className="text-muted">{fmtData(diaAtivo)}</span></h3>
+            {ocup.map((o, k) => <div key={'a' + k} className="rounded-lg border-l-4 border-line bg-line/40 px-3 py-2 text-sm text-muted">{minParaHhmm(o.ini)}–{o.fim >= 1440 ? '24:00' : minParaHhmm(o.fim)} {o.titulo}</div>)}
+            {lista.map(i => cartao(i, false))}
+            {!lista.length && !ocup.length && <p className="text-sm text-muted">Nada neste dia.</p>}
+          </section>)
+      })()}
 
       {sel && (
         <div className="fixed inset-0 z-40 grid place-items-end bg-black/60 md:place-items-center" onClick={() => setSel(null)}>

@@ -45,3 +45,4 @@
 43. Página /diagnostico (login): mostra se o servidor enxerga as variáveis (sem revelar valores) e qual commit está no ar.
 44. Endurecimento: unpdf 1.x (corrige 6 vulnerabilidades de dependência) e cabeçalhos de segurança HTTP.
 45. Tablet/celular: lista "Hoje" no Início, alvos de toque de 44 px e mais espaço entre botões, calendário em 2 colunas no tablet, lateral só a partir de 1024 px, teclado numérico. Sem migração.
+46. Calendário no celular: mês com pontinhos coloridos e lista do dia embaixo; controle de visão (Dia/Semana/Mês) em um bloco; título "Outubro de 2026".

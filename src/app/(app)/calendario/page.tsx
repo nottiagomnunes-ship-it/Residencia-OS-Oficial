@@ -30,16 +30,21 @@ export default async function Calendario({ searchParams }: { searchParams: Promi
   const fmt = (d: string, o: Intl.DateTimeFormatOptions) => new Date(d + 'T12:00:00Z').toLocaleDateString('pt-BR', { ...o, timeZone: 'UTC' })
   const titulo = v === 'mes' ? fmt(ancora, { month: 'long', year: 'numeric' }) : v === 'dia' ? fmt(ancora, { weekday: 'long', day: 'numeric', month: 'long' })
     : `${fmt(dias[0], { day: '2-digit', month: '2-digit' })} a ${fmt(dias[6], { day: '2-digit', month: '2-digit' })}`
-  const btn = 'rounded-lg border border-line px-3 py-1.5 text-sm hover:border-brand'
+  const btn = 'rounded-lg border border-line px-4 py-2 text-sm hover:border-brand'
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold capitalize">{titulo}</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link href={link(v, mover(v, ancora, -1))} className={btn} aria-label="Anterior">‹</Link>
-          <Link href={link(v, hoje)} className={btn}>Hoje</Link>
-          <Link href={link(v, mover(v, ancora, 1))} className={btn} aria-label="Próximo">›</Link>
-          {(['dia', 'semana', 'mes'] as const).map(x => <Link key={x} href={link(x, ancora)} className={`${btn} ${x === v ? 'border-brand text-brand' : ''}`}>{x === 'mes' ? 'Mês' : x[0].toUpperCase() + x.slice(1)}</Link>)}
+      <div className="space-y-3">
+        <h1 className="text-2xl font-semibold first-letter:uppercase">{titulo}</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Link href={link(v, mover(v, ancora, -1))} className={btn} aria-label="Anterior">‹</Link>
+            <Link href={link(v, hoje)} className={btn}>Hoje</Link>
+            <Link href={link(v, mover(v, ancora, 1))} className={btn} aria-label="Próximo">›</Link>
+          </div>
+          <nav aria-label="Visão do calendário" className="grid grid-cols-3 overflow-hidden rounded-xl border border-line text-sm">
+            {(['dia', 'semana', 'mes'] as const).map(x => <Link key={x} href={link(x, ancora)} aria-current={x === v ? 'page' : undefined}
+              className={`px-4 py-2.5 text-center ${x === v ? 'bg-brand/15 text-brand' : 'hover:bg-line/40'}`}>{x === 'mes' ? 'Mês' : x[0].toUpperCase() + x.slice(1)}</Link>)}
+          </nav>
         </div>
       </div>
       <NovaTarefa ancora={ancora} />

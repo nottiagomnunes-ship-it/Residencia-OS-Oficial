@@ -19,7 +19,7 @@ export default function NovaTarefa({ ancora }: { ancora: string }) {
   }
   return (
     <details className="rounded-2xl border border-line bg-surface p-4">
-      <summary className="cursor-pointer text-sm font-medium text-brand">Nova tarefa</summary>
+      <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-brand">＋ Nova tarefa</summary>
       <form ref={form} onSubmit={enviar} className="mt-4 grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <input name="titulo" required placeholder="Título" className={inputCls + ' sm:col-span-3 xl:col-span-2'} />
         <select name="tipo" defaultValue="estudo" aria-label="Tipo" className={inputCls}><option value="estudo">Estudo</option><option value="questoes">Questões</option><option value="flashcards">Flashcards</option><option value="simulado">Simulado</option></select>
