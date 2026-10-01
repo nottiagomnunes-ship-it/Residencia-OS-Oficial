@@ -41,3 +41,4 @@
 39. Recuperação de senha sem editar o modelo do e-mail: o link traz a sessão no "#" e a página /auth/recuperar a grava (funciona em qualquer aparelho).
 40. Exportar dados: backup completo (JSON) e planilhas CSV (assuntos, questões, caderno de erros, simulados) em Configurações → Meus dados. Sem migração.
 41. O atraso voltou a valer só no fim do dia (a tarefa fica "Atrasada" quando o dia dela termina), como antes do atraso por horário.
+42. Lembrete diário por e-mail (Resend + agendador da Vercel): rode `supabase/migrations/0015_lembretes_email.sql` e configure as variáveis (veja o final do DEPLOY.md).

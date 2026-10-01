@@ -1,12 +1,13 @@
 import Link from 'next/link'
 import { supabaseServer } from '@/lib/supabase/server'
 import { salvarConfiguracoes, reiniciarConfiguracoes, sair } from '@/lib/config'
+import { salvarLembrete, enviarLembreteTeste } from '@/lib/lembretes'
 import { inputCls } from '@/components/ui'
 
 const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
-export default async function Configuracoes({ searchParams }: { searchParams: Promise<{ ok?: string; erro?: string }> }) {
-  const { ok, erro } = await searchParams
+export default async function Configuracoes({ searchParams }: { searchParams: Promise<{ ok?: string; erro?: string; aviso?: string }> }) {
+  const { ok, erro, aviso } = await searchParams
   const { data: p } = await (await supabaseServer()).from('profiles').select('*').single()
   const Campo = ({ t, dica, children }: { t: string; dica?: string; children: React.ReactNode }) => <label className="block space-y-1"><span className="text-sm">{t}</span>{children}{dica && <span className="block text-xs text-muted">{dica}</span>}</label>
   const sec = 'space-y-4 rounded-2xl border border-line bg-surface p-5'
@@ -14,6 +15,7 @@ export default async function Configuracoes({ searchParams }: { searchParams: Pr
     <div className="max-w-3xl space-y-6">
       <h1 className="text-2xl font-semibold">Configurações</h1>
       {ok && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-4 text-sm">Configurações salvas. Para aplicar a nova rotina ao plano, <Link href="/cronograma" className="text-brand underline">gere o cronograma novamente</Link>.</p>}
+      {aviso && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-4 text-sm">{aviso}</p>}
       {erro && <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">{erro}</p>}
       <form action={salvarConfiguracoes} className="space-y-6">
         <section className={sec}><h2 className="font-medium">Prova e rotina</h2>
@@ -42,6 +44,15 @@ export default async function Configuracoes({ searchParams }: { searchParams: Pr
       </form>
       <section className={sec}><h2 className="font-medium">Disciplinas e conteúdos</h2>
         <p className="text-sm text-muted">Pesos, novas disciplinas e o catálogo de assuntos ficam em <Link href="/disciplinas" className="text-brand underline">Disciplinas</Link> e <Link href="/conteudos" className="text-brand underline">Conteúdos</Link>. Para trazer o seu próprio plano, em texto ou PDF, use <Link href="/importar" className="text-brand underline">Importar cronograma</Link>.</p></section>
+      <section className={sec}><h2 className="font-medium">Lembretes por e-mail</h2>
+        <p className="text-sm text-muted">Todo dia, por volta das 7h (horário de Brasília), você recebe um resumo com as revisões e as tarefas do dia. Se o dia estiver livre, nenhum e-mail é enviado.</p>
+        {!process.env.RESEND_API_KEY && <p className="rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm">O envio de e-mails ainda não foi configurado no servidor (veja o final do DEPLOY.md).</p>}
+        <form action={salvarLembrete} className="flex flex-wrap items-center gap-4">
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="ativo" defaultChecked={!!p?.lembrete_email} className="accent-brand" />Receber o resumo diário por e-mail</label>
+          <button className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">Salvar</button>
+        </form>
+        <form action={enviarLembreteTeste}><button className="text-sm text-brand underline">Enviar um e-mail de teste agora</button></form>
+      </section>
       <section className={sec}><h2 className="font-medium">Meus dados</h2>
         <p className="text-sm text-muted">Baixe uma cópia do que você registrou. O backup completo guarda tudo; as planilhas abrem direto no Excel.</p>
         <div className="flex flex-wrap gap-2 text-sm">
