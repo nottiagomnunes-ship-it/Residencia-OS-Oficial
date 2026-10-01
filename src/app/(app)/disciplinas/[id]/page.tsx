@@ -1,0 +1,45 @@
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { supabaseServer } from '@/lib/supabase/server'
+import { Badge, Bar, STATUS, fmtData } from '@/components/ui'
+
+export default async function Disciplina({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const sb = await supabaseServer()
+  const { data: d } = await sb.from('disciplines').select('id,nome,cor').eq('id', id).maybeSingle()
+  if (!d) notFound()
+  const [{ data: ts }, { data: qs }, { data: rs }] = await Promise.all([
+    sb.from('topics').select('id,nome,subcategoria,status').eq('discipline_id', id).order('subcategoria').order('nome'),
+    sb.from('question_sets').select('topic_id,total,acertos').eq('discipline_id', id),
+    sb.from('reviews').select('topic_id,due_date,topics!inner(discipline_id)').eq('status', 'pendente').eq('topics.discipline_id', id),
+  ])
+  const topics = ts ?? [], sets = qs ?? [], revs = rs ?? []
+  const ok = topics.filter(t => t.status === 'concluido').length
+  const pct = topics.length ? Math.round((ok / topics.length) * 100) : 0
+  const tot = sets.reduce((a, s) => a + s.total, 0), ac = sets.reduce((a, s) => a + s.acertos, 0)
+  const stat = (l: string, v: string) => <div className="rounded-2xl border border-line bg-surface p-4"><p className="text-sm text-muted">{l}</p><p className="mt-1 text-2xl font-semibold">{v}</p></div>
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-semibold" style={{ color: d.cor }}>{d.nome}</h1>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="rounded-2xl border border-line bg-surface p-4"><p className="text-sm text-muted">Progresso</p><p className="mb-2 mt-1 text-2xl font-semibold">{pct}%</p><Bar pct={pct} cor={d.cor} /></div>
+        {stat('Conteúdos', `${ok}/${topics.length}`)}{stat('Questões', String(tot))}
+        {stat('Aproveitamento', tot ? `${Math.round((ac / tot) * 100)}%` : '—')}{stat('Revisões pendentes', String(revs.length))}
+      </div>
+      <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
+        <table className="w-full text-left text-sm">
+          <thead className="text-muted"><tr className="border-b border-line">{['Assunto', 'Status', 'Progresso', 'Questões', 'Acerto', 'Próxima revisão'].map(h => <th key={h} className="px-4 py-3 font-normal">{h}</th>)}</tr></thead>
+          <tbody>{topics.map(t => {
+            const s = sets.filter(x => x.topic_id === t.id), q = s.reduce((a, x) => a + x.total, 0), a = s.reduce((n, x) => n + x.acertos, 0)
+            const next = revs.filter(r => r.topic_id === t.id).map(r => r.due_date).sort()[0]
+            return (<tr key={t.id} className="border-b border-line/60 last:border-0">
+              <td className="px-4 py-3"><Link href={`/conteudos/${t.id}`} className="hover:text-brand hover:underline">{t.nome}</Link><span className="block text-xs text-muted">{t.subcategoria}</span></td>
+              <td className="px-4 py-3"><Badge status={t.status} /></td><td className="px-4 py-3">{STATUS[t.status].pct}%</td>
+              <td className="px-4 py-3">{q}</td><td className="px-4 py-3">{q ? `${Math.round((a / q) * 100)}%` : '—'}</td><td className="px-4 py-3">{fmtData(next)}</td></tr>)
+          })}</tbody>
+        </table>
+        {!topics.length && <p className="p-6 text-center text-muted">Nenhum assunto ainda. Importe o catálogo em Conteúdos.</p>}
+      </div>
+    </div>
+  )
+}
