@@ -45,7 +45,7 @@ export default function Checklist({ topicId, inicial, modelos: modelosIniciais, 
         <div className="flex items-baseline justify-between"><h2 className="font-medium">Etapas</h2><span className="text-sm text-muted">{p.feitas}/{p.total}</span></div>
         {p.total > 0 && <Bar pct={p.pct} />}
         <ul className="space-y-1">{itens.map(i => (
-          <li key={i.id} className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-line/40">
+          <li key={i.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl px-2 py-2 hover:bg-line/40">
             <button onClick={() => alternar(i)} role="checkbox" aria-checked={i.concluida} aria-label={`${i.concluida ? 'Desmarcar' : 'Concluir'}: ${i.titulo}`}
               className={`grid size-6 shrink-0 place-items-center rounded-full border text-sm ${i.concluida ? 'border-brand bg-brand text-black' : 'border-muted'}`}>{i.concluida ? '✓' : ''}</button>
             {edId === i.id ? (
@@ -56,7 +56,7 @@ export default function Checklist({ topicId, inicial, modelos: modelosIniciais, 
                 <button onClick={() => setEdId(null)} className="rounded-lg border border-line px-3 py-1.5 text-sm">Cancelar</button>
               </span>
             ) : (<>
-              <span className={`min-w-0 flex-1 ${i.concluida ? 'text-muted line-through' : ''}`}>{i.titulo}<span className={`ml-2 text-xs ${COR[i.tipo]}`}>{TIPOS_ETAPA[i.tipo]}</span></span>
+              <span className={`min-w-[9rem] flex-1 ${i.concluida ? 'text-muted line-through' : ''}`}>{i.titulo}<span className={`ml-2 text-xs ${COR[i.tipo]}`}>{TIPOS_ETAPA[i.tipo]}</span></span>
               {i.tipo === 'questoes' && !i.concluida && <Link href={`/questoes?alvo=t:${topicId}${i.qtd_questoes ? `&total=${i.qtd_questoes}` : ''}`} className="text-sm text-brand hover:underline">Registrar</Link>}
               <button onClick={() => editar(i)} aria-label={`Editar etapa: ${i.titulo}`} className="p-2 text-muted hover:text-brand">✎</button>
               <button onClick={() => remover(i)} aria-label={`Excluir etapa: ${i.titulo}`} className="p-2 text-muted hover:text-danger">✕</button>

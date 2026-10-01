@@ -41,16 +41,16 @@ export default async function Questoes({ searchParams }: { searchParams: Promise
         <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black sm:col-span-2 xl:col-span-4">Registrar</button>
       </form>
       <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
-        <table className="w-full text-left text-sm">
-          <thead className="text-muted"><tr className="border-b border-line">{['Data', 'Assunto', 'Prova', 'Questões', 'Acertos', 'Aproveitamento', 'Tempo', ''].map(h => <th key={h} className="px-4 py-3 font-normal">{h}</th>)}</tr></thead>
-          <tbody>{((hist ?? []) as any[]).map(q => { const p = aproveitamento(q.acertos, q.total); return (
-            <tr key={q.id} className="border-b border-line/60 last:border-0">
-              <td className="px-4 py-3">{fmtData(q.realizado_em)}</td>
-              <td className="px-4 py-3">{q.topics?.nome ?? q.disciplines?.nome}<span className="block text-xs text-muted">{q.topics ? q.disciplines?.nome : 'geral'}</span></td>
-              <td className="px-4 py-3 text-muted">{[q.banca, q.prova, q.ano].filter(Boolean).join(' · ') || '—'}</td>
-              <td className="px-4 py-3">{q.total}</td><td className="px-4 py-3">{q.acertos}</td>
-              <td className={`px-4 py-3 font-medium ${corAcerto(p)}`}>{p}%</td><td className="px-4 py-3">{q.tempo_min ? `${q.tempo_min} min` : '—'}</td>
-              <td className="px-4 py-3"><form action={excluirQuestoes}><input type="hidden" name="id" value={q.id} /><button className="text-danger hover:underline">Excluir</button></form></td></tr>) })}</tbody>
+        <table className="w-full text-left text-sm max-md:block">
+          <thead className="text-muted max-md:hidden"><tr className="border-b border-line">{['Data', 'Assunto', 'Prova', 'Questões', 'Acertos', 'Aproveitamento', 'Tempo', ''].map(h => <th key={h} className="px-4 py-3 font-normal">{h}</th>)}</tr></thead>
+          <tbody className="max-md:block">{((hist ?? []) as any[]).map(q => { const p = aproveitamento(q.acertos, q.total); return (
+            <tr key={q.id} className="max-md:block max-md:py-3 border-b border-line/60 last:border-0">
+              <td className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]">{fmtData(q.realizado_em)}</td>
+              <td className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]">{q.topics?.nome ?? q.disciplines?.nome}<span className="block text-xs text-muted">{q.topics ? q.disciplines?.nome : 'geral'}</span></td>
+              <td data-label="Prova:" className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)] text-muted">{[q.banca, q.prova, q.ano].filter(Boolean).join(' · ') || '—'}</td>
+              <td data-label="Questões:" className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]">{q.total}</td><td data-label="Acertos:" className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]">{q.acertos}</td>
+              <td data-label="Aproveitamento:" className={`px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)] font-medium ${corAcerto(p)}`}>{p}%</td><td data-label="Tempo:" className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]">{q.tempo_min ? `${q.tempo_min} min` : '—'}</td>
+              <td className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]"><form action={excluirQuestoes}><input type="hidden" name="id" value={q.id} /><button className="text-danger hover:underline">Excluir</button></form></td></tr>) })}</tbody>
         </table>
         {!hist?.length && <p className="p-6 text-center text-muted">Nenhuma questão registrada. Use o formulário acima depois da sua próxima sessão de questões.</p>}
       </div>

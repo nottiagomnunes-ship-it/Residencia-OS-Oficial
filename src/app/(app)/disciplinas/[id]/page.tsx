@@ -27,15 +27,15 @@ export default async function Disciplina({ params }: { params: Promise<{ id: str
         {stat('Aproveitamento', tot ? `${Math.round((ac / tot) * 100)}%` : '—')}{stat('Revisões pendentes', String(revs.length))}
       </div>
       <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
-        <table className="w-full text-left text-sm">
-          <thead className="text-muted"><tr className="border-b border-line">{['Assunto', 'Status', 'Progresso', 'Questões', 'Acerto', 'Próxima revisão'].map(h => <th key={h} className="px-4 py-3 font-normal">{h}</th>)}</tr></thead>
-          <tbody>{topics.map(t => {
+        <table className="w-full text-left text-sm max-md:block">
+          <thead className="text-muted max-md:hidden"><tr className="border-b border-line">{['Assunto', 'Status', 'Progresso', 'Questões', 'Acerto', 'Próxima revisão'].map(h => <th key={h} className="px-4 py-3 font-normal">{h}</th>)}</tr></thead>
+          <tbody className="max-md:block">{topics.map(t => {
             const s = sets.filter(x => x.topic_id === t.id), q = s.reduce((a, x) => a + x.total, 0), a = s.reduce((n, x) => n + x.acertos, 0)
             const next = revs.filter(r => r.topic_id === t.id).map(r => r.due_date).sort()[0]
-            return (<tr key={t.id} className="border-b border-line/60 last:border-0">
-              <td className="px-4 py-3"><Link href={`/conteudos/${t.id}`} className="hover:text-brand hover:underline">{t.nome}</Link><span className="block text-xs text-muted">{t.subcategoria}</span></td>
-              <td className="px-4 py-3"><Badge status={t.status} /></td><td className="px-4 py-3">{STATUS[t.status].pct}%</td>
-              <td className="px-4 py-3">{q}</td><td className="px-4 py-3">{q ? `${Math.round((a / q) * 100)}%` : '—'}</td><td className="px-4 py-3">{fmtData(next)}</td></tr>)
+            return (<tr key={t.id} className="max-md:block max-md:py-3 border-b border-line/60 last:border-0">
+              <td className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]"><Link href={`/conteudos/${t.id}`} className="hover:text-brand hover:underline">{t.nome}</Link><span className="block text-xs text-muted">{t.subcategoria}</span></td>
+              <td data-label="Status:" className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]"><Badge status={t.status} /></td><td data-label="Progresso:" className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]">{STATUS[t.status].pct}%</td>
+              <td data-label="Questões:" className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]">{q}</td><td data-label="Acerto:" className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]">{q ? `${Math.round((a / q) * 100)}%` : '—'}</td><td data-label="Próxima revisão:" className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]">{fmtData(next)}</td></tr>)
           })}</tbody>
         </table>
         {!topics.length && <p className="p-6 text-center text-muted">Nenhum assunto ainda. Importe o catálogo em Conteúdos.</p>}

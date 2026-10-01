@@ -37,13 +37,13 @@ export default async function Conteudos({ searchParams }: { searchParams: Promis
         <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black sm:col-span-2 xl:col-span-6">Adicionar conteúdo</button>
       </form>
       <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
-        <table className="w-full text-left text-sm">
-          <thead className="text-muted"><tr className="border-b border-line">{['Assunto', 'Disciplina', 'Dificuldade', 'Status', 'Prioridade', ''].map(h => <th key={h} className="px-4 py-3 font-normal">{h}</th>)}</tr></thead>
-          <tbody>{(ts ?? []).map((t: any) => (
-            <tr key={t.id} className="border-b border-line/60 last:border-0">
-              <td className="px-4 py-3"><Link href={`/conteudos/${t.id}`} className="hover:text-brand hover:underline">{t.nome}</Link>{etapas.has(t.id) && <span className="ml-2 rounded-full bg-line px-2 py-0.5 text-xs text-muted">{etapas.get(t.id)![0]}/{etapas.get(t.id)![1]} etapas</span>}<span className="block text-xs text-muted">{[t.grupo, t.subcategoria].filter(Boolean).join(' · ')}</span></td>
-              <td className="px-4 py-3">{t.disciplines?.nome}</td><td className="px-4 py-3">{NIVEL[t.dificuldade]}</td>
-              <td colSpan={3} className="px-4 py-2">
+        <table className="w-full text-left text-sm max-md:block">
+          <thead className="text-muted max-md:hidden"><tr className="border-b border-line">{['Assunto', 'Disciplina', 'Dificuldade', 'Status', 'Prioridade', ''].map(h => <th key={h} className="px-4 py-3 font-normal">{h}</th>)}</tr></thead>
+          <tbody className="max-md:block">{(ts ?? []).map((t: any) => (
+            <tr key={t.id} className="max-md:block max-md:py-3 border-b border-line/60 last:border-0">
+              <td className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]"><Link href={`/conteudos/${t.id}`} className="hover:text-brand hover:underline">{t.nome}</Link>{etapas.has(t.id) && <span className="ml-2 rounded-full bg-line px-2 py-0.5 text-xs text-muted">{etapas.get(t.id)![0]}/{etapas.get(t.id)![1]} etapas</span>}<span className="block text-xs text-muted">{[t.grupo, t.subcategoria].filter(Boolean).join(' · ')}</span></td>
+              <td data-label="Disciplina:" className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]">{t.disciplines?.nome}</td><td data-label="Dificuldade:" className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]">{NIVEL[t.dificuldade]}</td>
+              <td colSpan={3} className="px-4 py-2 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]">
                 <div className="flex flex-wrap items-center gap-2">
                   <form action={updateTopic} className="flex items-center gap-2">
                     <input type="hidden" name="id" value={t.id} />

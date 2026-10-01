@@ -71,8 +71,8 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados }
       </div>
 
       {sel && (
-        <div className="fixed inset-0 z-20 grid place-items-end bg-black/60 md:place-items-center" onClick={() => setSel(null)}>
-          <div role="dialog" aria-modal="true" aria-label={sel.titulo} onClick={e => e.stopPropagation()} className="w-full max-w-md space-y-4 rounded-t-2xl border border-line bg-surface p-6 md:rounded-2xl">
+        <div className="fixed inset-0 z-40 grid place-items-end bg-black/60 md:place-items-center" onClick={() => setSel(null)}>
+          <div role="dialog" aria-modal="true" aria-label={sel.titulo} onClick={e => e.stopPropagation()} className="max-h-[90dvh] w-full max-w-md space-y-4 overflow-y-auto rounded-t-2xl border border-line bg-surface p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:rounded-2xl">
             <div className="flex items-start justify-between gap-4">
               <div><p className={`text-sm ${TIPO_COR[sel.tipo] ?? 'text-muted'}`}>{TIPO[sel.tipo]} · {ROTULO[statusDe(sel, hoje)]}</p><h2 className="text-lg font-semibold">{sel.titulo}</h2></div>
               <button onClick={() => setSel(null)} aria-label="Fechar" className="p-2 text-muted">✕</button>
