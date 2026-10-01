@@ -12,3 +12,11 @@ body { background: var(--color-bg); color: #E7EEEA; font-variant-numeric: tabula
 @media (pointer: coarse) {
   input:not([type='checkbox']):not([type='radio']), select, textarea { font-size: 16px !important; }
 }
+
+/* Evita que um campo largo (ex.: lista com nomes de assunto compridos) alargue a página inteira e faça o celular dar zoom out. */
+@layer base {
+  .grid > * { min-width: 0; }
+  select, input, textarea { max-width: 100%; }
+  select { text-overflow: ellipsis; }
+}
+body { overflow-x: clip; }

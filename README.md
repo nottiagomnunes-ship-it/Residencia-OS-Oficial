@@ -29,3 +29,4 @@
 28. Publicação na Vercel: veja DEPLOY.md.
 29. PWA (instalável, ícone, tela offline) e menu "Mais" no celular. Sem migração nova.
 30. Celular: painel da tarefa acima da barra inferior, etapas que quebram linha e tabelas em formato de cartões.
+31. Celular: corrige a página que "dava zoom out" por causa de campos largos (min-width nas grades, minimum-scale 1).
