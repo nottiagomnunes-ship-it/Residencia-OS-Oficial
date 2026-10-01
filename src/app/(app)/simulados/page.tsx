@@ -21,7 +21,7 @@ export default async function Simulados({ searchParams }: { searchParams: Promis
       <h1 className="text-2xl font-semibold">Simulados</h1>
       {ok && t > 0 && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-4 text-sm">Simulado registrado: {a}/{t} ({pct(a, t)}%). As questões já entram no Desempenho.</p>}
       {erro && <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">{erro}</p>}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         {card('Simulados feitos', String(r.itens.length))}{card('Média de acerto', r.media == null ? '—' : `${r.media}%`)}
         {card('Melhor resultado', r.melhor == null ? '—' : `${r.melhor}%`)}{card('Último', r.itens.length ? `${r.itens.at(-1)!.pct}%` : '—')}
       </div>
@@ -29,16 +29,16 @@ export default async function Simulados({ searchParams }: { searchParams: Promis
         <h2 className="font-medium sm:col-span-2 xl:col-span-4">Registrar simulado</h2>
         <input name="nome" required placeholder="Nome (ex.: Simulado 3)" className={inputCls + ' xl:col-span-2'} />
         <input name="data" type="date" defaultValue={hojeBR()} aria-label="Data" className={inputCls} />
-        <input name="tempo_min" type="number" min={0} placeholder="Tempo (min)" className={inputCls} />
-        <input name="total" type="number" min={1} placeholder="Questões (total)" className={inputCls} />
-        <input name="acertos" type="number" min={0} placeholder="Acertos (total)" className={inputCls} />
+        <input name="tempo_min" type="number" inputMode="numeric" min={0} placeholder="Tempo (min)" className={inputCls} />
+        <input name="total" type="number" inputMode="numeric" min={1} placeholder="Questões (total)" className={inputCls} />
+        <input name="acertos" type="number" inputMode="numeric" min={0} placeholder="Acertos (total)" className={inputCls} />
         <p className="self-center text-xs text-muted sm:col-span-2">Ou informe por disciplina abaixo: o total é somado automaticamente.</p>
         <div className="grid gap-2 sm:col-span-2 xl:col-span-4 sm:grid-cols-2 xl:grid-cols-3">
           {(ds ?? []).map(d => (
             <fieldset key={d.id} className="flex items-center gap-2 rounded-xl border border-line p-2 text-sm"><legend className="sr-only">{d.nome}</legend>
               <span className="min-w-0 flex-1 truncate">{d.nome}</span>
-              <input name={`q_${d.id}`} type="number" min={0} placeholder="Quest." aria-label={`${d.nome}: questões`} className={inputCls + ' w-20'} />
-              <input name={`a_${d.id}`} type="number" min={0} placeholder="Acertos" aria-label={`${d.nome}: acertos`} className={inputCls + ' w-20'} /></fieldset>))}
+              <input name={`q_${d.id}`} type="number" inputMode="numeric" min={0} placeholder="Quest." aria-label={`${d.nome}: questões`} className={inputCls + ' w-20'} />
+              <input name={`a_${d.id}`} type="number" inputMode="numeric" min={0} placeholder="Acertos" aria-label={`${d.nome}: acertos`} className={inputCls + ' w-20'} /></fieldset>))}
         </div>
         <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black sm:col-span-2 xl:col-span-4">Registrar simulado</button>
       </form>

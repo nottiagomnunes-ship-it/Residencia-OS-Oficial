@@ -39,7 +39,7 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
     setEditandoId(null); setSel(null)
   })
   const nomeDia = (d: string) => new Date(d + 'T12:00:00Z').toLocaleDateString('pt-BR', { weekday: 'long', timeZone: 'UTC' }).replace('-feira', '')
-  const cols = view === 'dia' ? 'grid-cols-1' : view === 'semana' ? 'grid-cols-1 md:grid-cols-7' : 'grid-cols-7'
+  const cols = view === 'dia' ? 'grid-cols-1' : view === 'semana' ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-7' : 'grid-cols-7'
   const compacto = view === 'mes'
 
   return (
@@ -51,7 +51,7 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
           return (
             <section key={d} onDragOver={e => e.preventDefault()}
               onDrop={e => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) mover(f => moverItem(id, d, f)) }}
-              className={`min-h-24 space-y-1.5 rounded-xl border bg-surface p-2 ${d === hoje ? 'border-brand' : 'border-line'} ${compacto && d.slice(0, 7) !== mes ? 'opacity-40' : ''}`}>
+              className={`min-h-24 space-y-2.5 rounded-xl border bg-surface p-3 ${d === hoje ? 'border-brand' : 'border-line'} ${compacto && d.slice(0, 7) !== mes ? 'opacity-40' : ''}`}>
               <h3 className="text-sm">{compacto ? +d.slice(8) : <><span className="capitalize">{nomeDia(d)}</span> <span className="text-muted">{d.slice(8)}/{d.slice(5, 7)}</span></>}</h3>
               {[...(ocupados[d] ?? [])].sort((a, b) => a.ini - b.ini).map((o, k) => (
                 <div key={'o' + k} title={`${o.titulo}: ${minParaHhmm(o.ini)} às ${o.fim >= 1440 ? '24:00' : minParaHhmm(o.fim)}`}
@@ -63,7 +63,7 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
                   <div key={i.id} role="button" tabIndex={0} draggable={i.status !== 'concluido'}
                     onDragStart={e => e.dataTransfer.setData('text/plain', i.id)} onClick={() => { setSel(i); setNovaData(i.data) }}
                     onKeyDown={e => e.key === 'Enter' && (setSel(i), setNovaData(i.data))}
-                    className={`cursor-pointer rounded-lg border-l-4 px-2 py-1.5 ${compacto ? 'truncate text-[11px]' : 'text-sm'} ${COR[st]}`}>
+                    className={`cursor-pointer rounded-lg border-l-4 ${compacto ? 'truncate px-1.5 py-1.5 text-xs' : 'px-3 py-2.5 text-sm'} ${COR[st]}`}>
                     {!compacto && <span className={`block text-xs ${TIPO_COR[i.tipo] ?? 'text-muted'}`}>{TIPO[i.tipo]}{i.hora_ini ? ` · ${i.hora_ini.slice(0, 5)}` : ''}</span>}
                     <span className={st === 'concluido' ? 'line-through opacity-70' : ''}>{i.titulo}</span>
                     {!compacto && i.topic_id && (i.tipo === 'estudo' || i.tipo === 'revisao') && etapas[i.topic_id]?.length > 0 && (() => { const p = progressoEtapas(etapas[i.topic_id!]); return <span className={`ml-2 text-xs ${p.completo ? 'text-brand' : 'text-muted'}`}>✓ {p.feitas}/{p.total}</span> })()}
@@ -100,8 +100,8 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
                   {sel.review_id && <p className="text-xs text-muted">O título de uma revisão vem do assunto. Você pode ajustar horário e duração.</p>}
                   <div className="flex flex-wrap gap-2">
                     <input type="time" value={ed.hora} onChange={e => setEd({ ...ed, hora: e.target.value })} aria-label="Horário" className={inputCls} />
-                    <input type="number" min={5} max={720} step={5} value={ed.dur} onChange={e => setEd({ ...ed, dur: e.target.value })} placeholder="Minutos" aria-label="Duração em minutos" className={inputCls + ' w-28'} />
-                    {sel.tipo === 'questoes' && <input type="number" min={1} value={ed.qtd} onChange={e => setEd({ ...ed, qtd: e.target.value })} placeholder="Nº de questões" aria-label="Número de questões" className={inputCls + ' w-36'} />}
+                    <input type="number" inputMode="numeric" min={5} max={720} step={5} value={ed.dur} onChange={e => setEd({ ...ed, dur: e.target.value })} placeholder="Minutos" aria-label="Duração em minutos" className={inputCls + ' w-28'} />
+                    {sel.tipo === 'questoes' && <input type="number" inputMode="numeric" min={1} value={ed.qtd} onChange={e => setEd({ ...ed, qtd: e.target.value })} placeholder="Nº de questões" aria-label="Número de questões" className={inputCls + ' w-36'} />}
                   </div>
                   {erro && <p role="alert" className="text-sm text-danger">{erro}</p>}
                   <div className="flex gap-2">

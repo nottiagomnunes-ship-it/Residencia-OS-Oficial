@@ -13,7 +13,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-dvh">
       <Sidebar />
-      <main className="min-w-0 flex-1 p-4 pb-24 md:p-8"><NovasConquistas codigos={(nv ?? []).map(x => x.codigo)} />{children}</main>
+      <main className="min-w-0 flex-1 p-4 pb-28 md:p-8 md:pb-28 lg:pb-8"><NovasConquistas codigos={(nv ?? []).map(x => x.codigo)} />{children}</main>
       <BottomNav />
     </div>
   )

@@ -20,3 +20,17 @@ body { background: var(--color-bg); color: #E7EEEA; font-variant-numeric: tabula
   select { text-overflow: ellipsis; }
 }
 body { overflow-x: clip; }
+
+/* Toque (celular e tablet): alvos de 44 px, mais espaço entre botões, sem atraso de 300 ms nos toques */
+@media (pointer: coarse) {
+  button:not([role='checkbox']), select, summary, input:not([type='checkbox']):not([type='radio']), a[class*='rounded-xl'], a[class*='rounded-lg'] { min-height: 44px; }
+  a[class*='rounded-xl'], a[class*='rounded-lg'] { display: inline-flex; align-items: center; }
+  .gap-1 { gap: 0.375rem; } .gap-1\.5 { gap: 0.5rem; } .gap-2 { gap: 0.75rem; }
+  input[type='checkbox']:not(.sr-only), input[type='radio']:not(.sr-only) { width: 1.25rem; height: 1.25rem; }
+  label:has(> input[type='checkbox']:not(.sr-only)) { min-height: 44px; }
+  button[role='checkbox'] { position: relative; }
+  button[role='checkbox']::after { content: ''; position: absolute; inset: -10px; } /* área de toque maior que a bolinha */
+  button, a, summary, select, input, label { touch-action: manipulation; }
+}
+/* Tablet: texto e espaços um pouco maiores (os pontos de quebra de tela não mudam) */
+@media (min-width: 768px) and (pointer: coarse) { html { font-size: 17px; } }

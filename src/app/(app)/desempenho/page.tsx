@@ -16,7 +16,7 @@ export default async function Desempenho() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Desempenho</h1>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         {card('Total de questões', String(d.total))}{card('Aproveitamento', geral == null ? '—' : `${geral}%`)}{card('Acertos', String(d.acertos))}{card('Erros', String(d.total - d.acertos))}
       </div>
       {d.recomendacoes.length > 0 && (

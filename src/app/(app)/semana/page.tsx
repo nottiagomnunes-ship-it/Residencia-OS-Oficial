@@ -74,7 +74,7 @@ export default async function Semana({ searchParams }: { searchParams: Promise<{
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="space-y-1 text-sm"><span className="block text-muted">Começo do dia</span><input name="janela_ini" type="time" defaultValue={(p?.janela_ini ?? '06:00').slice(0, 5)} className={inputCls + ' w-full'} /></label>
           <label className="space-y-1 text-sm"><span className="block text-muted">Fim do dia</span><input name="janela_fim" type="time" defaultValue={(p?.janela_fim ?? '23:00').slice(0, 5)} className={inputCls + ' w-full'} /></label>
-          <label className="space-y-1 text-sm"><span className="block text-muted">Folga antes e depois (min)</span><input name="folga_min" type="number" min={0} max={180} step={5} defaultValue={folga} className={inputCls + ' w-full'} /></label>
+          <label className="space-y-1 text-sm"><span className="block text-muted">Folga antes e depois (min)</span><input name="folga_min" type="number" inputMode="numeric" min={0} max={180} step={5} defaultValue={folga} className={inputCls + ' w-full'} /></label>
         </div>
         <p className="text-xs text-muted">A folga reserva tempo de deslocamento e descanso ao redor de cada compromisso.</p>
         <button className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">Salvar janela</button>

@@ -19,7 +19,7 @@ export default async function Metas() {
       <form action={criarMeta} className="flex flex-wrap items-end gap-3 rounded-2xl border border-line bg-surface p-5">
         <label className="space-y-1 text-sm"><span className="block">Período</span><select name="periodo" defaultValue="semana" className={inputCls}>{(Object.keys(PERIODOS) as Periodo[]).map(p => <option key={p} value={p}>{PERIODOS[p]}</option>)}</select></label>
         <label className="space-y-1 text-sm"><span className="block">Métrica</span><select name="metrica" defaultValue="questoes" className={inputCls}>{(Object.keys(METRICAS) as Metrica[]).map(m => <option key={m} value={m}>{METRICAS[m].rotulo}</option>)}</select></label>
-        <label className="space-y-1 text-sm"><span className="block">Alvo</span><input name="alvo" type="number" min={1} required className={inputCls + ' w-28'} /></label>
+        <label className="space-y-1 text-sm"><span className="block">Alvo</span><input name="alvo" type="number" inputMode="numeric" min={1} required className={inputCls + ' w-28'} /></label>
         <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Adicionar meta</button>
       </form>
       {(Object.keys(PERIODOS) as Periodo[]).map(p => { const l = metas.filter(m => m.periodo === p); return l.length ? (

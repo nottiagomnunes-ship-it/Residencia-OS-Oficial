@@ -25,8 +25,8 @@ export default function NovaTarefa({ ancora }: { ancora: string }) {
         <select name="tipo" defaultValue="estudo" aria-label="Tipo" className={inputCls}><option value="estudo">Estudo</option><option value="questoes">Questões</option><option value="flashcards">Flashcards</option><option value="simulado">Simulado</option></select>
         <input name="data" type="date" required defaultValue={ancora} aria-label="Data" className={inputCls} />
         <input name="hora_ini" type="time" aria-label="Horário" className={inputCls} />
-        <input name="duracao_min" type="number" min={5} step={5} placeholder="Minutos" className={inputCls} />
-        <input name="qtd_questoes" type="number" min={1} placeholder="Nº de questões" className={inputCls} />
+        <input name="duracao_min" type="number" inputMode="numeric" min={5} step={5} placeholder="Minutos" className={inputCls} />
+        <input name="qtd_questoes" type="number" inputMode="numeric" min={1} placeholder="Nº de questões" className={inputCls} />
         <button disabled={pend} className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black disabled:opacity-60 sm:col-span-3 xl:col-span-6">{pend ? 'Salvando…' : 'Adicionar ao calendário'}</button>
       </form>
       {aviso && (

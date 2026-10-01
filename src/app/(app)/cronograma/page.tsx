@@ -32,7 +32,7 @@ export default async function Cronograma({ searchParams }: { searchParams: Promi
           <form action={gerarCronogramaAction}><button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Gerar ou atualizar cronograma</button></form></div>
       </div>
       {msg && <p role="status" className="rounded-xl border border-line bg-surface p-4 text-sm">{msg}</p>}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         {card('Prova', p?.exam_date ? `em ${diffDays(hoje, p.exam_date)} dias` : 'sem data')}
         {card('Meta diária', `${((p?.daily_minutes ?? 0) / 60).toFixed(1).replace('.0', '')} h · ${p?.daily_questions_goal ?? 0} questões`)}
         {card('Assuntos concluídos', `${ok}/${total}`)}

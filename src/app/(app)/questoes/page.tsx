@@ -24,7 +24,7 @@ export default async function Questoes({ searchParams }: { searchParams: Promise
       <h1 className="text-2xl font-semibold">Questões</h1>
       {ok && t > 0 && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-4 text-sm">Registrado: {t} questões, {aproveitamento(a, t)}% de aproveitamento.{t - a > 0 && <> Você errou {t - a}: <Link href="/caderno-de-erros" className="text-brand underline">adicione ao Caderno de Erros</Link>.</>}</p>}
       {erro && <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">{erro}</p>}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         {card('Questões realizadas', String(total))}{card('Aproveitamento', total ? `${aproveitamento(acertos, total)}%` : '—', corAcerto(aproveitamento(acertos, total)))}
         {card('Acertos', String(acertos))}{card('Erros', String(total - acertos))}
       </div>
@@ -32,10 +32,10 @@ export default async function Questoes({ searchParams }: { searchParams: Promise
         <h2 className="font-medium sm:col-span-2 xl:col-span-4">Registrar questões</h2>
         <AlvoSelect ds={ds ?? []} ts={ts ?? []} defaultValue={alvo} />
         <input name="banca" placeholder="Banca" className={inputCls} /><input name="prova" placeholder="Prova" className={inputCls} />
-        <input name="ano" type="number" min={1990} max={2100} placeholder="Ano" className={inputCls} />
-        <input name="total" type="number" min={1} required defaultValue={totalSugerido} placeholder="Questões feitas" className={inputCls} />
-        <input name="acertos" type="number" min={0} required placeholder="Acertos" className={inputCls} />
-        <input name="tempo_min" type="number" min={0} placeholder="Tempo (min)" className={inputCls} />
+        <input name="ano" type="number" inputMode="numeric" min={1990} max={2100} placeholder="Ano" className={inputCls} />
+        <input name="total" type="number" inputMode="numeric" min={1} required defaultValue={totalSugerido} placeholder="Questões feitas" className={inputCls} />
+        <input name="acertos" type="number" inputMode="numeric" min={0} required placeholder="Acertos" className={inputCls} />
+        <input name="tempo_min" type="number" inputMode="numeric" min={0} placeholder="Tempo (min)" className={inputCls} />
         <select name="dificuldade" defaultValue="" aria-label="Dificuldade" className={inputCls}><option value="">Dificuldade</option><option value={1}>Fácil</option><option value={2}>Médio</option><option value={3}>Difícil</option></select>
         <input name="data" type="date" defaultValue={hoje} aria-label="Data" className={inputCls} />
         <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black sm:col-span-2 xl:col-span-4">Registrar</button>

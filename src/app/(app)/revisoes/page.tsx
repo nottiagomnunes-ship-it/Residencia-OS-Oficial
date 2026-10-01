@@ -44,10 +44,10 @@ export default async function Revisoes() {
               </summary>
               <form action={concluirRevisao} className="mt-4 grid gap-3 sm:grid-cols-4">
                 <input type="hidden" name="review_id" value={r.id} />
-                <label className="space-y-1 text-sm">Acerto (%)<input name="desempenho" type="number" min={0} max={100} className={inputCls + ' w-full'} /></label>
+                <label className="space-y-1 text-sm">Acerto (%)<input name="desempenho" type="number" inputMode="numeric" min={0} max={100} className={inputCls + ' w-full'} /></label>
                 <label className="space-y-1 text-sm">Dificuldade<select name="dificuldade" defaultValue="" className={inputCls + ' w-full'}>
                   <option value="">—</option><option value={1}>Fácil</option><option value={2}>Médio</option><option value={3}>Difícil</option></select></label>
-                <label className="space-y-1 text-sm">Questões feitas<input name="questoes_qtd" type="number" min={0} className={inputCls + ' w-full'} /></label>
+                <label className="space-y-1 text-sm">Questões feitas<input name="questoes_qtd" type="number" inputMode="numeric" min={0} className={inputCls + ' w-full'} /></label>
                 <label className="space-y-1 text-sm sm:col-span-4">Observações<textarea name="observacoes" rows={2} className={inputCls + ' w-full'} /></label>
                 <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black sm:col-span-4">Concluir revisão</button>
               </form>

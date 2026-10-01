@@ -55,7 +55,7 @@ export default async function Conteudos({ searchParams }: { searchParams: Promis
                   </form>
                   {t.status !== 'concluido' && <details><summary className="cursor-pointer rounded-lg bg-brand px-3 py-1.5 font-medium text-black">Concluir</summary>
                     <form action={concluirConteudo} className="mt-2 flex items-center gap-2"><input type="hidden" name="topic_id" value={t.id} />
-                      <input name="duration_min" type="number" min={0} defaultValue={60} aria-label="Minutos estudados" className={inputCls + ' w-24'} /><span className="text-muted">min</span>
+                      <input name="duration_min" type="number" inputMode="numeric" min={0} defaultValue={60} aria-label="Minutos estudados" className={inputCls + ' w-24'} /><span className="text-muted">min</span>
                       <button className="rounded-lg border border-line px-3 py-1.5 hover:border-brand">Confirmar</button></form></details>}
                   <form action={deleteTopic}><input type="hidden" name="id" value={t.id} /><button className="rounded-lg px-3 py-1.5 text-danger hover:bg-danger/10">Excluir</button></form>
                 </div></td></tr>))}</tbody>

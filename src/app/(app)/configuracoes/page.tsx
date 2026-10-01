@@ -23,7 +23,7 @@ export default async function Configuracoes({ searchParams }: { searchParams: Pr
             <Campo t="Seu nome"><input name="nome" defaultValue={p?.nome ?? ''} className={inputCls + ' w-full'} /></Campo>
             <Campo t="Data da prova"><input name="exam_date" type="date" required defaultValue={p?.exam_date ?? ''} className={inputCls + ' w-full'} /></Campo>
             <Campo t="Horas de estudo por dia"><input name="horas" type="number" min={1} max={16} step={0.5} defaultValue={(p?.daily_minutes ?? 240) / 60} className={inputCls + ' w-full'} /></Campo>
-            <Campo t="Questões por dia"><input name="questoes" type="number" min={0} max={500} defaultValue={p?.daily_questions_goal ?? 40} className={inputCls + ' w-full'} /></Campo>
+            <Campo t="Questões por dia"><input name="questoes" type="number" inputMode="numeric" min={0} max={500} defaultValue={p?.daily_questions_goal ?? 40} className={inputCls + ' w-full'} /></Campo>
           </div>
           <fieldset><legend className="mb-2 text-sm">Dias disponíveis</legend><div className="flex flex-wrap gap-2">{DIAS.map((d, i) => (
             <label key={d} className="cursor-pointer rounded-lg border border-line px-3 py-1.5 text-sm has-[:checked]:border-brand has-[:checked]:text-brand">
@@ -36,8 +36,8 @@ export default async function Configuracoes({ searchParams }: { searchParams: Pr
         </section>
         <section className={sec}><h2 className="font-medium">Limites de desempenho</h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Campo t="Acerto mínimo aceitável (%)" dica="Abaixo disso o assunto ou a disciplina pede atenção."><input name="limite_foco" type="number" min={1} max={100} defaultValue={p?.limite_foco ?? 65} className={inputCls + ' w-full'} /></Campo>
-            <Campo t="Questões mínimas para avaliar um assunto" dica="Evita julgar por amostra pequena."><input name="min_questoes" type="number" min={1} max={100} defaultValue={p?.min_questoes ?? 10} className={inputCls + ' w-full'} /></Campo>
+            <Campo t="Acerto mínimo aceitável (%)" dica="Abaixo disso o assunto ou a disciplina pede atenção."><input name="limite_foco" type="number" inputMode="numeric" min={1} max={100} defaultValue={p?.limite_foco ?? 65} className={inputCls + ' w-full'} /></Campo>
+            <Campo t="Questões mínimas para avaliar um assunto" dica="Evita julgar por amostra pequena."><input name="min_questoes" type="number" inputMode="numeric" min={1} max={100} defaultValue={p?.min_questoes ?? 10} className={inputCls + ' w-full'} /></Campo>
           </div>
         </section>
         <button className="rounded-xl bg-brand px-5 py-2.5 font-medium text-black">Salvar configurações</button>
