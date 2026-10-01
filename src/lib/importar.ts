@@ -16,27 +16,16 @@ type SB = Awaited<ReturnType<typeof ctx>>['sb']
 const chunks = <T,>(a: T[], n = 100) => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n))
 const refresh = () => ['/importar', '/conteudos', '/disciplinas', '/cronograma', '/calendario', '/desempenho'].forEach(p => revalidatePath(p, 'layout'))
 
-/** Remove só assuntos "limpos": não iniciados/planejados e sem questões, revisões, sessões ou erros ligados. */
-async function removerSemHistorico(sb: SB) {
+/** Ids dos assuntos "limpos" (não iniciados/planejados e sem questões, revisões, sessões, erros ou etapas). O banco confere de novo antes de apagar. */
+async function idsSemHistorico(sb: SB) {
   const { data: ts } = await sb.from('topics').select('id,status')
   const comHist = new Set<string>()
   for (const tab of ['question_sets', 'reviews', 'study_sessions', 'error_notebook', 'topic_tasks']) {
     const { data } = await sb.from(tab).select('topic_id').not('topic_id', 'is', null).limit(20000)
     data?.forEach(r => comHist.add(r.topic_id))
   }
-  const ids = (ts ?? []).filter(t => (t.status === 'nao_iniciado' || t.status === 'planejado') && !comHist.has(t.id)).map(t => t.id)
-  for (const c of chunks(ids)) await sb.from('topics').delete().in('id', c)
-  return { removidos: ids.length, mantidos: (ts?.length ?? 0) - ids.length }
-}
-async function removerDisciplinasVazias(sb: SB) {
-  const [{ data: ds }, { data: ts }, { data: qs }, { data: er }] = await Promise.all([
-    sb.from('disciplines').select('id'), sb.from('topics').select('discipline_id'),
-    sb.from('question_sets').select('discipline_id').limit(20000), sb.from('error_notebook').select('discipline_id').limit(20000),
-  ])
-  const usadas = new Set([...(ts ?? []), ...(qs ?? []), ...(er ?? [])].map(x => x.discipline_id))
-  const ids = (ds ?? []).filter(d => !usadas.has(d.id)).map(d => d.id)
-  for (const c of chunks(ids)) await sb.from('disciplines').delete().in('id', c)
-  return ids.length
+  const ids = (ts ?? []).filter(t => (t.status === 'nao_iniciado' || t.status === 'planejado') && !comHist.has(t.id)).map(t => t.id as string)
+  return { ids, mantidos: (ts?.length ?? 0) - ids.length }
 }
 
 export async function lerPdf(fd: FormData): Promise<{ texto?: string; erro?: string }> {
@@ -55,50 +44,56 @@ export async function lerPdf(fd: FormData): Promise<{ texto?: string; erro?: str
   } catch { return { erro: 'Não consegui ler esse PDF. Tente copiar e colar o texto.' } }
 }
 
+/**
+ * Importa o plano. O app calcula o que fazer (quais assuntos apagar, quais disciplinas e assuntos criar, quais reordenar);
+ * `importar_plano` aplica tudo numa única transação no banco: ou entra por inteiro, ou nada muda.
+ */
 export async function importarCronograma(texto: string, substituir: boolean): Promise<{ ok: boolean; erro?: string; resumo?: string }> {
-  const { sb, uid } = await ctx()
+  const { sb } = await ctx()
   const { itens } = parseCronograma(texto, hojeBR())
   if (!itens.length) return { ok: false, erro: 'Não encontrei nenhum assunto. Confira o formato ou coloque títulos de disciplina com # antes dos assuntos.' }
   if (itens.length > 2000) return { ok: false, erro: 'Limite de 2.000 assuntos por importação.' }
 
-  const rem = substituir ? await removerSemHistorico(sb) : { removidos: 0, mantidos: 0 }
+  const sem = substituir ? await idsSemHistorico(sb) : { ids: [] as string[], mantidos: 0 }
+  const apagar = new Set(sem.ids)
   const { data: ds } = await sb.from('disciplines').select('id,nome,ordem')
   const mapa = new Map((ds ?? []).map(d => [norm(d.nome), d.id as string]))
-  let ordem = Math.max(-1, ...(ds ?? []).map(d => d.ordem ?? 0)) + 1, novasDisc = 0
-  for (const nome of new Set(itens.map(i => i.disciplina))) {
-    if (mapa.has(norm(nome))) continue
-    const { data } = await sb.from('disciplines').insert({ user_id: uid, nome, cor: CORES[ordem % CORES.length], peso: 3, ordem: ordem++ }).select('id').single()
-    mapa.set(norm(nome), data!.id); novasDisc++
-  }
+  let ordemDisc = Math.max(-1, ...(ds ?? []).map(d => d.ordem ?? 0)) + 1
+  const novasDisc = new Map<string, string>() // chave normalizada → nome
+  for (const i of itens) { const k = norm(i.disciplina); if (!mapa.has(k) && !novasDisc.has(k)) novasDisc.set(k, i.disciplina) }
+  const disciplinas = [...novasDisc.values()].map(nome => ({ nome, cor: CORES[ordemDisc % CORES.length], ordem: ordemDisc++ }))
+
   const { data: ex } = await sb.from('topics').select('id,discipline_id,nome,ordem')
-  const chave = (d: string | undefined, n: string) => `${d}|${norm(n)}`
-  const existentes = new Map((ex ?? []).map(t => [chave(t.discipline_id, t.nome), t]))
-  const base = Math.max(-1, ...(ex ?? []).map(t => t.ordem ?? -1)) + 1 // a importação entra depois do que já existe, na ordem escrita
-  const novos: (ItemImportado & { ordem: number })[] = [], reordenar: any[] = []
+  const restantes = (ex ?? []).filter(t => !apagar.has(t.id)) // o que sobra depois da limpeza
+  const chave = (d: string | undefined, n: string) => `${d ?? ''}|${norm(n)}`
+  const existentes = new Map(restantes.map(t => [chave(t.discipline_id, t.nome), t]))
+  const base = Math.max(-1, ...restantes.map(t => t.ordem ?? -1)) + 1 // a importação entra depois do que já existe, na ordem escrita
+  const novos: (ItemImportado & { ordem: number; discipline_id: string; disciplina_nome: string })[] = [], reordenar: { id: string; grupo: string | null; ordem: number }[] = []
   itens.forEach((i, idx) => {
-    const did = mapa.get(norm(i.disciplina)), ordem = base + idx, e = existentes.get(chave(did, i.nome))
-    if (e) reordenar.push({ id: e.id, user_id: uid, discipline_id: did, nome: e.nome, grupo: i.grupo, ordem }) // já existe: só atualiza a ordem
-    else novos.push({ ...i, ordem })
+    const k = norm(i.disciplina), did = mapa.get(k), ordem = base + idx, e = did ? existentes.get(chave(did, i.nome)) : undefined
+    if (e) reordenar.push({ id: e.id, grupo: i.grupo, ordem }) // já existe: só atualiza a ordem
+    else novos.push({ ...i, ordem, discipline_id: did ?? '', disciplina_nome: did ? '' : (novasDisc.get(k) ?? i.disciplina) })
   })
-  for (const c of chunks(novos, 500)) await sb.from('topics').insert(c.map(i => ({
-    user_id: uid, discipline_id: mapa.get(norm(i.disciplina)), subcategoria: i.subcategoria, nome: i.nome, grupo: i.grupo, ordem: i.ordem,
-    planned_date: i.data, planned_auto: false, status: i.data ? 'planejado' : 'nao_iniciado',
-  })))
-  for (const c of chunks(reordenar, 500)) await sb.from('topics').upsert(c)
-  const discRem = substituir ? await removerDisciplinasVazias(sb) : 0
+
+  const { data: res, error } = await sb.rpc('importar_plano', { p_apagar: sem.ids, p_disciplinas: disciplinas, p_novos: novos, p_reordenar: reordenar, p_limpar_disciplinas: substituir })
+  if (error) return { ok: false, erro: 'Não foi possível importar o plano. Nada foi alterado; tente de novo.' }
   refresh()
-  const comData = novos.filter(i => i.data).length
+  const r = res as { apagados: number; disciplinas_removidas: number }, comData = novos.filter(i => i.data).length
   return { ok: true, resumo: [
     `${novos.length} assuntos novos importados${comData ? ` (${comData} com data fixa)` : ''}`,
     itens.length - novos.length ? `${itens.length - novos.length} já existiam e foram mantidos` : '',
-    novasDisc ? `${novasDisc} disciplinas criadas` : '',
-    substituir ? `${rem.removidos} assuntos antigos removidos${discRem ? `, ${discRem} disciplinas vazias removidas` : ''}` : '',
+    disciplinas.length ? `${disciplinas.length} disciplinas criadas` : '',
+    substituir ? `${r.apagados} assuntos antigos removidos${r.disciplinas_removidas ? `, ${r.disciplinas_removidas} disciplinas vazias removidas` : ''}` : '',
   ].filter(Boolean).join(' · ') + '.' }
 }
 
+/** "Só limpar": remove os assuntos sem histórico e as disciplinas que ficarem vazias, na mesma transação. */
 export async function limparCatalogo(): Promise<{ resumo: string }> {
   const { sb } = await ctx()
-  const r = await removerSemHistorico(sb), d = await removerDisciplinasVazias(sb)
+  const sem = await idsSemHistorico(sb)
+  const { data: res, error } = await sb.rpc('importar_plano', { p_apagar: sem.ids, p_disciplinas: [], p_novos: [], p_reordenar: [], p_limpar_disciplinas: true })
+  if (error) return { resumo: 'Não foi possível limpar. Nada foi alterado; tente de novo.' }
   refresh()
-  return { resumo: `${r.removidos} assuntos removidos${d ? ` e ${d} disciplinas vazias` : ''}. ${r.mantidos} assuntos foram mantidos por terem histórico ou estarem em andamento/concluídos.` }
+  const r = res as { apagados: number; disciplinas_removidas: number }
+  return { resumo: `${r.apagados} assuntos removidos${r.disciplinas_removidas ? ` e ${r.disciplinas_removidas} disciplinas vazias` : ''}. ${sem.mantidos} assuntos foram mantidos por terem histórico ou estarem em andamento/concluídos.` }
 }

@@ -55,17 +55,15 @@ export async function gerarCronogramaAction() {
     janela: { ini: hhmmParaMin(p.janela_ini ?? '06:00'), fim: hhmmParaMin(p.janela_fim ?? '23:00') }, ocupados, folga: p.folga_min ?? 30,
   })
 
-  // limpa o plano automático anterior (nunca toca em revisões, concluídos ou itens manuais)
-  await sb.from('schedule_items').delete().eq('origem', 'auto').in('tipo', ['estudo', 'questoes', 'simulado']).neq('status', 'concluido').gte('data', hoje).is('review_id', null)
-  await sb.from('topics').update({ status: 'nao_iniciado', planned_date: null }).eq('planned_auto', true).eq('status', 'planejado')
-  if (r.blocos.length) await sb.from('schedule_items').insert(r.blocos.map(b => ({ ...b, user_id: uid, origem: 'auto' })))
-
+  // troca o plano automático antigo pelo novo numa única transação (revisões, concluídos e itens manuais não são tocados)
   const fixoIds = new Set(fixos.map(t => t.id))
   const plan = r.blocos.filter(b => b.tipo === 'estudo' && b.topic_id && !fixoIds.has(b.topic_id))
-  if (plan.length) await sb.from('topics').upsert(plan.map(b => {
-    const o = origem.get(b.topic_id!)!
-    return { id: o.id, user_id: uid, discipline_id: o.discipline_id, nome: o.nome, planned_date: b.data, planned_auto: true, status: o.status === 'nao_iniciado' ? 'planejado' : o.status }
-  }))
+  const { error: falha } = await sb.rpc('aplicar_cronograma', {
+    p_hoje: hoje,
+    p_blocos: r.blocos.map(b => ({ tipo: b.tipo, topic_id: b.topic_id, titulo: b.titulo, data: b.data, hora_ini: b.hora_ini ?? null, hora_fim: b.hora_fim ?? null, duracao_min: b.duracao_min, qtd_questoes: b.qtd_questoes })),
+    p_topicos: plan.map(b => ({ id: b.topic_id, data: b.data })),
+  })
+  if (falha) redirect('/cronograma?msg=' + encodeURIComponent('Não foi possível atualizar o cronograma. O plano anterior foi mantido; tente de novo.'))
 
   ;['/cronograma', '/calendario', '/conteudos', '/disciplinas', '/inicio'].forEach(x => revalidatePath(x, 'layout'))
   const n = plan.length + fixos.length

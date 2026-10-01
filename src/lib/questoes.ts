@@ -25,18 +25,12 @@ export async function registrarQuestoes(fd: FormData) {
     redirect('/questoes?erro=' + encodeURIComponent('Confira os números: o total deve ser maior que zero e os acertos não podem passar do total.'))
   const dia = ISO.test(String(fd.get('data'))) ? String(fd.get('data')) : hojeBR()
   const alvo = await resolverAlvo(sb, String(fd.get('alvo')))
-  await sb.from('question_sets').insert({ user_id: uid, ...alvo, banca: opt(fd, 'banca'), prova: opt(fd, 'prova'), ano: optN(fd, 'ano'),
-    total, acertos, tempo_min: optN(fd, 'tempo_min'), dificuldade: optN(fd, 'dificuldade'), realizado_em: dia })
-  await somarDia(sb, uid, dia, { xp: xpQuestoes(total), questoes: total, acertos })
-  // se havia um bloco de questões planejado para o dia e a meta foi atingida, ele é concluído
-  const { data: blocos } = await sb.from('schedule_items').select('id,qtd_questoes').eq('tipo', 'questoes').eq('data', dia).neq('status', 'concluido')
-  const b = blocos?.find(x => total >= (x.qtd_questoes ?? 0))
-  if (b) await sb.from('schedule_items').update({ status: 'concluido' }).eq('id', b.id)
-  if (alvo.topic_id) {
-    const { data: et } = await sb.from('topic_tasks').select('id,qtd_questoes').eq('topic_id', alvo.topic_id).eq('tipo', 'questoes').eq('concluida', false).order('ordem')
-    const e = et?.find(x => total >= (x.qtd_questoes ?? 0))
-    if (e) await sb.from('topic_tasks').update({ concluida: true, concluida_em: new Date().toISOString() }).eq('id', e.id)
-  }
+  const { error } = await sb.rpc('registrar_questoes', {
+    p_disc: alvo.discipline_id, p_topic: alvo.topic_id, p_banca: opt(fd, 'banca'), p_prova: opt(fd, 'prova'), p_ano: optN(fd, 'ano'),
+    p_total: total, p_acertos: acertos, p_tempo: optN(fd, 'tempo_min'), p_dif: optN(fd, 'dificuldade'), p_dia: dia, p_xp: xpQuestoes(total),
+  })
+  if (error) redirect('/questoes?erro=' + encodeURIComponent('Não foi possível registrar as questões. Nada foi gravado; tente de novo.'))
+  await carregarGamificacao(sb, hojeBR()).catch(() => {})
   refresh()
   redirect(`/questoes?ok=${total}-${acertos}`)
 }

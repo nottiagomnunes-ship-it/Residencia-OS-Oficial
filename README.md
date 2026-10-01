@@ -35,3 +35,5 @@
 33. Etapas (subtópicos) dentro do painel da tarefa no Calendário, com contador nos cartões (sem migração).
 34. Cadastro em página própria (/cadastro), login só com "Entrar", mensagens de erro em português (sem migração).
 35. Toda conta nova começa com 0 assuntos: o onboarding não carrega mais o catálogo sugerido (ele continua disponível, só se você pedir, em Conteúdos).
+36. Gravações "tudo ou nada": rode `supabase/migrations/0013_funcoes_atomicas.sql` ANTES de publicar esta versão (concluir assunto/revisão, gerar cronograma e registrar questões).
+37. Importar plano e "Só limpar" também são "tudo ou nada": rode `supabase/migrations/0014_importar_plano_atomico.sql` ANTES de publicar esta versão.
