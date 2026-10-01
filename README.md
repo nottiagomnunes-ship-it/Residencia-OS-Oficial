@@ -34,3 +34,4 @@
 32. Tarefa com horário vira "atrasada" quando o horário de término passa sem concluir (Calendário e Cronograma; sem migração).
 33. Etapas (subtópicos) dentro do painel da tarefa no Calendário, com contador nos cartões (sem migração).
 34. Cadastro em página própria (/cadastro), login só com "Entrar", mensagens de erro em português (sem migração).
+35. Toda conta nova começa com 0 assuntos: o onboarding não carrega mais o catálogo sugerido (ele continua disponível, só se você pedir, em Conteúdos).

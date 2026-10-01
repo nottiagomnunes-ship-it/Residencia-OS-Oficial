@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
-import { seedCatalog } from '@/lib/seed'
 
 const DISCIPLINAS = ['Clínica Médica', 'Cirurgia', 'Pediatria', 'Ginecologia e Obstetrícia', 'Preventiva', 'Psiquiatria']
 const CORES = ['#22C55E', '#3B82F6', '#F59E0B', '#EC4899', '#A855F7', '#EF4444']
@@ -23,7 +22,6 @@ async function salvar(fd: FormData) {
   } else {
     await sb.from('disciplines').insert(DISCIPLINAS.map((nome, i) => ({ user_id: user.id, nome, cor: CORES[i], ordem: i, peso: Number(fd.get(`peso_${i}`)) })))
   }
-  if (fd.get('catalogo') === 'on') await seedCatalog(sb, user.id)
   redirect('/inicio')
 }
 
@@ -51,7 +49,6 @@ export default async function Onboarding() {
           <div className="space-y-2">{lista.map(d => (
             <label key={d.chave} className="flex items-center justify-between gap-4"><span>{d.nome}</span>
               <select name={`peso_${d.chave}`} defaultValue={d.peso} className={input}>{[1, 2, 3, 4, 5].map(n => <option key={n}>{n}</option>)}</select></label>))}</div></fieldset>
-        <label className="flex items-start gap-3 text-sm"><input type="checkbox" name="catalogo" className="mt-1 accent-brand" /><span>Começar com a lista de assuntos sugerida<span className="block text-xs text-muted">Se você tem o seu próprio cronograma, deixe desmarcado e importe-o depois em Importar cronograma.</span></span></label>
         <button className="w-full rounded-xl bg-brand py-3 font-medium text-black">Criar meu plano</button>
       </form>
     </main>
