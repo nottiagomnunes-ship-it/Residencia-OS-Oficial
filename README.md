@@ -33,3 +33,4 @@
 32. Tarefas ficam "atrasadas" quando o horário marcado termina sem conclusão (Calendário e Cronograma). Sem migração.
 32. Tarefa com horário vira "atrasada" quando o horário de término passa sem concluir (Calendário e Cronograma; sem migração).
 33. Etapas (subtópicos) dentro do painel da tarefa no Calendário, com contador nos cartões (sem migração).
+34. Cadastro em página própria (/cadastro), login só com "Entrar", mensagens de erro em português (sem migração).

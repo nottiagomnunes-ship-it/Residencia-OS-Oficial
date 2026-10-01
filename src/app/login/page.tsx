@@ -1,28 +1,19 @@
-import { redirect } from 'next/navigation'
-import { supabaseServer } from '@/lib/supabase/server'
+import Link from 'next/link'
+import { entrar } from '@/lib/auth'
 
-async function auth(fd: FormData) {
-  'use server'
-  const sb = await supabaseServer()
-  const creds = { email: String(fd.get('email')), password: String(fd.get('password')) }
-  const { error } = fd.get('modo') === 'cadastro' ? await sb.auth.signUp(creds) : await sb.auth.signInWithPassword(creds)
-  if (error) redirect('/login?erro=' + encodeURIComponent(error.message))
-  redirect('/inicio')
-}
-
-export default async function Login({ searchParams }: { searchParams: Promise<{ erro?: string }> }) {
-  const { erro } = await searchParams
+export default async function Login({ searchParams }: { searchParams: Promise<{ erro?: string; aviso?: string }> }) {
+  const { erro, aviso } = await searchParams
   const input = 'w-full rounded-xl border border-line bg-bg px-4 py-3 outline-none focus:border-brand'
   return (
-    <main className="grid min-h-screen place-items-center p-6">
-      <form action={auth} className="w-full max-w-sm space-y-4 rounded-2xl border border-line bg-surface p-8">
-        <h1 className="text-2xl font-semibold">Residência OS</h1>
-        <p className="text-sm text-muted">Entre para ver o que estudar hoje.</p>
-        <input name="email" type="email" required placeholder="E-mail" className={input} />
-        <input name="password" type="password" required minLength={6} placeholder="Senha (mín. 6 caracteres)" className={input} />
+    <main className="grid min-h-dvh place-items-center p-6">
+      <form action={entrar} className="w-full max-w-sm space-y-4 rounded-2xl border border-line bg-surface p-8">
+        <div><h1 className="text-2xl font-semibold">Residência OS</h1><p className="text-sm text-muted">Entre para ver o que estudar hoje.</p></div>
+        {aviso === 'confirme' && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-3 text-sm">Conta criada! Enviamos um link de confirmação para o seu e-mail. Clique nele e depois entre aqui.</p>}
+        <label className="block space-y-1"><span className="text-sm">E-mail</span><input name="email" type="email" required autoComplete="email" className={input} /></label>
+        <label className="block space-y-1"><span className="text-sm">Senha</span><input name="password" type="password" required autoComplete="current-password" className={input} /></label>
         {erro && <p role="alert" className="text-sm text-danger">{erro}</p>}
-        <button name="modo" value="entrar" className="w-full rounded-xl bg-brand py-3 font-medium text-black">Entrar</button>
-        <button name="modo" value="cadastro" className="w-full rounded-xl border border-line py-3">Criar conta</button>
+        <button className="w-full rounded-xl bg-brand py-3 font-medium text-black">Entrar</button>
+        <p className="text-center text-sm text-muted">Ainda não tem conta? <Link href="/cadastro" className="text-brand underline">Criar conta</Link></p>
       </form>
     </main>
   )
