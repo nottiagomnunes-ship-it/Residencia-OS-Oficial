@@ -19,4 +19,4 @@ export async function middleware(req: NextRequest) {
   if (user && onLogin) return NextResponse.redirect(new URL('/inicio', req.url))
   return res
 }
-export const config = { matcher: ['/((?!_next|favicon.ico).*)'] }
+export const config = { matcher: ['/((?!_next|favicon.ico|manifest.webmanifest|icons/|sw.js|offline.html).*)'] }

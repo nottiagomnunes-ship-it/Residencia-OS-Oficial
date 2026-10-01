@@ -7,3 +7,8 @@
 }
 body { background: var(--color-bg); color: #E7EEEA; font-variant-numeric: tabular-nums; }
 :focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; }
+
+/* iPhone dá zoom ao focar em campos com fonte menor que 16px: no toque, os campos usam 16px */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']), select, textarea { font-size: 16px !important; }
+}

@@ -75,7 +75,7 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados }
           <div role="dialog" aria-modal="true" aria-label={sel.titulo} onClick={e => e.stopPropagation()} className="w-full max-w-md space-y-4 rounded-t-2xl border border-line bg-surface p-6 md:rounded-2xl">
             <div className="flex items-start justify-between gap-4">
               <div><p className={`text-sm ${TIPO_COR[sel.tipo] ?? 'text-muted'}`}>{TIPO[sel.tipo]} · {ROTULO[statusDe(sel, hoje)]}</p><h2 className="text-lg font-semibold">{sel.titulo}</h2></div>
-              <button onClick={() => setSel(null)} aria-label="Fechar" className="text-muted">✕</button>
+              <button onClick={() => setSel(null)} aria-label="Fechar" className="p-2 text-muted">✕</button>
             </div>
             <p className="text-sm text-muted">{fmtData(sel.data)}{sel.hora_ini ? ` · ${sel.hora_ini.slice(0, 5)}${sel.hora_fim ? `–${sel.hora_fim.slice(0, 5)}` : ''}` : ''}{sel.duracao_min ? ` · ${sel.duracao_min} min` : ''}{sel.qtd_questoes ? ` · ${sel.qtd_questoes} questões` : ''}{sel.origem === 'auto' ? ' · gerada pelo sistema' : ''}</p>
             {sel.status !== 'concluido' && <>

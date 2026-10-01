@@ -42,6 +42,12 @@ export default async function Configuracoes({ searchParams }: { searchParams: Pr
       </form>
       <section className={sec}><h2 className="font-medium">Disciplinas e conteúdos</h2>
         <p className="text-sm text-muted">Pesos, novas disciplinas e o catálogo de assuntos ficam em <Link href="/disciplinas" className="text-brand underline">Disciplinas</Link> e <Link href="/conteudos" className="text-brand underline">Conteúdos</Link>. Para trazer o seu próprio plano, em texto ou PDF, use <Link href="/importar" className="text-brand underline">Importar cronograma</Link>.</p></section>
+      <section className={sec}><h2 className="font-medium">Instalar no celular</h2>
+        <p className="text-sm text-muted">O app abre em tela cheia, com ícone na tela inicial, como um aplicativo.</p>
+        <ul className="list-disc space-y-1 pl-5 text-sm">
+          <li><b>Android (Chrome):</b> menu ⋮ → <i>Instalar aplicativo</i> (ou <i>Adicionar à tela inicial</i>).</li>
+          <li><b>iPhone (Safari):</b> botão Compartilhar → <i>Adicionar à Tela de Início</i>.</li>
+        </ul></section>
       <details className="rounded-2xl border border-danger/40 bg-surface p-5">
         <summary className="cursor-pointer font-medium text-danger">Reiniciar configurações</summary>
         <form action={reiniciarConfiguracoes} className="mt-4 space-y-4 text-sm">

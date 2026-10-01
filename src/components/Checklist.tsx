@@ -58,8 +58,8 @@ export default function Checklist({ topicId, inicial, modelos: modelosIniciais, 
             ) : (<>
               <span className={`min-w-0 flex-1 ${i.concluida ? 'text-muted line-through' : ''}`}>{i.titulo}<span className={`ml-2 text-xs ${COR[i.tipo]}`}>{TIPOS_ETAPA[i.tipo]}</span></span>
               {i.tipo === 'questoes' && !i.concluida && <Link href={`/questoes?alvo=t:${topicId}${i.qtd_questoes ? `&total=${i.qtd_questoes}` : ''}`} className="text-sm text-brand hover:underline">Registrar</Link>}
-              <button onClick={() => editar(i)} aria-label={`Editar etapa: ${i.titulo}`} className="text-muted hover:text-brand">✎</button>
-              <button onClick={() => remover(i)} aria-label={`Excluir etapa: ${i.titulo}`} className="text-muted hover:text-danger">✕</button>
+              <button onClick={() => editar(i)} aria-label={`Editar etapa: ${i.titulo}`} className="p-2 text-muted hover:text-brand">✎</button>
+              <button onClick={() => remover(i)} aria-label={`Excluir etapa: ${i.titulo}`} className="p-2 text-muted hover:text-danger">✕</button>
             </>)}
           </li>))}</ul>
         {!p.total && <p className="text-sm text-muted">Nenhuma etapa ainda. Escolha um padrão ou escreva o seu próprio item.</p>}

@@ -27,3 +27,4 @@
 26. Desfazer o último lote de etapas aplicado em Conteúdos: rode `supabase/migrations/0012_lote_etapas.sql`.
 27. O "desfazer último lote" vale por 24 horas depois da aplicação (sem migração).
 28. Publicação na Vercel: veja DEPLOY.md.
+29. PWA (instalável, ícone, tela offline) e menu "Mais" no celular. Sem migração nova.
