@@ -6,8 +6,8 @@ import { pct } from '@/lib/engine/desempenho'
 import { fmtData, inputCls } from '@/components/ui'
 import EvolucaoSimulados from '@/components/EvolucaoSimulados'
 
-export default async function Simulados({ searchParams }: { searchParams: Promise<{ ok?: string; erro?: string }> }) {
-  const { ok, erro } = await searchParams
+export default async function Simulados({ searchParams }: { searchParams: Promise<{ ok?: string; erro?: string; tempo?: string }> }) {
+  const { ok, erro, tempo } = await searchParams
   const sb = await supabaseServer()
   const [{ data: ds }, { data: ms }] = await Promise.all([
     sb.from('disciplines').select('id,nome').order('ordem'),
@@ -29,7 +29,7 @@ export default async function Simulados({ searchParams }: { searchParams: Promis
         <h2 className="font-medium sm:col-span-2 xl:col-span-4">Registrar simulado</h2>
         <input name="nome" required placeholder="Nome (ex.: Simulado 3)" className={inputCls + ' xl:col-span-2'} />
         <input name="data" type="date" defaultValue={hojeBR()} aria-label="Data" className={inputCls} />
-        <input name="tempo_min" type="number" inputMode="numeric" min={0} placeholder="Tempo (min)" className={inputCls} />
+        <input name="tempo_min" type="number" inputMode="numeric" min={0} defaultValue={tempo} placeholder="Tempo (min)" className={inputCls} />
         <input name="total" type="number" inputMode="numeric" min={1} placeholder="Questões (total)" className={inputCls} />
         <input name="acertos" type="number" inputMode="numeric" min={0} placeholder="Acertos (total)" className={inputCls} />
         <p className="self-center text-xs text-muted sm:col-span-2">Ou informe por disciplina abaixo: o total é somado automaticamente.</p>

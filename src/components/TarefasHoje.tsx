@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { concluirItem, adiarItem } from '@/lib/calendar'
 import Deslizavel from '@/components/Deslizavel'
+import BotaoCronometro from '@/components/BotaoCronometro'
 import { acaoDoGesto, rotuloDoGesto } from '@/lib/engine/gestos'
 import { definirCapacidade } from '@/lib/capacidade'
 import { resumoHoje } from '@/lib/engine/hoje'
@@ -51,15 +52,15 @@ export default function TarefasHoje({ itens, hoje, concluidasHoje, minutosHoje, 
       <Deslizavel direita={rotuloDoGesto(dir, t.tipo)} esquerda={rotuloDoGesto(esq, t.tipo)} onEsquerda={adiar}
         onDireita={() => (dir === 'concluir' ? concluir(t.id) : destino && router.push(destino))}>{filho}</Deslizavel>)
     return destino
-      ? <li key={t.id}>{desliza(<Link href={destino} className="flex items-center gap-4 rounded-xl px-2 py-2.5 hover:bg-line/40">{info}<span className="rounded-full border border-info px-3 py-1 text-sm text-info">{t.tipo === 'revisao' ? 'Fazer' : 'Registrar'}</span></Link>)}</li>
+      ? <li key={t.id}>{desliza(<div className="flex items-center gap-1 rounded-xl pr-1 hover:bg-line/40"><Link href={destino} className="flex min-w-0 flex-1 items-center gap-4 px-2 py-2.5">{info}<span className="rounded-full border border-info px-3 py-1 text-sm text-info">{t.tipo === 'revisao' ? 'Fazer' : 'Registrar'}</span></Link><BotaoCronometro itemId={t.id} titulo={t.titulo} /></div>)}</li>
       : <li key={t.id}>{desliza(<div className="flex items-center gap-4 rounded-xl px-2 py-1.5 hover:bg-line/40">
           <button onClick={() => concluir(t.id)} role="checkbox" aria-checked={false} aria-label={`Concluir: ${t.titulo}`} className="grid size-8 shrink-0 place-items-center rounded-full border-2 border-muted" />
-          {info}<Link href={`/calendario?v=dia&d=${t.data}`} className="text-sm text-muted hover:text-brand">Abrir</Link></div>)}</li>
+          {info}<BotaoCronometro itemId={t.id} titulo={t.titulo} /><Link href={`/calendario?v=dia&d=${t.data}`} className="text-sm text-muted hover:text-brand">Abrir</Link></div>)}</li>
   }
   return (
     <section className="space-y-4 rounded-2xl border border-line bg-surface p-5" aria-label="O que fazer hoje">
       <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="text-lg font-semibold">Hoje</h2>
-        {r.total > 0 && <span className="text-sm text-muted">{r.feitas} de {r.total} concluídas</span>}</div>
+        <span className="flex flex-wrap items-center gap-3">{r.total > 0 && <span className="text-sm text-muted">{r.feitas} de {r.total} concluídas</span>}<BotaoCronometro itemId={null} titulo="Estudo livre" variante="livre" /></span></div>
       {r.total > 0 && <Bar pct={r.pct} />}
       <div className="space-y-2">
         <p className="text-sm text-muted">Quanto tempo você tem hoje?</p>

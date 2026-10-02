@@ -35,7 +35,7 @@ export async function concluirRevisao(fd: FormData) {
   const { sb, uid } = await ctx()
   const hoje = hojeBR(), id = String(fd.get('review_id'))
   const num = (k: string) => { const v = fd.get(k); return v === null || v === '' ? null : Number(v) }
-  const desempenho = num('desempenho'), dificuldade = num('dificuldade')
+  const desempenho = num('desempenho'), dificuldade = num('dificuldade'), tempo = num('tempo_min')
   const { data: r } = await sb.from('reviews').select('id,topic_id,numero,interval_days,status').eq('id', id).single()
   if (!r || r.status === 'concluida') return
   let ajustes: { id: string; due_date: string }[] = []
@@ -50,6 +50,7 @@ export async function concluirRevisao(fd: FormData) {
   const { error } = await sb.rpc('concluir_revisao', {
     p_review: id, p_hoje: hoje, p_desempenho: desempenho, p_dificuldade: dificuldade, p_qtd: num('questoes_qtd'),
     p_obs: String(fd.get('observacoes') || '') || null, p_xp: xpRevisao(desempenho), p_ajustes: ajustes,
+    ...(tempo && tempo > 0 ? { p_min: Math.round(tempo) } : {}), // tempo medido no cronômetro ou digitado; sem ele, vale o tempo planejado da tarefa
   })
   if (error) throw new Error('Não foi possível concluir a revisão. Nada foi alterado; tente de novo.')
   await carregarGamificacao(sb, hoje).catch(() => {})

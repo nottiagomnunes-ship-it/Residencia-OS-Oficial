@@ -9,6 +9,7 @@ import Checklist from '@/components/Checklist'
 import { minParaHhmm, type Intervalo } from '@/lib/engine/compromissos'
 import { fmtData, inputCls } from '@/components/ui'
 import Deslizavel from '@/components/Deslizavel'
+import BotaoCronometro from '@/components/BotaoCronometro'
 import { acaoDoGesto, rotuloDoGesto } from '@/lib/engine/gestos'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 
@@ -94,6 +95,7 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
                     ? <><Link href="/revisoes" className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Fazer revisão</Link>
                       <button onClick={() => run(() => concluirItem(sel.id))} className="rounded-xl border border-line px-4 py-2 text-sm">Marcar como feita</button></>
                     : <button onClick={() => run(() => concluirItem(sel.id))} className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Concluir</button>}
+                <BotaoCronometro itemId={sel.id} titulo={sel.titulo} variante="texto" />
                 <button onClick={() => mover(f => adiarItem(sel.id, f))} className="rounded-xl border border-line px-4 py-2 text-sm">Adiar 1 dia</button>
                 <button onClick={abrirEdicao} className="rounded-xl border border-line px-4 py-2 text-sm">Editar</button>
                 {(sel.tipo === 'questoes' || sel.tipo === 'simulado') && <Link href={sel.tipo === 'simulado' ? '/simulados' : `/questoes?${[sel.topic_id ? `alvo=t:${sel.topic_id}` : '', sel.qtd_questoes ? `total=${sel.qtd_questoes}` : ''].filter(Boolean).join('&')}`}
