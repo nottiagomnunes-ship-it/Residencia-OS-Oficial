@@ -5,6 +5,9 @@ import { salvarLembrete, enviarLembreteTeste } from '@/lib/lembretes'
 import { salvarRitmoModo } from '@/lib/config'
 import { inputCls } from '@/components/ui'
 import RestaurarBackup from '@/components/RestaurarBackup'
+import TamanhoTexto from '@/components/TamanhoTexto'
+import { cookies } from 'next/headers'
+import { lerTamanho } from '@/lib/engine/texto'
 import { carregarInfoRestauracao } from '@/lib/backup-restauracao-data'
 
 const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
@@ -14,6 +17,7 @@ export default async function Configuracoes({ searchParams }: { searchParams: Pr
   const sb = await supabaseServer()
   const { data: p } = await sb.from('profiles').select('*').single()
   const restauracao = await carregarInfoRestauracao(sb)
+  const tamanhoTexto = lerTamanho((await cookies()).get('texto')?.value)
   const Campo = ({ t, dica, children }: { t: string; dica?: string; children: React.ReactNode }) => <label className="block space-y-1"><span className="text-sm">{t}</span>{children}{dica && <span className="block text-xs text-muted">{dica}</span>}</label>
   const sec = 'space-y-4 rounded-2xl border border-line bg-surface p-5'
   return (
@@ -49,6 +53,10 @@ export default async function Configuracoes({ searchParams }: { searchParams: Pr
       </form>
       <section className={sec}><h2 className="font-medium">Disciplinas e conteúdos</h2>
         <p className="text-sm text-muted">Pesos, novas disciplinas e o catálogo de assuntos ficam em <Link href="/disciplinas" className="text-brand underline">Disciplinas</Link> e <Link href="/conteudos" className="text-brand underline">Conteúdos</Link>. Para trazer o seu próprio plano, em texto ou PDF, use <Link href="/importar" className="text-brand underline">Importar cronograma</Link>.</p></section>
+      <section className={sec}><h2 className="font-medium">Aparência</h2>
+        <p className="text-sm text-muted">Tamanho do texto em todo o app. Se as letras estiverem pequenas no tablet, experimente Grande ou Maior.</p>
+        <TamanhoTexto inicial={tamanhoTexto} />
+      </section>
       <section className={sec}><h2 className="font-medium">Ritmo para a prova</h2>
         <p className="text-sm text-muted">Compara quantos assuntos você conclui por semana com o necessário para chegar à prova. É uma referência, não uma cobrança: escolha o quanto quer ver.</p>
         <form action={salvarRitmoModo} className="space-y-3">

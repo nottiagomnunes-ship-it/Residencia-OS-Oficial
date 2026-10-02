@@ -56,7 +56,7 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
   const PONTO: Record<string, string> = { concluido: 'bg-brand', agendado: 'bg-info', proximo: 'bg-warn', atrasado: 'bg-danger' }
   const faixa = (o: Intervalo, k: number, miudo: boolean) => (
     <div key={'o' + k} title={`${o.titulo}: ${minParaHhmm(o.ini)} às ${o.fim >= 1440 ? '24:00' : minParaHhmm(o.fim)}`}
-      className={`rounded-lg border-l-4 border-line bg-line/40 px-2 py-1 text-muted ${miudo ? 'hidden truncate text-[11px] md:block' : 'text-xs'}`}>
+      className={`rounded-lg border-l-4 border-line bg-line/40 px-2 py-1 text-muted ${miudo ? 'hidden truncate text-xs md:block' : 'text-xs'}`}>
       {miudo ? minParaHhmm(o.ini) : `${minParaHhmm(o.ini)}–${o.fim >= 1440 ? '24:00' : minParaHhmm(o.fim)}`} {o.titulo}</div>)
   const cartao = (i: Item, miudo: boolean, semana = false) => {
     const st = statusDe(i, hoje)
@@ -64,8 +64,8 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
       <div key={i.id} role="button" tabIndex={0} draggable={i.status !== 'concluido'}
         onDragStart={e => e.dataTransfer.setData('text/plain', i.id)} onClick={() => { setSel(i); setNovaData(i.data) }}
         onKeyDown={e => e.key === 'Enter' && (setSel(i), setNovaData(i.data))}
-        className={`cursor-pointer rounded-lg border-l-4 ${painel && sel?.id === i.id ? 'ring-2 ring-brand' : ''} ${miudo ? `hidden truncate px-1.5 ${denso ? 'py-0.5 text-[11px]' : 'py-1.5 text-xs'} md:block` : semana ? 'px-3 py-2.5 text-sm md:px-2 md:py-1.5 md:text-xs xl:px-3 xl:py-2.5 xl:text-sm' : 'px-3 py-2.5 text-sm'} ${COR[st]}`}>
-        {!miudo && <span className={`block text-xs ${semana ? 'md:text-[10px] xl:text-xs' : ''} ${TIPO_COR[i.tipo] ?? 'text-muted'}`}>{TIPO[i.tipo]}{i.hora_ini ? ` · ${i.hora_ini.slice(0, 5)}` : i.duracao_min ? ` · ${i.duracao_min} min` : ''}</span>}
+        className={`cursor-pointer rounded-lg border-l-4 ${painel && sel?.id === i.id ? 'ring-2 ring-brand' : ''} ${miudo ? `hidden truncate px-1.5 ${denso ? 'py-0.5' : 'py-1.5'} text-xs md:block` : semana ? 'px-3 py-2.5 text-sm md:px-2 md:py-1.5 md:text-xs xl:px-3 xl:py-2.5 xl:text-sm' : 'px-3 py-2.5 text-sm'} ${COR[st]}`}>
+        {!miudo && <span className={`block text-xs ${semana ? 'md:text-[0.6875rem] xl:text-xs' : ''} ${TIPO_COR[i.tipo] ?? 'text-muted'}`}>{TIPO[i.tipo]}{i.hora_ini ? ` · ${i.hora_ini.slice(0, 5)}` : i.duracao_min ? ` · ${i.duracao_min} min` : ''}</span>}
         <span className={`${semana ? 'block break-words md:line-clamp-3 xl:line-clamp-none' : ''} ${st === 'concluido' ? 'line-through opacity-70' : ''}`}>{i.titulo}</span>
         {!miudo && i.topic_id && i.tipo === 'estudo' && etapas[i.topic_id]?.length > 0 && (() => { const p = progressoEtapas(etapas[i.topic_id!]); return <span className={`ml-2 text-xs ${p.completo ? 'text-brand' : 'text-muted'}`}>{p.completo ? '✓ ' : ''}etapas {p.feitas}/{p.total}</span> })()}
         {!miudo && i.tipo === 'revisao' && i.review_id && etapasRev[i.review_id]?.length > 0 && (() => { const p = progressoEtapas(etapasRev[i.review_id!]); return <span className={`ml-2 text-xs ${p.completo ? 'text-brand' : 'text-muted'}`}>{p.completo ? '✓ ' : ''}etapas {p.feitas}/{p.total}</span> })()}
@@ -141,9 +141,9 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
                 <>
                   <h3 className="text-sm md:hidden"><span className="capitalize">{nomeDia(d)}</span> <span className="text-muted">{d.slice(8)}/{d.slice(5, 7)}</span></h3>
                   <div className="hidden text-center md:block">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">{nomeDia(d)}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted">{nomeDia(d)}</p>
                     <p className="text-xl font-semibold leading-tight">{+d.slice(8)}<span className="text-xs font-normal text-muted">/{d.slice(5, 7)}</span></p>
-                    <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] ${lista.length ? 'bg-brand/15 text-brand' : 'bg-info/15 text-info'}`}>{lista.length ? `${lista.length} ${lista.length === 1 ? 'tarefa' : 'tarefas'}` : 'Livre'}</span>
+                    <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[0.6875rem] ${lista.length ? 'bg-brand/15 text-brand' : 'bg-info/15 text-info'}`}>{lista.length ? `${lista.length} ${lista.length === 1 ? 'tarefa' : 'tarefas'}` : 'Livre'}</span>
                   </div>
                 </>)
                 : <h3 className="text-sm">{compacto ? +d.slice(8) : <><span className="capitalize">{nomeDia(d)}</span> <span className="text-muted">{d.slice(8)}/{d.slice(5, 7)}</span></>}</h3>}
@@ -151,7 +151,7 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
               {(denso ? lista.slice(0, 3) : lista).map(i => cartao(i, compacto, view === 'semana'))}
               {denso && lista.length > 3 && (
                 <button type="button" onClick={() => setDiaAberto(d)} aria-label={`Ver as ${lista.length} tarefas de ${nomeDia(d)}, ${d.slice(8)}/${d.slice(5, 7)}`}
-                  className="block w-full rounded-lg px-1.5 py-0.5 text-left text-[11px] text-brand hover:bg-line/40">+{lista.length - 3} mais</button>)}
+                  className="block w-full rounded-lg px-1.5 py-0.5 text-left text-xs text-brand hover:bg-line/40">+{lista.length - 3} mais</button>)}
             </section>)
           if (!compacto) return <div key={d} className="contents">{secao}</div>
           return (
@@ -160,7 +160,7 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
                 aria-label={`${nomeDia(d)}, ${d.slice(8)}/${d.slice(5, 7)}: ${lista.length} ${lista.length === 1 ? 'tarefa' : 'tarefas'}`}
                 className={`flex min-h-16 w-full flex-col items-center gap-1.5 rounded-xl border p-1.5 text-sm md:hidden ${d === hoje ? 'border-brand' : 'border-line'} ${d === diaAtivo ? 'bg-brand/15' : 'bg-surface'} ${fora ? 'opacity-40' : ''}`}>
                 <span>{+d.slice(8)}</span>
-                <span aria-hidden className="flex flex-wrap justify-center gap-1">{pontos.slice(0, 6).map((c, k) => <span key={k} className={`size-2 rounded-full ${c}`} />)}{pontos.length > 6 && <span className="text-[10px] leading-none text-muted">+</span>}</span>
+                <span aria-hidden className="flex flex-wrap justify-center gap-1">{pontos.slice(0, 6).map((c, k) => <span key={k} className={`size-2 rounded-full ${c}`} />)}{pontos.length > 6 && <span className="text-[0.6875rem] leading-none text-muted">+</span>}</span>
               </button>
               {secao}
             </div>)
