@@ -1,7 +1,10 @@
 'use client'
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { concluirItem } from '@/lib/calendar'
+import { useRouter } from 'next/navigation'
+import { concluirItem, adiarItem } from '@/lib/calendar'
+import Deslizavel from '@/components/Deslizavel'
+import { acaoDoGesto, rotuloDoGesto } from '@/lib/engine/gestos'
 import { definirCapacidade } from '@/lib/capacidade'
 import { resumoHoje } from '@/lib/engine/hoje'
 import { dividirPorTempo, escolherAdiantar, formatarMinutos, OPCOES_TEMPO } from '@/lib/engine/tempo'
@@ -17,7 +20,8 @@ const TIPO: Record<string, string> = { estudo: 'Estudo', revisao: 'Revisão', qu
 /** O que fazer hoje, conforme o tempo informado: mostra o que cabe (atrasadas primeiro) e deixa o resto para depois. Sem horários. */
 export default function TarefasHoje({ itens, hoje, concluidasHoje, minutosHoje, informado, minutosFeitos, adiantaveis, recursos }: { itens: T[]; hoje: string; concluidasHoje: number; minutosHoje: number; informado: boolean; minutosFeitos: number; adiantaveis: Adiantavel[]; recursos: boolean }) {
   const [feitas, setFeitas] = useState<ReadonlySet<string>>(new Set()), [minutos, setMinutos] = useState(minutosHoje), [inf, setInf] = useState(informado), [, start] = useTransition()
-  const r = resumoHoje(itens, hoje, concluidasHoje, feitas)
+  const router = useRouter(), [adiadas, setAdiadas] = useState<ReadonlySet<string>>(new Set()), [avisoGesto, setAvisoGesto] = useState<string | null>(null)
+  const r = resumoHoje(itens.filter(i => !adiadas.has(i.id)), hoje, concluidasHoje, feitas)
   const d = dividirPorTempo([...r.atrasadas, ...r.deHoje], minutos)
   // sobra tempo hoje (já descontado o que foi feito): oferece trazer tarefas dos próximos dias, só quando você informou o tempo de hoje
   const [adiantados, setAdiantados] = useState<ReadonlySet<string>>(new Set()), [aviso, setAviso] = useState<string | null>(null)
@@ -36,11 +40,21 @@ export default function TarefasHoje({ itens, hoje, concluidasHoje, minutosHoje, 
     // revisão, questões e simulado não se "concluem" com um toque: levam ao registro, onde o resultado (e o XP) é contado
     const destino = t.tipo === 'revisao' ? '/revisoes' : t.tipo === 'simulado' ? '/simulados'
       : t.tipo === 'questoes' ? `/questoes?${[t.topic_id ? `alvo=t:${t.topic_id}` : '', t.qtd_questoes ? `total=${t.qtd_questoes}` : ''].filter(Boolean).join('&')}` : null
+    // deslizar no toque: para a direita faz (conclui, ou abre o registro); para a esquerda adia 1 dia
+    const dir = acaoDoGesto('direita', t.tipo, 'agendado'), esq = acaoDoGesto('esquerda', t.tipo, 'agendado')
+    const adiar = () => start(async () => {
+      const x = await adiarItem(t.id, false)
+      if (x.conflito) { setAvisoGesto('Esse dia tem um conflito de horário. Abra a tarefa para decidir.'); return }
+      setAvisoGesto(null); setAdiadas(s => new Set(s).add(t.id))
+    })
+    const desliza = (filho: React.ReactNode) => (
+      <Deslizavel direita={rotuloDoGesto(dir, t.tipo)} esquerda={rotuloDoGesto(esq, t.tipo)} onEsquerda={adiar}
+        onDireita={() => (dir === 'concluir' ? concluir(t.id) : destino && router.push(destino))}>{filho}</Deslizavel>)
     return destino
-      ? <li key={t.id}><Link href={destino} className="flex items-center gap-4 rounded-xl px-2 py-2.5 hover:bg-line/40">{info}<span className="rounded-full border border-info px-3 py-1 text-sm text-info">{t.tipo === 'revisao' ? 'Fazer' : 'Registrar'}</span></Link></li>
-      : <li key={t.id} className="flex items-center gap-4 rounded-xl px-2 py-1.5 hover:bg-line/40">
+      ? <li key={t.id}>{desliza(<Link href={destino} className="flex items-center gap-4 rounded-xl px-2 py-2.5 hover:bg-line/40">{info}<span className="rounded-full border border-info px-3 py-1 text-sm text-info">{t.tipo === 'revisao' ? 'Fazer' : 'Registrar'}</span></Link>)}</li>
+      : <li key={t.id}>{desliza(<div className="flex items-center gap-4 rounded-xl px-2 py-1.5 hover:bg-line/40">
           <button onClick={() => concluir(t.id)} role="checkbox" aria-checked={false} aria-label={`Concluir: ${t.titulo}`} className="grid size-8 shrink-0 place-items-center rounded-full border-2 border-muted" />
-          {info}<Link href={`/calendario?v=dia&d=${t.data}`} className="text-sm text-muted hover:text-brand">Abrir</Link></li>
+          {info}<Link href={`/calendario?v=dia&d=${t.data}`} className="text-sm text-muted hover:text-brand">Abrir</Link></div>)}</li>
   }
   return (
     <section className="space-y-4 rounded-2xl border border-line bg-surface p-5" aria-label="O que fazer hoje">
@@ -68,6 +82,7 @@ export default function TarefasHoje({ itens, hoje, concluidasHoje, minutosHoje, 
           <button onClick={adiantar} className="rounded-xl bg-brand px-4 py-2 font-medium text-black">Adiantar {adi.length} {adi.length === 1 ? 'tarefa' : 'tarefas'}</button>
         </div>)}
       {aviso && <p className="text-sm text-danger">{aviso}</p>}
+      {avisoGesto && <p role="status" className="text-sm text-muted">{avisoGesto}</p>}
       {!d.cabem.length && !d.sobram.length && <p className="text-sm text-muted">{r.total > 0 ? 'Tudo concluído por hoje.' : 'Nada pendente por enquanto.'} <Link href="/cronograma" className="text-brand underline">Ver o cronograma</Link></p>}
     </section>
   )

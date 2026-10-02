@@ -26,14 +26,15 @@ export async function registrarQuestoes(fd: FormData) {
   const dia = ISO.test(String(fd.get('data'))) ? String(fd.get('data')) : hojeBR()
   const alvo = await resolverAlvo(sb, String(fd.get('alvo')))
   const xp = xpQuestoes(total, acertos)
-  const { error } = await sb.rpc('registrar_questoes', {
+  const { data: marcadas, error } = await sb.rpc('registrar_questoes', {
     p_disc: alvo.discipline_id, p_topic: alvo.topic_id, p_banca: opt(fd, 'banca'), p_prova: opt(fd, 'prova'), p_ano: optN(fd, 'ano'),
     p_total: total, p_acertos: acertos, p_tempo: optN(fd, 'tempo_min'), p_dif: optN(fd, 'dificuldade'), p_dia: dia, p_xp: xp,
   })
   if (error) redirect('/questoes?erro=' + encodeURIComponent('Não foi possível registrar as questões. Nada foi gravado; tente de novo.'))
   await carregarGamificacao(sb, hojeBR()).catch(() => {})
   refresh()
-  redirect(`/questoes?ok=${total}-${acertos}&xp=${xp}`)
+  const etapas = typeof marcadas === 'number' ? marcadas : 0 // etapas do assunto e da revisão marcadas sozinhas
+  redirect(`/questoes?ok=${total}-${acertos}&xp=${xp}${etapas ? `&etapas=${etapas}` : ''}`)
 }
 
 /** Exclui a sessão e devolve o XP, o tempo e as questões do dia, tudo numa transação. */

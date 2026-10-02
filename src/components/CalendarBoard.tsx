@@ -8,6 +8,9 @@ import ChecklistRevisao from '@/components/ChecklistRevisao'
 import Checklist from '@/components/Checklist'
 import { minParaHhmm, type Intervalo } from '@/lib/engine/compromissos'
 import { fmtData, inputCls } from '@/components/ui'
+import Deslizavel from '@/components/Deslizavel'
+import { acaoDoGesto, rotuloDoGesto } from '@/lib/engine/gestos'
+import { useMediaQuery } from '@/lib/useMediaQuery'
 
 export type Item = { id: string; tipo: string; titulo: string; data: string; hora_ini: string | null; hora_fim: string | null; duracao_min: number | null; qtd_questoes: number | null; status: string; origem: string; review_id?: string | null; topic_id?: string | null }
 const COR: Record<string, string> = { concluido: 'border-brand bg-brand/10', agendado: 'border-info bg-info/10', proximo: 'border-warn bg-warn/10', atrasado: 'border-danger bg-danger/10' }
@@ -18,6 +21,7 @@ const SEMANA = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 
 export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, etapas, etapasRev, modelos }: { items: Item[]; dias: string[]; view: string; hoje: string; mes: string; ocupados: Record<string, Intervalo[]>; etapas: Record<string, Etapa[]>; etapasRev: Record<string, Etapa[]>; modelos: Modelo[] }) {
   const [sel, setSel] = useState<Item | null>(null)
+  const painel = useMediaQuery('(min-width: 1024px) and (max-width: 1279.98px)') // tablet deitado: a lista de dias à esquerda e os detalhes da tarefa ao lado, sem janela por cima
   const [novaData, setNovaData] = useState('')
   const [pending, start] = useTransition()
   const [diaSel, setDiaSel] = useState('') // dia aberto na visão de mês do celular
@@ -41,7 +45,7 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
     setEditandoId(null); setSel(null)
   })
   const nomeDia = (d: string) => new Date(d + 'T12:00:00Z').toLocaleDateString('pt-BR', { weekday: 'long', timeZone: 'UTC' }).replace('-feira', '')
-  const cols = view === 'dia' ? 'grid-cols-1' : view === 'semana' ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-7' : 'grid-cols-7'
+  const cols = view === 'dia' ? 'grid-cols-1' : view === 'semana' ? (painel ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-7') : 'grid-cols-7'
   const compacto = view === 'mes'
   const diaAtivo = dias.includes(diaSel) ? diaSel : dias.includes(hoje) ? hoje : (dias.find(d => d.slice(0, 7) === mes) ?? dias[0])
   const doDia = (d: string) => ({ lista: items.filter(i => i.data === d), ocup: [...(ocupados[d] ?? [])].sort((a, b) => a.ini - b.ini) })
@@ -52,62 +56,28 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
       {miudo ? minParaHhmm(o.ini) : `${minParaHhmm(o.ini)}–${o.fim >= 1440 ? '24:00' : minParaHhmm(o.fim)}`} {o.titulo}</div>)
   const cartao = (i: Item, miudo: boolean) => {
     const st = statusDe(i, hoje)
-    return (
+    const card = (
       <div key={i.id} role="button" tabIndex={0} draggable={i.status !== 'concluido'}
         onDragStart={e => e.dataTransfer.setData('text/plain', i.id)} onClick={() => { setSel(i); setNovaData(i.data) }}
         onKeyDown={e => e.key === 'Enter' && (setSel(i), setNovaData(i.data))}
-        className={`cursor-pointer rounded-lg border-l-4 ${miudo ? 'hidden truncate px-1.5 py-1.5 text-xs md:block' : 'px-3 py-2.5 text-sm'} ${COR[st]}`}>
+        className={`cursor-pointer rounded-lg border-l-4 ${painel && sel?.id === i.id ? 'ring-2 ring-brand' : ''} ${miudo ? 'hidden truncate px-1.5 py-1.5 text-xs md:block' : 'px-3 py-2.5 text-sm'} ${COR[st]}`}>
         {!miudo && <span className={`block text-xs ${TIPO_COR[i.tipo] ?? 'text-muted'}`}>{TIPO[i.tipo]}{i.hora_ini ? ` · ${i.hora_ini.slice(0, 5)}` : i.duracao_min ? ` · ${i.duracao_min} min` : ''}</span>}
         <span className={st === 'concluido' ? 'line-through opacity-70' : ''}>{i.titulo}</span>
         {!miudo && i.topic_id && i.tipo === 'estudo' && etapas[i.topic_id]?.length > 0 && (() => { const p = progressoEtapas(etapas[i.topic_id!]); return <span className={`ml-2 text-xs ${p.completo ? 'text-brand' : 'text-muted'}`}>{p.completo ? '✓ ' : ''}etapas {p.feitas}/{p.total}</span> })()}
         {!miudo && i.tipo === 'revisao' && i.review_id && etapasRev[i.review_id]?.length > 0 && (() => { const p = progressoEtapas(etapasRev[i.review_id!]); return <span className={`ml-2 text-xs ${p.completo ? 'text-brand' : 'text-muted'}`}>{p.completo ? '✓ ' : ''}etapas {p.feitas}/{p.total}</span> })()}
       </div>)
+    if (miudo || i.status === 'concluido') return card
+    // deslizar no toque: para a direita conclui (ou abre o registro, nas tarefas com resultado); para a esquerda adia 1 dia
+    const dir = acaoDoGesto('direita', i.tipo, i.status), esq = acaoDoGesto('esquerda', i.tipo, i.status)
+    return (
+      <Deslizavel key={i.id} direita={rotuloDoGesto(dir, i.tipo)} esquerda={rotuloDoGesto(esq, i.tipo)}
+        onDireita={() => (dir === 'concluir' ? run(() => concluirItem(i.id)) : (setSel(i), setNovaData(i.data)))}
+        onEsquerda={() => mover(f => adiarItem(i.id, f))}>{card}</Deslizavel>)
   }
 
-  return (
-    <div className={pending ? 'opacity-60' : ''}>
-      {compacto && <div className="mb-1 grid grid-cols-7 text-center text-xs text-muted">{SEMANA.map(s => <div key={s}>{s}</div>)}</div>}
-      <div className={`grid gap-2 ${cols}`}>
-        {dias.map(d => {
-          const { lista, ocup } = doDia(d), fora = compacto && d.slice(0, 7) !== mes
-          const pontos = [...(ocup.length ? ['bg-muted'] : []), ...lista.map(i => PONTO[statusDe(i, hoje)])]
-          const secao = (
-            <section onDragOver={e => e.preventDefault()}
-              onDrop={e => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) mover(f => moverItem(id, d, f)) }}
-              className={`min-h-24 space-y-2.5 rounded-xl border bg-surface p-3 ${compacto ? 'hidden md:block' : ''} ${d === hoje ? 'border-brand' : 'border-line'} ${fora ? 'opacity-40' : ''}`}>
-              <h3 className="text-sm">{compacto ? +d.slice(8) : <><span className="capitalize">{nomeDia(d)}</span> <span className="text-muted">{d.slice(8)}/{d.slice(5, 7)}</span></>}</h3>
-              {ocup.map((o, k) => faixa(o, k, compacto))}
-              {lista.map(i => cartao(i, compacto))}
-            </section>)
-          if (!compacto) return <div key={d} className="contents">{secao}</div>
-          return (
-            <div key={d} className="contents">
-              <button type="button" onClick={() => setDiaSel(d)} aria-pressed={d === diaAtivo}
-                aria-label={`${nomeDia(d)}, ${d.slice(8)}/${d.slice(5, 7)}: ${lista.length} ${lista.length === 1 ? 'tarefa' : 'tarefas'}`}
-                className={`flex min-h-16 w-full flex-col items-center gap-1.5 rounded-xl border p-1.5 text-sm md:hidden ${d === hoje ? 'border-brand' : 'border-line'} ${d === diaAtivo ? 'bg-brand/15' : 'bg-surface'} ${fora ? 'opacity-40' : ''}`}>
-                <span>{+d.slice(8)}</span>
-                <span aria-hidden className="flex flex-wrap justify-center gap-1">{pontos.slice(0, 6).map((c, k) => <span key={k} className={`size-2 rounded-full ${c}`} />)}{pontos.length > 6 && <span className="text-[10px] leading-none text-muted">+</span>}</span>
-              </button>
-              {secao}
-            </div>)
-        })}
-      </div>
-
-      {compacto && (() => {
-        const { lista, ocup } = doDia(diaAtivo)
-        return (
-          <section className="mt-4 space-y-2.5 md:hidden" aria-label="Tarefas do dia selecionado">
-            <h3 className="font-medium"><span className="capitalize">{nomeDia(diaAtivo)}</span> <span className="text-muted">{fmtData(diaAtivo)}</span></h3>
-            {ocup.map((o, k) => <div key={'a' + k} className="rounded-lg border-l-4 border-line bg-line/40 px-3 py-2 text-sm text-muted">{minParaHhmm(o.ini)}–{o.fim >= 1440 ? '24:00' : minParaHhmm(o.fim)} {o.titulo}</div>)}
-            {lista.map(i => cartao(i, false))}
-            {!lista.length && !ocup.length && <p className="text-sm text-muted">Nada neste dia.</p>}
-          </section>)
-      })()}
-
-      {sel && (
-        <div className="fixed inset-0 z-40 grid place-items-end bg-black/60 md:place-items-center" onClick={() => setSel(null)}>
-          <div role="dialog" aria-modal="true" aria-label={sel.titulo} onClick={e => e.stopPropagation()} className="max-h-[90dvh] w-full max-w-md space-y-4 overflow-y-auto rounded-t-2xl border border-line bg-surface p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:rounded-2xl">
-            <div className="flex items-start justify-between gap-4">
+  const detalhes = sel ? (
+    <>
+<div className="flex items-start justify-between gap-4">
               <div><p className={`text-sm ${TIPO_COR[sel.tipo] ?? 'text-muted'}`}>{TIPO[sel.tipo]} · {ROTULO[statusDe(sel, hoje)]}</p><h2 className="text-lg font-semibold">{sel.titulo}</h2></div>
               <button onClick={() => setSel(null)} aria-label="Fechar" className="p-2 text-muted">✕</button>
             </div>
@@ -148,6 +118,57 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
                   </div>
                 </div>)}
             </>}
+    </>) : null
+
+  return (
+    <div className={`${pending ? 'opacity-60' : ''} ${painel ? 'grid grid-cols-[minmax(0,1fr)_22rem] items-start gap-6' : ''}`}>
+      <div className="min-w-0">
+      {compacto && <div className="mb-1 grid grid-cols-7 text-center text-xs text-muted">{SEMANA.map(s => <div key={s}>{s}</div>)}</div>}
+      <div className={`grid gap-2 ${cols}`}>
+        {dias.map(d => {
+          const { lista, ocup } = doDia(d), fora = compacto && d.slice(0, 7) !== mes
+          const pontos = [...(ocup.length ? ['bg-muted'] : []), ...lista.map(i => PONTO[statusDe(i, hoje)])]
+          const secao = (
+            <section onDragOver={e => e.preventDefault()}
+              onDrop={e => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) mover(f => moverItem(id, d, f)) }}
+              className={`min-h-24 space-y-2.5 rounded-xl border bg-surface p-3 ${compacto ? 'hidden md:block' : ''} ${d === hoje ? 'border-brand' : 'border-line'} ${fora ? 'opacity-40' : ''}`}>
+              <h3 className="text-sm">{compacto ? +d.slice(8) : <><span className="capitalize">{nomeDia(d)}</span> <span className="text-muted">{d.slice(8)}/{d.slice(5, 7)}</span></>}</h3>
+              {ocup.map((o, k) => faixa(o, k, compacto))}
+              {lista.map(i => cartao(i, compacto))}
+            </section>)
+          if (!compacto) return <div key={d} className="contents">{secao}</div>
+          return (
+            <div key={d} className="contents">
+              <button type="button" onClick={() => setDiaSel(d)} aria-pressed={d === diaAtivo}
+                aria-label={`${nomeDia(d)}, ${d.slice(8)}/${d.slice(5, 7)}: ${lista.length} ${lista.length === 1 ? 'tarefa' : 'tarefas'}`}
+                className={`flex min-h-16 w-full flex-col items-center gap-1.5 rounded-xl border p-1.5 text-sm md:hidden ${d === hoje ? 'border-brand' : 'border-line'} ${d === diaAtivo ? 'bg-brand/15' : 'bg-surface'} ${fora ? 'opacity-40' : ''}`}>
+                <span>{+d.slice(8)}</span>
+                <span aria-hidden className="flex flex-wrap justify-center gap-1">{pontos.slice(0, 6).map((c, k) => <span key={k} className={`size-2 rounded-full ${c}`} />)}{pontos.length > 6 && <span className="text-[10px] leading-none text-muted">+</span>}</span>
+              </button>
+              {secao}
+            </div>)
+        })}
+      </div>
+
+      {compacto && (() => {
+        const { lista, ocup } = doDia(diaAtivo)
+        return (
+          <section className="mt-4 space-y-2.5 md:hidden" aria-label="Tarefas do dia selecionado">
+            <h3 className="font-medium"><span className="capitalize">{nomeDia(diaAtivo)}</span> <span className="text-muted">{fmtData(diaAtivo)}</span></h3>
+            {ocup.map((o, k) => <div key={'a' + k} className="rounded-lg border-l-4 border-line bg-line/40 px-3 py-2 text-sm text-muted">{minParaHhmm(o.ini)}–{o.fim >= 1440 ? '24:00' : minParaHhmm(o.fim)} {o.titulo}</div>)}
+            {lista.map(i => cartao(i, false))}
+            {!lista.length && !ocup.length && <p className="text-sm text-muted">Nada neste dia.</p>}
+          </section>)
+      })()}
+      </div>
+      {painel && (
+        <aside aria-label="Detalhes da tarefa" className="sticky top-4 max-h-[calc(100dvh-2rem)] space-y-4 overflow-y-auto rounded-2xl border border-line bg-surface p-5">
+          {detalhes ?? <p className="text-sm text-muted">Toque numa tarefa para ver os detalhes aqui. No toque, deslize a tarefa para a direita para concluir e para a esquerda para adiar.</p>}
+        </aside>)}
+      {!painel && sel && (
+        <div className="fixed inset-0 z-40 grid place-items-end bg-black/60 md:place-items-center" onClick={() => setSel(null)}>
+          <div role="dialog" aria-modal="true" aria-label={sel.titulo} onClick={e => e.stopPropagation()} className="max-h-[90dvh] w-full max-w-md space-y-4 overflow-y-auto rounded-t-2xl border border-line bg-surface p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:rounded-2xl">
+            {detalhes}
           </div>
         </div>)}
     </div>

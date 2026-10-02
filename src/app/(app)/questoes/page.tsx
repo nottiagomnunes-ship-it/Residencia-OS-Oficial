@@ -8,8 +8,8 @@ import QuestoesForm from '@/components/QuestoesForm'
 
 const corAcerto = (p: number | null) => (p == null ? '' : p >= 75 ? 'text-brand' : p >= 60 ? 'text-warn' : 'text-danger')
 
-export default async function Questoes({ searchParams }: { searchParams: Promise<{ ok?: string; erro?: string; alvo?: string; total?: string; xp?: string }> }) {
-  const { ok, erro, alvo, total: totalSugerido, xp } = await searchParams, hoje = hojeBR()
+export default async function Questoes({ searchParams }: { searchParams: Promise<{ ok?: string; erro?: string; alvo?: string; total?: string; xp?: string; etapas?: string }> }) {
+  const { ok, erro, alvo, total: totalSugerido, xp, etapas } = await searchParams, hoje = hojeBR()
   const sb = await supabaseServer()
   const [{ data: ds }, { data: ts }, { data: todas }, { data: hist }] = await Promise.all([
     sb.from('disciplines').select('id,nome').order('ordem'), sb.from('topics').select('id,nome,discipline_id').order('nome'),
@@ -22,7 +22,7 @@ export default async function Questoes({ searchParams }: { searchParams: Promise
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Questões</h1>
-      {ok && t > 0 && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-4 text-sm">Registrado: {t} questões, {aproveitamento(a, t)}% de aproveitamento.{xp && <b className="text-brand"> +{xp} XP.</b>}{t - a > 0 && <> Você errou {t - a}: <Link href="/caderno-de-erros" className="text-brand underline">adicione ao Caderno de Erros</Link>.</>}</p>}
+      {ok && t > 0 && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-4 text-sm">Registrado: {t} questões, {aproveitamento(a, t)}% de aproveitamento.{xp && <b className="text-brand"> +{xp} XP.</b>}{etapas && +etapas > 0 && <> Marquei {etapas} {+etapas === 1 ? 'etapa' : 'etapas'} automaticamente.</>}{t - a > 0 && <> Você errou {t - a}: <Link href="/caderno-de-erros" className="text-brand underline">adicione ao Caderno de Erros</Link>.</>}</p>}
       {erro && <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">{erro}</p>}
       <div className="space-y-6 lg:grid lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start lg:gap-6 lg:space-y-0">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4 lg:col-start-2 lg:row-start-1 lg:grid-cols-2 xl:grid-cols-4">
