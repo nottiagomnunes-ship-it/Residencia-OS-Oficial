@@ -1,5 +1,5 @@
 import { it, expect, describe } from 'vitest'
-import { progressoEtapas, tituloPadrao, MODELO_PADRAO, MODELOS_INICIAIS, validarEtapa, selecionarAssuntos, itensParaAdicionar, ultimoLote, podeDesfazer, minutosRestantes } from './etapas'
+import { progressoEtapas, tituloPadrao, MODELO_PADRAO, PADRAO_REVISAO, TIPOS_ETAPA, MODELOS_INICIAIS, validarEtapa, selecionarAssuntos, itensParaAdicionar, ultimoLote, podeDesfazer, minutosRestantes } from './etapas'
 
 it('progresso das etapas', () => {
   expect(progressoEtapas([])).toEqual({ feitas: 0, total: 0, pct: 0, completo: false })
@@ -67,4 +67,13 @@ describe('limite de 24 h para desfazer', () => {
   })
   it('data inválida nunca pode ser desfeita', () => { expect(podeDesfazer('não é data')).toBe(false) })
   it('minutos restantes', () => { expect(minutosRestantes(em, t0 + 23 * h)).toBe(60); expect(minutosRestantes(em, t0)).toBe(1440); expect(minutosRestantes(em, t0 + 25 * h)).toBe(0) })
+})
+
+describe('padrão de cada revisão', () => {
+  it('três itens válidos, nenhum marcado de saída e sem repetir título', () => {
+    expect(PADRAO_REVISAO).toHaveLength(3)
+    for (const m of PADRAO_REVISAO) { expect(m.tipo in TIPOS_ETAPA).toBe(true); expect(m.titulo.length).toBeGreaterThan(0) }
+    expect(new Set(PADRAO_REVISAO.map(m => m.titulo)).size).toBe(3)
+    expect(PADRAO_REVISAO.find(m => m.qtd_questoes)).toMatchObject({ tipo: 'questoes', qtd_questoes: 10 })
+  })
 })

@@ -8,6 +8,13 @@ export const tituloPadrao = (tipo: string, qtd?: number | null) =>
   tipo === 'video' ? 'Assistir à videoaula' : tipo === 'leitura' ? 'Ler o material' : tipo === 'flashcards' ? 'Revisar flashcards'
     : tipo === 'questoes' ? (qtd ? `Fazer ${qtd} questões` : 'Fazer questões') : ''
 
+/** Mini-checklist que cada revisão (D1, D7, D30...) recebe, desmarcado. Cada revisão pode ter os seus itens editados. */
+export const PADRAO_REVISAO: { tipo: TipoEtapa; titulo: string; qtd_questoes: number | null }[] = [
+  { tipo: 'leitura', titulo: 'Reler o resumo ou o material', qtd_questoes: null },
+  { tipo: 'questoes', titulo: 'Refazer as questões que errei', qtd_questoes: null },
+  { tipo: 'questoes', titulo: 'Fazer 10 questões', qtd_questoes: 10 },
+]
+
 export const MODELO_PADRAO: { tipo: TipoEtapa; titulo: string; qtd_questoes: number | null }[] = [
   { tipo: 'video', titulo: 'Assistir à videoaula', qtd_questoes: null },
   { tipo: 'leitura', titulo: 'Ler o material', qtd_questoes: null },

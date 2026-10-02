@@ -6,6 +6,7 @@ import { ocupadosPorData, paraCompromisso } from '@/lib/engine/compromissos'
 import { diasDaVisao, mover, type Visao } from '@/lib/engine/calendar'
 import NovaTarefa from '@/components/NovaTarefa'
 import { carregarModelos } from '@/lib/etapas-data'
+import { etapasDasRevisoes } from '@/lib/revisao-etapas-data'
 import type { Etapa } from '@/lib/engine/etapas'
 import CalendarBoard, { type Item } from '@/components/CalendarBoard'
 import { inputCls } from '@/components/ui'
@@ -22,6 +23,7 @@ export default async function Calendario({ searchParams }: { searchParams: Promi
   const [{ data: et }, modelos] = await Promise.all([
     sb.from('topic_tasks').select('id,topic_id,tipo,titulo,qtd_questoes,concluida').order('ordem').order('created_at').limit(5000), carregarModelos(sb),
   ])
+  const etapasRev = await etapasDasRevisoes(sb, (data ?? []).filter((i: any) => i.review_id && i.status !== 'concluido').map((i: any) => i.review_id))
   const etapas: Record<string, Etapa[]> = {}
   for (const e of et ?? []) if (comTopico.has(e.topic_id)) (etapas[e.topic_id] ??= []).push(e as Etapa)
   const ocupados: Record<string, never[]> = {} // o modelo por horários foi substituído pelo tempo disponível
@@ -47,7 +49,7 @@ export default async function Calendario({ searchParams }: { searchParams: Promi
         </div>
       </div>
       <NovaTarefa ancora={ancora} />
-      <CalendarBoard items={(data ?? []) as Item[]} dias={dias} view={v} hoje={hoje} mes={ancora.slice(0, 7)} ocupados={ocupados} etapas={etapas} modelos={modelos} />
+      <CalendarBoard items={(data ?? []) as Item[]} dias={dias} view={v} hoje={hoje} mes={ancora.slice(0, 7)} ocupados={ocupados} etapas={etapas} etapasRev={etapasRev} modelos={modelos} />
       <p className="text-xs text-muted">No computador, arraste uma tarefa para outro dia. No celular, toque na tarefa e use “Mover para esta data”.</p>
     </div>
   )

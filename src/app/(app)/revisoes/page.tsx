@@ -3,6 +3,9 @@ import { concluirRevisao } from '@/lib/flow'
 import { hojeBR } from '@/lib/dates'
 import { addDays, diffDays, priorityScore } from '@/lib/engine/review'
 import { fmtData, inputCls } from '@/components/ui'
+import ChecklistRevisao from '@/components/ChecklistRevisao'
+import { etapasDasRevisoes } from '@/lib/revisao-etapas-data'
+import { progressoEtapas } from '@/lib/engine/etapas'
 
 export default async function Revisoes() {
   const sb = await supabaseServer()
@@ -27,6 +30,7 @@ export default async function Revisoes() {
     { titulo: 'Hoje', cor: 'text-info', lista: fila(r => r.due_date === hoje) },
     { titulo: 'Próximos 14 dias', cor: 'text-muted', lista: itens.filter(r => r.due_date > hoje && r.due_date <= addDays(hoje, 14)) },
   ]
+  const etapasRev = await etapasDasRevisoes(sb, grupos.flatMap(g => g.lista.map((r: any) => r.id as string)))
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-semibold">Revisões</h1>
@@ -40,8 +44,10 @@ export default async function Revisoes() {
                 <span><span className="font-medium">{r.topics?.nome}</span>
                   <span className="ml-2 text-sm text-muted">{r.topics?.disciplines?.nome} · Revisão D{r.interval_days} · estudado em {fmtData(r.topics?.completed_date)}</span></span>
                 <span className="text-sm">{r.atraso > 0 ? <span className="text-danger">{r.atraso} {r.atraso === 1 ? 'dia' : 'dias'} de atraso</span> : <span className="text-muted">{fmtData(r.due_date)}</span>}
-                  {acerto.has(r.topic_id) && acerto.get(r.topic_id)! < 65 && <span className="ml-2 text-warn">acerto {acerto.get(r.topic_id)}%</span>}</span>
+                  {acerto.has(r.topic_id) && acerto.get(r.topic_id)! < 65 && <span className="ml-2 text-warn">acerto {acerto.get(r.topic_id)}%</span>}
+                  {etapasRev[r.id]?.length > 0 && <span className="ml-2 text-xs text-muted">etapas {progressoEtapas(etapasRev[r.id]).feitas}/{etapasRev[r.id].length}</span>}</span>
               </summary>
+              {etapasRev[r.id] && <div className="mt-4"><ChecklistRevisao reviewId={r.id} inicial={etapasRev[r.id]} /></div>}
               <form action={concluirRevisao} className="mt-4 grid gap-3 sm:grid-cols-4">
                 <input type="hidden" name="review_id" value={r.id} />
                 <label className="space-y-1 text-sm">Acerto (%)<input name="desempenho" type="number" inputMode="numeric" min={0} max={100} className={inputCls + ' w-full'} /></label>

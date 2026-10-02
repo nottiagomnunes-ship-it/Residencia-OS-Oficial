@@ -1,7 +1,7 @@
 import { MOTIVOS, aproveitamento, type Motivo } from './questoes'
 
-export const TABELAS_BACKUP = ['disciplines', 'topics', 'topic_tasks', 'etapa_modelos', 'study_sessions', 'reviews', 'question_sets', 'question_answers',
-  'error_notebook', 'schedule_items', 'mock_exams', 'goals', 'achievements', 'daily_stats', 'commitments'] as const
+export const TABELAS_BACKUP = ['disciplines', 'topics', 'topic_tasks', 'review_tasks', 'etapa_modelos', 'study_sessions', 'reviews', 'question_sets', 'question_answers',
+  'error_notebook', 'schedule_items', 'mock_exams', 'goals', 'achievements', 'daily_stats', 'commitments', 'capacidade_dia'] as const
 type Linha = Record<string, any>
 const sem = (o: Linha, chaves: string[]) => Object.fromEntries(Object.entries(o).filter(([k]) => !chaves.includes(k)))
 

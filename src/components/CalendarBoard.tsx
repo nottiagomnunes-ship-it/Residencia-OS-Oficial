@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { moverItem, adiarItem, concluirItem, excluirItem, editarItem } from '@/lib/calendar'
 import { statusDe } from '@/lib/engine/calendar'
 import { progressoEtapas, type Etapa, type Modelo } from '@/lib/engine/etapas'
+import ChecklistRevisao from '@/components/ChecklistRevisao'
 import Checklist from '@/components/Checklist'
 import { minParaHhmm, type Intervalo } from '@/lib/engine/compromissos'
 import { fmtData, inputCls } from '@/components/ui'
@@ -15,7 +16,7 @@ const TIPO: Record<string, string> = { estudo: 'Estudo', revisao: 'Revisão', qu
 const TIPO_COR: Record<string, string> = { questoes: 'text-violet', flashcards: 'text-pink', simulado: 'text-violet' }
 const SEMANA = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 
-export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, etapas, modelos }: { items: Item[]; dias: string[]; view: string; hoje: string; mes: string; ocupados: Record<string, Intervalo[]>; etapas: Record<string, Etapa[]>; modelos: Modelo[] }) {
+export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, etapas, etapasRev, modelos }: { items: Item[]; dias: string[]; view: string; hoje: string; mes: string; ocupados: Record<string, Intervalo[]>; etapas: Record<string, Etapa[]>; etapasRev: Record<string, Etapa[]>; modelos: Modelo[] }) {
   const [sel, setSel] = useState<Item | null>(null)
   const [novaData, setNovaData] = useState('')
   const [pending, start] = useTransition()
@@ -59,6 +60,7 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
         {!miudo && <span className={`block text-xs ${TIPO_COR[i.tipo] ?? 'text-muted'}`}>{TIPO[i.tipo]}{i.hora_ini ? ` · ${i.hora_ini.slice(0, 5)}` : i.duracao_min ? ` · ${i.duracao_min} min` : ''}</span>}
         <span className={st === 'concluido' ? 'line-through opacity-70' : ''}>{i.titulo}</span>
         {!miudo && i.topic_id && i.tipo === 'estudo' && etapas[i.topic_id]?.length > 0 && (() => { const p = progressoEtapas(etapas[i.topic_id!]); return <span className={`ml-2 text-xs ${p.completo ? 'text-brand' : 'text-muted'}`}>{p.completo ? '✓ ' : ''}etapas {p.feitas}/{p.total}</span> })()}
+        {!miudo && i.tipo === 'revisao' && i.review_id && etapasRev[i.review_id]?.length > 0 && (() => { const p = progressoEtapas(etapasRev[i.review_id!]); return <span className={`ml-2 text-xs ${p.completo ? 'text-brand' : 'text-muted'}`}>{p.completo ? '✓ ' : ''}etapas {p.feitas}/{p.total}</span> })()}
       </div>)
   }
 
@@ -112,6 +114,8 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
             <p className="text-sm text-muted">{fmtData(sel.data)}{sel.hora_ini ? ` · ${sel.hora_ini.slice(0, 5)}${sel.hora_fim ? `–${sel.hora_fim.slice(0, 5)}` : ''}` : ''}{sel.duracao_min ? ` · ${sel.duracao_min} min` : ''}{sel.qtd_questoes ? ` · ${sel.qtd_questoes} questões` : ''}{sel.origem === 'auto' ? ' · gerada pelo sistema' : ''}</p>
             {sel.topic_id && sel.tipo === 'estudo' && (
               <Checklist key={sel.topic_id} topicId={sel.topic_id} inicial={etapas[sel.topic_id] ?? []} modelos={modelos} concluido={sel.status === 'concluido'} compacto />)}
+            {sel.tipo === 'revisao' && sel.review_id && etapasRev[sel.review_id] && (
+              <ChecklistRevisao key={sel.review_id} reviewId={sel.review_id} inicial={etapasRev[sel.review_id]} />)}
             {sel.status !== 'concluido' && <>
               <div className="flex flex-wrap gap-2">
                 {sel.tipo === 'questoes' || sel.tipo === 'simulado'

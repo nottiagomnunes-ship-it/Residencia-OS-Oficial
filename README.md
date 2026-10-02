@@ -52,3 +52,4 @@
 50. Planejamento por TEMPO DISPONÍVEL (sem horários): Minha semana vira "quanto tempo tenho em cada dia"; Início tem "Quanto tempo você tem hoje?". Rode `supabase/migrations/0017_tempo_disponivel.sql` ANTES de publicar.
 51. XP equilibrado, XP devolvido ao excluir, tempo das questões nas horas estudadas e questões/simulado levam ao registro. Rode `supabase/migrations/0018_xp_equilibrado.sql` ANTES de publicar.
 52. Títulos por nível (Calouro → Professor Titular) e ranking Ferro → Desafiante por % de assuntos concluídos, com aviso de promoção. Rode `supabase/migrations/0019_rank_titulos.sql` (o app funciona sem ela, mas sem o aviso de promoção).
+53. Cada revisão (D1, D7...) tem o SEU mini-checklist, criado desmarcado. As etapas do assunto ficam só no estudo. Rode `supabase/migrations/0020_revisao_etapas.sql` (sem ela o app funciona, mas sem os mini-checklists).
