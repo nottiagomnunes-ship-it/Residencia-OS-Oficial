@@ -56,7 +56,7 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
         onDragStart={e => e.dataTransfer.setData('text/plain', i.id)} onClick={() => { setSel(i); setNovaData(i.data) }}
         onKeyDown={e => e.key === 'Enter' && (setSel(i), setNovaData(i.data))}
         className={`cursor-pointer rounded-lg border-l-4 ${miudo ? 'hidden truncate px-1.5 py-1.5 text-xs md:block' : 'px-3 py-2.5 text-sm'} ${COR[st]}`}>
-        {!miudo && <span className={`block text-xs ${TIPO_COR[i.tipo] ?? 'text-muted'}`}>{TIPO[i.tipo]}{i.hora_ini ? ` · ${i.hora_ini.slice(0, 5)}` : ''}</span>}
+        {!miudo && <span className={`block text-xs ${TIPO_COR[i.tipo] ?? 'text-muted'}`}>{TIPO[i.tipo]}{i.hora_ini ? ` · ${i.hora_ini.slice(0, 5)}` : i.duracao_min ? ` · ${i.duracao_min} min` : ''}</span>}
         <span className={st === 'concluido' ? 'line-through opacity-70' : ''}>{i.titulo}</span>
         {!miudo && i.topic_id && (i.tipo === 'estudo' || i.tipo === 'revisao') && etapas[i.topic_id]?.length > 0 && (() => { const p = progressoEtapas(etapas[i.topic_id!]); return <span className={`ml-2 text-xs ${p.completo ? 'text-brand' : 'text-muted'}`}>✓ {p.feitas}/{p.total}</span> })()}
       </div>)

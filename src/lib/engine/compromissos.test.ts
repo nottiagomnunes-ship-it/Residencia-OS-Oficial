@@ -42,8 +42,8 @@ it('depois de plantão noturno, o estudo só começa após o fim do plantão', (
   const manha = r.blocos.filter(b => b.data === '2026-10-07' && b.hora_ini)
   expect(manha.length).toBeGreaterThan(0); for (const b of manha) expect(hhmmParaMin(b.hora_ini!)).toBeGreaterThanOrEqual(450)
 })
-it('sem compromissos o comportamento anterior se mantém (começa às 08:00)', () => {
-  const r = gerarCronograma({ ...base }); expect(r.blocos.find(b => b.tipo === 'estudo')?.hora_ini).toBe('08:00')
+it('sem janela de horários, o plano não tem horário: só a ordem das tarefas no dia', () => {
+  const r = gerarCronograma({ ...base }); const dia1 = r.blocos.filter(b => b.data === r.blocos[0].data); expect(r.blocos.every(b => b.hora_ini === undefined)).toBe(true); expect(dia1.map(b => b.ordem_dia)).toEqual(dia1.map((_, k) => k + 1))
 })
 
 it('ordena o dia: compromissos e itens por horário, itens sem horário por último', () => {

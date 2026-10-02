@@ -38,7 +38,7 @@ export default async function Onboarding() {
         <label className="block space-y-1"><span className="text-sm">Seu nome</span><input name="nome" required defaultValue={p?.nome ?? ''} className={input + ' w-full'} /></label>
         <label className="block space-y-1"><span className="text-sm">Data da prova</span><input name="exam_date" type="date" required className={input} /></label>
         <div className="grid grid-cols-2 gap-4">
-          <label className="space-y-1"><span className="text-sm">Horas de estudo por dia</span><input name="horas" type="number" inputMode="numeric" min={1} max={16} defaultValue={4} className={input + ' w-full'} /></label>
+          <label className="space-y-1"><span className="text-sm">Horas de estudo por dia</span><input name="horas" type="number" inputMode="numeric" min={1} max={16} defaultValue={2} className={input + ' w-full'} /></label>
           <label className="space-y-1"><span className="text-sm">Questões por dia</span><input name="questoes" type="number" inputMode="numeric" min={0} defaultValue={40} className={input + ' w-full'} /></label>
         </div>
         <fieldset><legend className="mb-2 text-sm">Dias disponíveis</legend>

@@ -49,3 +49,4 @@
 47. Lembrete por e-mail: se o envio for recusado por causa do destinatário (modo de teste do Resend), a conta é desligada sozinha e mostra o motivo. Rode `supabase/migrations/0016_lembrete_aviso.sql`.
 48. Questões: atalhos de quantidade, resumo ao vivo (erros e %) e detalhes recolhidos; Caderno de erros: motivo em botões; formulário ao lado do histórico no tablet deitado.
 49. Questões do dia: cada bloco tem UM assunto (rodízio dentro da semana), em vez de listar vários.
+50. Planejamento por TEMPO DISPONÍVEL (sem horários): Minha semana vira "quanto tempo tenho em cada dia"; Início tem "Quanto tempo você tem hoje?". Rode `supabase/migrations/0017_tempo_disponivel.sql` ANTES de publicar.

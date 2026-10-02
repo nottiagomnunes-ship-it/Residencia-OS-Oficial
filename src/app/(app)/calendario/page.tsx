@@ -17,15 +17,14 @@ export default async function Calendario({ searchParams }: { searchParams: Promi
   const dias = diasDaVisao(v, ancora)
   const sb = await supabaseServer()
   const { data } = await sb.from('schedule_items').select('id,tipo,titulo,data,hora_ini,hora_fim,duracao_min,qtd_questoes,status,origem,review_id,topic_id')
-    .gte('data', dias[0]).lte('data', dias[dias.length - 1]).order('hora_ini', { nullsFirst: false }).order('titulo')
-  const { data: cm } = await sb.from('commitments').select('*')
+    .gte('data', dias[0]).lte('data', dias[dias.length - 1]).order('hora_ini', { nullsFirst: false }).order('ordem_dia', { nullsFirst: false }).order('titulo')
   const comTopico = new Set((data ?? []).map((i: any) => i.topic_id).filter(Boolean))
   const [{ data: et }, modelos] = await Promise.all([
     sb.from('topic_tasks').select('id,topic_id,tipo,titulo,qtd_questoes,concluida').order('ordem').order('created_at').limit(5000), carregarModelos(sb),
   ])
   const etapas: Record<string, Etapa[]> = {}
   for (const e of et ?? []) if (comTopico.has(e.topic_id)) (etapas[e.topic_id] ??= []).push(e as Etapa)
-  const ocupados = ocupadosPorData((cm ?? []).map(paraCompromisso), addDays(dias[0], -1), dias[dias.length - 1])
+  const ocupados: Record<string, never[]> = {} // o modelo por horários foi substituído pelo tempo disponível
   const link = (view: string, d: string) => `/calendario?v=${view}&d=${d}`
   const fmt = (d: string, o: Intl.DateTimeFormatOptions) => new Date(d + 'T12:00:00Z').toLocaleDateString('pt-BR', { ...o, timeZone: 'UTC' })
   const titulo = v === 'mes' ? fmt(ancora, { month: 'long', year: 'numeric' }) : v === 'dia' ? fmt(ancora, { weekday: 'long', day: 'numeric', month: 'long' })
@@ -49,7 +48,7 @@ export default async function Calendario({ searchParams }: { searchParams: Promi
       </div>
       <NovaTarefa ancora={ancora} />
       <CalendarBoard items={(data ?? []) as Item[]} dias={dias} view={v} hoje={hoje} mes={ancora.slice(0, 7)} ocupados={ocupados} etapas={etapas} modelos={modelos} />
-      <p className="text-xs text-muted">Os blocos em cinza são seus compromissos (cadastrados em Minha semana). No computador, arraste uma tarefa para outro dia. No celular, toque na tarefa e use “Mover para esta data”.</p>
+      <p className="text-xs text-muted">No computador, arraste uma tarefa para outro dia. No celular, toque na tarefa e use “Mover para esta data”.</p>
     </div>
   )
 }

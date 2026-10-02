@@ -141,3 +141,29 @@ describe('um bloco de questões, um assunto', () => {
     expect(blocosQ(r).filter(b => b.data <= '2026-10-02').map(b => b.titulo)).toEqual(['40 questões — a', '40 questões — b', '40 questões — b'])
   })
 })
+
+describe('tempo disponível por dia (sem horários)', () => {
+  const dia = (r: ReturnType<typeof gerarCronograma>, d: string) => r.blocos.filter(b => b.data === d)
+  const total = (l: { duracao_min: number }[]) => l.reduce((s, b) => s + b.duracao_min, 0)
+  const topicos30 = Array.from({ length: 30 }, (_, i) => ({ id: 'T' + i, nome: 'T' + i, disciplineId: 'A', prioridade: 2, dificuldade: 2 }))
+  it('nenhuma tarefa tem horário de relógio; cada dia numera as tarefas na ordem de prioridade (estudo antes das questões)', () => {
+    const r = gerarCronograma(base({ prova: '2026-12-15', topicos: topicos30 }))
+    expect(r.blocos.every(b => b.hora_ini === undefined && b.hora_fim === undefined)).toBe(true)
+    const d = dia(r, '2026-10-01'); expect(d.map(b => b.ordem_dia)).toEqual(d.map((_, k) => k + 1)); expect(d.at(-1)!.tipo).toBe('questoes')
+  })
+  it('o dia nunca passa do tempo informado, e o bloco de questões encolhe junto', () => {
+    const r = gerarCronograma(base({ prova: '2026-12-15', topicos: topicos30, capacidadePorDia: { '2026-10-01': 60, '2026-10-02': 120, '2026-10-05': 240 } }))
+    expect(total(dia(r, '2026-10-01'))).toBeLessThanOrEqual(60); expect(total(dia(r, '2026-10-02'))).toBeLessThanOrEqual(120)
+    expect(dia(r, '2026-10-01').find(b => b.tipo === 'questoes')?.qtd_questoes).toBe(10)   // 1 h: 10 questões, não 40
+    expect(dia(r, '2026-10-02').find(b => b.tipo === 'questoes')?.qtd_questoes).toBe(20)
+    expect(dia(r, '2026-10-05').find(b => b.tipo === 'questoes')?.qtd_questoes).toBe(40)
+  })
+  it('"sem tempo" (zero) deixa o dia vazio; dia com tempo informado vale mesmo fora dos dias disponíveis', () => {
+    const r = gerarCronograma(base({ prova: '2026-12-15', topicos: topicos30, capacidadePorDia: { '2026-10-01': 0, '2026-10-03': 120 } })) // 03/10 é sábado
+    expect(dia(r, '2026-10-01')).toHaveLength(0); expect(dia(r, '2026-10-03').length).toBeGreaterThan(0)
+  })
+  it('pouco tempo (30 min) não cria bloco de questões inútil', () => {
+    const r = gerarCronograma(base({ prova: '2026-12-15', topicos: topicos30, capacidadePorDia: { '2026-10-01': 30 } }))
+    expect(dia(r, '2026-10-01').some(b => b.tipo === 'questoes')).toBe(false)
+  })
+})

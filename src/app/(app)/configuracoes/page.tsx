@@ -22,7 +22,7 @@ export default async function Configuracoes({ searchParams }: { searchParams: Pr
           <div className="grid gap-4 sm:grid-cols-2">
             <Campo t="Seu nome"><input name="nome" defaultValue={p?.nome ?? ''} className={inputCls + ' w-full'} /></Campo>
             <Campo t="Data da prova"><input name="exam_date" type="date" required defaultValue={p?.exam_date ?? ''} className={inputCls + ' w-full'} /></Campo>
-            <Campo t="Horas de estudo por dia"><input name="horas" type="number" min={1} max={16} step={0.5} defaultValue={(p?.daily_minutes ?? 240) / 60} className={inputCls + ' w-full'} /></Campo>
+            <Campo t="Tempo padrão de estudo por dia (horas)" dica="Vale quando você não informa o tempo da semana em Minha semana."><input name="horas" type="number" min={1} max={16} step={0.5} defaultValue={(p?.daily_minutes ?? 240) / 60} className={inputCls + ' w-full'} /></Campo>
             <Campo t="Questões por dia"><input name="questoes" type="number" inputMode="numeric" min={0} max={500} defaultValue={p?.daily_questions_goal ?? 40} className={inputCls + ' w-full'} /></Campo>
           </div>
           <fieldset><legend className="mb-2 text-sm">Dias disponíveis</legend><div className="flex flex-wrap gap-2">{DIAS.map((d, i) => (

@@ -4,13 +4,14 @@ import { janelasDoDia, MIN_BLOCO, type Intervalo } from './compromissos'
 
 export type Topico = { id: string; nome: string; disciplineId: string; prioridade: number; dificuldade: number; plannedDate?: string | null; reforco?: boolean; ordem?: number | null; grupo?: string | null }
 export type Disc = { id: string; nome: string; peso: number }
-export type Bloco = { tipo: 'estudo' | 'questoes' | 'simulado'; topic_id: string | null; titulo: string; data: string; duracao_min: number; qtd_questoes: number | null; hora_ini?: string; hora_fim?: string }
+export type Bloco = { tipo: 'estudo' | 'questoes' | 'simulado'; topic_id: string | null; titulo: string; data: string; duracao_min: number; qtd_questoes: number | null; hora_ini?: string; hora_fim?: string; ordem_dia?: number }
 export type Entrada = {
   hoje: string; prova: string; diasDisponiveis: number[]; minutosDia: number; questoesDia: number
   disciplinas: Disc[]; topicos: Topico[]; fixos: Topico[]; reforcos?: Topico[]; minutosRevisaoPorDia: Record<string, number>
   janela?: { ini: number; fim: number }; ocupados?: Record<string, Intervalo[]>; folga?: number // horários livres (minutos desde 00:00)
   revisoesPorDia?: Record<string, { nome: string; id?: string }[]> // assuntos com revisão marcada em cada dia
   fracos?: { id: string; nome: string; disciplineId: string }[] // assuntos de desempenho mais fraco, por prioridade
+  capacidadePorDia?: Record<string, number> // minutos de estudo informados para cada data (substituem o tempo padrão)
 }
 
 const dow = (d: string) => new Date(d + 'T00:00:00Z').getUTCDay()
@@ -56,31 +57,49 @@ function colocar(blocos: Bloco[], e: Entrada) {
   return ord
 }
 
+/** Sem horários: ordena por data e numera as tarefas de cada dia na ordem em que foram planejadas (fixos, estudo, questões, simulado). */
+function numerarDia(blocos: Bloco[]) {
+  const ord = [...blocos].sort((a, b) => a.data.localeCompare(b.data)), n = new Map<string, number>()
+  for (const b of ord) { const k = (n.get(b.data) ?? 0) + 1; n.set(b.data, k); b.ordem_dia = k }
+  return ord
+}
+
 /**
  * Distribui estudo novo até (prova − reserva), questões todo dia disponível e, na reta final,
  * questões ampliadas + um simulado por semana. Revisões já agendadas descontam da capacidade do dia.
  */
 export function gerarCronograma(e: Entrada) {
   const blocos: Bloco[] = [], avisos: string[] = []
+  // Sem "janela" de horários o plano é por TEMPO DISPONÍVEL: cada dia tem uma quantidade de minutos e as tarefas só ganham uma ordem
+  const semHorarios = !e.janela
+  const minutosDiaDe = (d: string) => e.capacidadePorDia?.[d] ?? e.minutosDia
+  const finalizar = (bl: Bloco[]) => (semHorarios ? numerarDia(bl) : colocar(bl, e))
   const ordem = [...(e.reforcos ?? []).map(t => ({ ...t, reforco: true })), ...ordemDeEstudo(e.disciplinas, e.topicos)]
   const falta = (from: number) => ordem.slice(from).reduce((s, t) => s + duracaoTopico(t), 0)
   for (const t of e.fixos) blocos.push({ tipo: 'estudo', topic_id: t.id, titulo: t.nome, data: t.plannedDate!, duracao_min: duracaoTopico(t), qtd_questoes: null })
 
   const fimEstudo = addDays(e.prova, -1)
-  if (fimEstudo < e.hoje) return { blocos: colocar(blocos, e), naoAlocados: ordem.length, minutosFaltantes: falta(0), avisos: ['A data da prova é hoje ou já passou.'] }
+  if (fimEstudo < e.hoje) return { blocos: finalizar(blocos), naoAlocados: ordem.length, minutosFaltantes: falta(0), avisos: ['A data da prova é hoje ou já passou.'] }
 
   const todos = dias(e.hoje, fimEstudo), reserva = Math.min(21, Math.floor(todos.length * 0.2)), corte = todos.length - reserva
-  const livres = (l: string[]) => l.filter(d => e.diasDisponiveis.includes(dow(d)))
+  // um dia com tempo informado vale pelo que foi informado (zero = sem estudo); sem informação, vale o dia da semana disponível
+  const livres = (l: string[]) => l.filter(d => (e.capacidadePorDia?.[d] !== undefined ? e.capacidadePorDia[d] > 0 : e.diasDisponiveis.includes(dow(d))))
   const estudoDias = livres(todos.slice(0, corte)), finalDias = livres(todos.slice(corte))
-  const qMin = e.questoesDia > 0 ? Math.min(e.questoesDia * 2, Math.round(e.minutosDia * 0.35)) : 0
+  // questões do dia: até a meta, em múltiplos de 5, usando no máximo 35% do tempo do dia (2 min por questão); menos de 10 não vale um bloco
+  const qtdDia = (d: string) => {
+    if (e.questoesDia <= 0) return 0
+    const q = Math.min(e.questoesDia, Math.floor(Math.round(minutosDiaDe(d) * 0.35) / 2 / 5) * 5)
+    return q >= 10 ? q : 0
+  }
+  const qMinDe = (d: string) => qtdDia(d) * 2
   const janCache = new Map<string, [number, number][]>()
   const jan = (d: string) => janCache.get(d) ?? (janCache.set(d, janelasDe(e, d)), janCache.get(d)!)
-  const livreTotal = (d: string) => jan(d).reduce((t, [x, y]) => t + (y - x), 0)
-  const maior = (d: string) => Math.max(0, ...jan(d).map(([x, y]) => y - x))
+  const livreTotal = (d: string) => (semHorarios ? minutosDiaDe(d) : jan(d).reduce((t, [x, y]) => t + (y - x), 0))
+  const maior = (d: string) => (semHorarios ? minutosDiaDe(d) : Math.max(0, ...jan(d).map(([x, y]) => y - x)))
   const capDia = (d: string) => {
-    const rev = Math.min(e.minutosRevisaoPorDia[d] ?? 0, Math.round(e.minutosDia * 0.3))
+    const rev = Math.min(e.minutosRevisaoPorDia[d] ?? 0, Math.round(minutosDiaDe(d) * 0.3))
     const fixo = blocos.filter(b => b.data === d && b.tipo === 'estudo').reduce((s, b) => s + b.duracao_min, 0)
-    return Math.max(0, Math.min(e.minutosDia, livreTotal(d)) - rev - qMin - fixo)
+    return Math.max(0, Math.min(minutosDiaDe(d), livreTotal(d)) - rev - qMinDe(d) - fixo)
   }
   const discFoco = [...e.disciplinas].sort((a, b) => b.peso - a.peso)[0]?.nome ?? 'Revisão geral'
   const nome = new Map(e.disciplinas.map(d => [d.id, d.nome]))
@@ -132,9 +151,9 @@ export function gerarCronograma(e: Entrada) {
       blocos.push({ tipo: 'estudo', topic_id: t.reforco ? null : t.id, titulo: t.reforco ? `Reforço — ${t.nome}` : t.nome, data: d, duracao_min: dur, qtd_questoes: null })
       primeira ??= t; livre -= dur; i++
     }
-    if (qMin && livreTotal(d) >= MIN_BLOCO) {
-      const fq = focoQuestoes(d)
-      blocos.push({ tipo: 'questoes', topic_id: fq?.id ?? null, titulo: `${e.questoesDia} questões — ${fq?.texto ?? discFoco}`, data: d, duracao_min: qMin, qtd_questoes: e.questoesDia })
+    if (qtdDia(d) > 0 && livreTotal(d) >= MIN_BLOCO) {
+      const fq = focoQuestoes(d), q = qtdDia(d)
+      blocos.push({ tipo: 'questoes', topic_id: fq?.id ?? null, titulo: `${q} questões — ${fq?.texto ?? discFoco}`, data: d, duracao_min: q * 2, qtd_questoes: q })
     }
   }
 
@@ -142,13 +161,15 @@ export function gerarCronograma(e: Entrada) {
   const semanas = new Map<string, string[]>()
   finalDias.forEach(d => semanas.set(weekStart(d), [...(semanas.get(weekStart(d)) ?? []), d]))
   for (const grupo of semanas.values()) {
-    const melhor = grupo.reduce((a, b) => (maior(b) > maior(a) ? b : a)), durSim = Math.min(e.minutosDia, maior(melhor))
+    const melhor = grupo.reduce((a, b) => (maior(b) > maior(a) ? b : a)), durSim = Math.min(minutosDiaDe(melhor), maior(melhor))
     for (const d of grupo) {
       if (d === melhor && durSim >= 90) blocos.push({ tipo: 'simulado', topic_id: null, titulo: 'Simulado', data: d, duracao_min: durSim, qtd_questoes: null })
       else if (e.questoesDia > 0 && livreTotal(d) >= MIN_BLOCO) {
-        const q = Math.round(e.questoesDia * 1.5)
-        const fq = focoQuestoes(d)
-        blocos.push({ tipo: 'questoes', topic_id: fq?.id ?? null, titulo: `${q} questões — ${fq?.texto ?? 'Revisão geral'}`, data: d, duracao_min: Math.min(q * 2, Math.round(e.minutosDia * 0.6), maior(d)), qtd_questoes: q })
+        const dur = Math.min(Math.round(e.questoesDia * 1.5) * 2, Math.round(minutosDiaDe(d) * 0.6), maior(d)), q = Math.floor(dur / 2 / 5) * 5
+        if (q >= 10) {
+          const fq = focoQuestoes(d)
+          blocos.push({ tipo: 'questoes', topic_id: fq?.id ?? null, titulo: `${q} questões — ${fq?.texto ?? 'Revisão geral'}`, data: d, duracao_min: q * 2, qtd_questoes: q })
+        }
       }
     }
   }
@@ -157,7 +178,7 @@ export function gerarCronograma(e: Entrada) {
   for (const b of blocos) { const g = b.tipo === 'estudo' && b.topic_id ? grupoDe.get(b.topic_id) : null; if (g && fimGrupo.has(g) && b.data > fimGrupo.get(g)!) passou.set(g, (passou.get(g) ?? 0) + 1) }
   passou.forEach((n, g) => avisos.push(`${n} ${n === 1 ? 'assunto' : 'assuntos'} de "${g}" não ${n === 1 ? 'coube' : 'couberam'} na semana e ${n === 1 ? 'foi' : 'foram'} para a seguinte. Libere mais tempo ou reduza os assuntos da semana.`))
   const naoAlocados = ordem.length - i, minutosFaltantes = falta(i)
-  if (naoAlocados) avisos.push(`Faltam cerca de ${Math.ceil(minutosFaltantes / 60)} h para cobrir ${naoAlocados} assuntos antes da prova. Aumente as horas por dia, libere mais dias da semana ou remova assuntos de baixa prioridade.`)
+  if (naoAlocados) avisos.push(`Faltam cerca de ${Math.ceil(minutosFaltantes / 60)} h para cobrir ${naoAlocados} assuntos antes da prova. Informe mais tempo em "Minha semana", libere mais dias ou remova assuntos de baixa prioridade.`)
   if (!estudoDias.length && ordem.length) avisos.push('Nenhum dia disponível antes da prova: revise os dias da semana nas configurações.')
-  return { blocos: colocar(blocos, e), naoAlocados, minutosFaltantes, avisos }
+  return { blocos: finalizar(blocos), naoAlocados, minutosFaltantes, avisos }
 }

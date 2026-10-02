@@ -5,6 +5,7 @@ import { carregarDesempenho } from '@/lib/desempenho-data'
 import { hojeBR } from '@/lib/dates'
 import Link from 'next/link'
 import TarefasHoje from '@/components/TarefasHoje'
+import { capacidadeDoDia } from '@/lib/engine/tempo'
 import { supabaseServer } from '@/lib/supabase/server'
 
 function Card({ titulo, valor, detalhe, cor = 'text-brand' }: { titulo: string; valor: string; detalhe?: string; cor?: string }) {
@@ -31,8 +32,12 @@ export default async function Inicio() {
   const metasSem = (await carregarMetas(sb, hoje)).filter(m => m.periodo === 'semana')
   const progSem = metasSem.length ? Math.round(metasSem.reduce((n, m) => n + Math.min(100, m.pct), 0) / metasSem.length) : null
   const gam = await carregarGamificacao(sb, hoje)
-  const { data: itensHoje } = await sb.from('schedule_items').select('id,tipo,titulo,data,hora_ini,hora_fim').lte('data', hoje).neq('status', 'concluido').order('data').order('hora_ini', { nullsFirst: false }).limit(60)
+  const { data: itensHoje } = await sb.from('schedule_items').select('id,tipo,titulo,data,hora_ini,hora_fim,duracao_min').lte('data', hoje).neq('status', 'concluido').order('data').order('ordem_dia', { nullsFirst: false }).order('hora_ini', { nullsFirst: false }).limit(60)
   const { count: concluidasHoje } = await sb.from('schedule_items').select('id', { count: 'exact', head: true }).eq('data', hoje).eq('status', 'concluido')
+  const [{ data: capHoje }, { data: perfilTempo }] = await Promise.all([
+    sb.from('capacidade_dia').select('minutos').eq('data', hoje).maybeSingle(), sb.from('profiles').select('daily_minutes,available_weekdays').single(),
+  ])
+  const tempoHoje = capacidadeDoDia(hoje, capHoje ? { [hoje]: capHoje.minutos } : {}, perfilTempo?.daily_minutes ?? 120, perfilTempo?.available_weekdays ?? [1, 2, 3, 4, 5])
   const alerta = des.foco[0]?.nivel === 'alta' ? { titulo: '🔴 Alta prioridade', texto: des.foco[0].frase } : des.recomendacoes[0] ? { titulo: '🟡 Atenção', texto: des.recomendacoes[0].texto } : null
   const h = Number(new Intl.DateTimeFormat('pt-BR', { hour: 'numeric', hourCycle: 'h23', timeZone: 'America/Sao_Paulo' }).format(new Date()))
   const saudacao = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'
@@ -43,7 +48,7 @@ export default async function Inicio() {
         <h1 className="text-2xl font-semibold">{saudacao}, {p?.nome?.split(' ')[0]} 👋</h1>
         <p className="text-muted">{rev + atras === 0 ? 'Nenhuma revisão pendente. Cadastre conteúdos para começar o plano.' : `Você tem ${rev} revisões para hoje e ${atras} atrasadas.`}</p>
       </header>
-      <TarefasHoje itens={itensHoje ?? []} hoje={hoje} concluidasHoje={concluidasHoje ?? 0} />
+      <TarefasHoje itens={itensHoje ?? []} hoje={hoje} concluidasHoje={concluidasHoje ?? 0} minutosHoje={tempoHoje.minutos} informado={tempoHoje.informado} />
       {alerta && <Link href="/desempenho" className="block rounded-2xl border border-warn/40 bg-warn/10 p-4"><p className="font-medium">{alerta.titulo}</p><p className="text-sm">{alerta.texto}</p></Link>}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         <Card titulo="Revisões de hoje" valor={String(rev)} cor="text-info" />
