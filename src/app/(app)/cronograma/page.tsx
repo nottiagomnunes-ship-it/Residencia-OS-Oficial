@@ -7,7 +7,7 @@ import { statusDe } from '@/lib/engine/calendar'
 import { hhmmParaMin, minParaHhmm, ocupadosPorData, ordenarDia, paraCompromisso } from '@/lib/engine/compromissos'
 import { Bar } from '@/components/ui'
 import { RitmoCard } from '@/components/RitmoCard'
-import { carregarRitmo } from '@/lib/ritmo-data'
+import { carregarRitmo, carregarModoRitmo } from '@/lib/ritmo-data'
 
 const COR: Record<string, string> = { concluido: 'border-brand', agendado: 'border-info', proximo: 'border-warn', atrasado: 'border-danger' }
 const TIPO: Record<string, string> = { estudo: 'Estudo', revisao: 'Revisão', questoes: 'Questões', flashcards: 'Flashcards', simulado: 'Simulado' }
@@ -25,7 +25,8 @@ export default async function Cronograma({ searchParams }: { searchParams: Promi
   const dias = Array.from({ length: 7 }, (_, i) => addDays(hoje, i))
   const oc: Record<string, never[]> = {}
   const rotulo = (d: string, i: number) => (i === 0 ? 'Hoje' : new Date(d + 'T12:00:00Z').toLocaleDateString('pt-BR', { weekday: 'long', timeZone: 'UTC' }).replace('-feira', '')) + ` ${d.slice(8)}/${d.slice(5, 7)}`
-  const ritmo = await carregarRitmo(sb, hoje)
+  const modoRitmo = await carregarModoRitmo(sb)
+  const ritmo = modoRitmo === 'oculto' ? null : await carregarRitmo(sb, hoje)
   const card = (t: string, v: string) => <div className="rounded-2xl border border-line bg-surface p-4"><p className="text-sm text-muted">{t}</p><p className="mt-1 text-2xl font-semibold">{v}</p></div>
   return (
     <div className="space-y-6">
@@ -41,7 +42,7 @@ export default async function Cronograma({ searchParams }: { searchParams: Promi
         {card('Assuntos concluídos', `${ok}/${total}`)}
         <div className="rounded-2xl border border-line bg-surface p-4"><p className="text-sm text-muted">Plano concluído</p><p className="mb-2 mt-1 text-2xl font-semibold">{pct}%</p><Bar pct={pct} /></div>
       </div>
-      <RitmoCard r={ritmo} />
+      {ritmo && <RitmoCard r={ritmo} modo={modoRitmo} onde="cronograma" />}
       <div className="space-y-4">
         {dias.map((d, i) => {
           const linhas = ordenarDia(oc[d] ?? [], (it ?? []).filter(x => x.data === d))

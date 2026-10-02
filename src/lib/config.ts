@@ -25,6 +25,18 @@ export async function salvarConfiguracoes(fd: FormData) {
   ;['/configuracoes', '/inicio', '/cronograma', '/desempenho', '/revisoes'].forEach(p => revalidatePath(p, 'layout'))
   redirect('/configuracoes?ok=1')
 }
+/** Como mostrar o ritmo para a prova. Ação própria, para não interferir no salvamento das demais configurações. */
+export async function salvarRitmoModo(fd: FormData) {
+  const sb = await supabaseServer()
+  const { data: { user } } = await sb.auth.getUser()
+  if (!user) redirect('/login')
+  const modo = String(fd.get('ritmo_modo'))
+  if (!['completo', 'resumo', 'oculto'].includes(modo)) redirect('/configuracoes?erro=' + encodeURIComponent('Escolha uma das opções do ritmo.'))
+  const { error } = await sb.from('profiles').update({ ritmo_modo: modo }).eq('id', user.id)
+  if (error) redirect('/configuracoes?erro=' + encodeURIComponent('Não foi possível salvar essa opção. Tente de novo.'))
+  ;['/configuracoes', '/inicio', '/cronograma'].forEach(x => revalidatePath(x, 'layout'))
+  redirect('/configuracoes?ok=1')
+}
 export async function sair() {
   const sb = await supabaseServer()
   await sb.auth.signOut()

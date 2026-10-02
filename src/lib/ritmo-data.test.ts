@@ -33,3 +33,17 @@ describe('carregarRitmo', () => {
     expect((await carregarRitmo(falso({ exam: null, recentes: [], primeira: null, semData: 0, comData: 0 }).sb, '2026-10-05')).estado).toBe('sem_prova')
   })
 })
+
+import { carregarModoRitmo } from './ritmo-data'
+describe('carregarModoRitmo', () => {
+  const sbCom = (res: any): any => ({ from: () => ({ select: () => ({ single: async () => res }) }) })
+  it('devolve a escolha da pessoa', async () => {
+    expect(await carregarModoRitmo(sbCom({ data: { ritmo_modo: 'completo' } }))).toBe('completo')
+    expect(await carregarModoRitmo(sbCom({ data: { ritmo_modo: 'oculto' } }))).toBe('oculto')
+  })
+  it('na dúvida, só o resumo: padrão, valor desconhecido ou migração ainda não aplicada', async () => {
+    expect(await carregarModoRitmo(sbCom({ data: { ritmo_modo: 'resumo' } }))).toBe('resumo')
+    expect(await carregarModoRitmo(sbCom({ data: { ritmo_modo: 'qualquer' } }))).toBe('resumo')
+    expect(await carregarModoRitmo(sbCom({ data: null, error: { code: '42703' } }))).toBe('resumo')
+  })
+})

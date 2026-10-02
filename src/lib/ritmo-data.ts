@@ -3,6 +3,15 @@ import { addDays } from './engine/review'
 import { calcularRitmo } from './engine/ritmo'
 import { contarAssuntos } from './gamificacao-data'
 
+export type ModoRitmo = 'completo' | 'resumo' | 'oculto'
+
+/** Como a pessoa quer ver o ritmo. Sem a migração 0023 (ou com valor desconhecido), vale o padrão: só um resumo. */
+export async function carregarModoRitmo(sb: SupabaseClient): Promise<ModoRitmo> {
+  const { data } = await sb.from('profiles').select('ritmo_modo').single()
+  const m = data?.ritmo_modo
+  return m === 'completo' || m === 'oculto' ? m : 'resumo'
+}
+
 /** Ritmo para a prova: lê só o necessário (contagens e as datas de conclusão das últimas 4 semanas). */
 export async function carregarRitmo(sb: SupabaseClient, hoje: string) {
   const [{ data: p }, assuntos, { data: recentes }, { data: primeiro }, { count: semData }, { count: comData }] = await Promise.all([

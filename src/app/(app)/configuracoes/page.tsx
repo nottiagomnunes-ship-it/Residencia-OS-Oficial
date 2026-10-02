@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { supabaseServer } from '@/lib/supabase/server'
 import { salvarConfiguracoes, reiniciarConfiguracoes, sair } from '@/lib/config'
 import { salvarLembrete, enviarLembreteTeste } from '@/lib/lembretes'
+import { salvarRitmoModo } from '@/lib/config'
 import { inputCls } from '@/components/ui'
 
 const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
@@ -44,6 +45,17 @@ export default async function Configuracoes({ searchParams }: { searchParams: Pr
       </form>
       <section className={sec}><h2 className="font-medium">Disciplinas e conteúdos</h2>
         <p className="text-sm text-muted">Pesos, novas disciplinas e o catálogo de assuntos ficam em <Link href="/disciplinas" className="text-brand underline">Disciplinas</Link> e <Link href="/conteudos" className="text-brand underline">Conteúdos</Link>. Para trazer o seu próprio plano, em texto ou PDF, use <Link href="/importar" className="text-brand underline">Importar cronograma</Link>.</p></section>
+      <section className={sec}><h2 className="font-medium">Ritmo para a prova</h2>
+        <p className="text-sm text-muted">Compara quantos assuntos você conclui por semana com o necessário para chegar à prova. É uma referência, não uma cobrança: escolha o quanto quer ver.</p>
+        <form action={salvarRitmoModo} className="space-y-3">
+          {[['resumo', 'Só um resumo no Início', 'Uma linha discreta ("Prova em 71 dias · 60 assuntos restantes"). O ritmo completo fica no Cronograma.'],
+            ['completo', 'Completo no Início', 'Mostra também no Início a meta da semana e a projeção.'],
+            ['oculto', 'Ocultar', 'Não mostra o ritmo em lugar nenhum.']].map(([v, t, d]) => (
+            <label key={v} className="flex items-start gap-3 text-sm"><input type="radio" name="ritmo_modo" value={v} defaultChecked={(p?.ritmo_modo ?? 'resumo') === v} className="mt-1 accent-brand" />
+              <span><span className="font-medium">{t}</span><span className="block text-muted">{d}</span></span></label>))}
+          <button className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">Salvar</button>
+        </form>
+      </section>
       <section className={sec}><h2 className="font-medium">Lembretes por e-mail</h2>
         <p className="text-sm text-muted">Todo dia, por volta das 7h (horário de Brasília), você recebe um resumo com as revisões e as tarefas do dia. Se o dia estiver livre, nenhum e-mail é enviado.</p>
         {!process.env.RESEND_API_KEY?.trim() && <p className="rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm">O envio de e-mails ainda não foi configurado no servidor (veja o final do DEPLOY.md). <Link href="/diagnostico" className="underline">Ver diagnóstico</Link></p>}

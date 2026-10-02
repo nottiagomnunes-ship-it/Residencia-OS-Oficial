@@ -8,7 +8,7 @@ import TarefasHoje from '@/components/TarefasHoje'
 import { capacidadeDoDia, semanaAAvisar, planoDesatualizado } from '@/lib/engine/tempo'
 import { AvisosPlano } from '@/components/AvisosPlano'
 import { RitmoCard } from '@/components/RitmoCard'
-import { carregarRitmo } from '@/lib/ritmo-data'
+import { carregarRitmo, carregarModoRitmo } from '@/lib/ritmo-data'
 import { addDays } from '@/lib/engine/review'
 import { weekStart } from '@/lib/engine/calendar'
 import { supabaseServer } from '@/lib/supabase/server'
@@ -55,7 +55,8 @@ export default async function Inicio() {
   const semanaAviso = alvoSemana && perfilPlano?.semana_aviso !== alvoSemana ? alvoSemana : null
   const desatualizado = recursos && planoDesatualizado(perfilPlano?.capacidade_alterada_em, perfilPlano?.plano_gerado_em)
   const minutosFeitos = (feitosHoje ?? []).reduce((s, x) => s + (x.duracao_min ?? 30), 0)
-  const ritmo = await carregarRitmo(sb, hoje)
+  const modoRitmo = await carregarModoRitmo(sb)
+  const ritmo = modoRitmo === 'oculto' ? null : await carregarRitmo(sb, hoje)
   const alerta = des.foco[0]?.nivel === 'alta' ? { titulo: '🔴 Alta prioridade', texto: des.foco[0].frase } : des.recomendacoes[0] ? { titulo: '🟡 Atenção', texto: des.recomendacoes[0].texto } : null
   const h = Number(new Intl.DateTimeFormat('pt-BR', { hour: 'numeric', hourCycle: 'h23', timeZone: 'America/Sao_Paulo' }).format(new Date()))
   const saudacao = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'
@@ -75,7 +76,7 @@ export default async function Inicio() {
         <Card titulo="Questões" valor={String(totQ)} detalhe={totQ ? `${Math.round((acQ / totQ) * 100)}% de acerto` : 'Registre sua primeira sessão'} />
         <Card titulo="Progresso semanal" valor={progSem == null ? '—' : `${progSem}%`} detalhe={progSem == null ? 'Crie metas semanais em Metas' : `${metasSem.length} ${metasSem.length === 1 ? 'meta semanal' : 'metas semanais'}`} />
       </div>
-      <RitmoCard r={ritmo} />
+      {ritmo && <RitmoCard r={ritmo} modo={modoRitmo} onde="inicio" />}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"><NivelCard g={gam} /><RankCard g={gam} /><SequenciaCard g={gam} /></div>
     </div>
   )

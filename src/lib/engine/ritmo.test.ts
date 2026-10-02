@@ -83,3 +83,59 @@ describe('histórico curto ou parado', () => {
 describe('plano atual', () => {
   it('repassa quantos assuntos têm e não têm data no plano', () => { expect(calc({ semData: 4, comData: 50 })).toMatchObject({ semData: 4, comData: 50 }) })
 })
+
+import { descreverRitmo } from './ritmo'
+const R = (o: Partial<Parameters<typeof calcularRitmo>[0]> = {}) => calc(o)
+
+describe('meta da semana (um degrau pequeno, nunca o déficit inteiro)', () => {
+  it('quem está atrás recebe o ritmo recente + 1, limitado ao necessário', () => {
+    const r = R()                                    // ritmo 3/semana, necessário 7,4
+    expect(r.metaSemana).toBe(4)                     // não 8
+  })
+  it('quem nunca concluiu nada recente começa com 1 assunto', () => {
+    expect(R({ primeiraConclusao: dias(90), concluidosRecentes: [] }).metaSemana).toBe(1)
+  })
+  it('quem está no ritmo ou adiantado mantém o necessário (arredondado para cima)', () => {
+    expect(R({ concluidosRecentes: feitos(29) }).metaSemana).toBe(8)                 // necessário 7,37
+    expect(R({ concluidos: 60, concluidosRecentes: feitos(28) }).metaSemana).toBe(5) // necessário 4,9
+  })
+  it('a meta nunca passa dos assuntos que faltam, e sem histórico não há meta', () => {
+    expect(R({ concluidos: 99, concluidosRecentes: feitos(28) }).metaSemana).toBe(1)
+    expect(R({ primeiraConclusao: dias(3), concluidosRecentes: feitos(2) }).metaSemana).toBeNull()
+  })
+  it('conta os assuntos concluídos desde segunda-feira', () => {
+    // hoje é segunda 05/10: só os concluídos hoje contam; na quarta, contam segunda a quarta
+    expect(R({ concluidosRecentes: ['2026-10-05', '2026-10-04', '2026-10-01'] }).feitosSemana).toBe(1)
+    expect(calcularRitmo({ hoje: '2026-10-07', prova, total: 100, concluidos: 40, primeiraConclusao: '2026-08-01', concluidosRecentes: ['2026-10-07', '2026-10-05', '2026-10-04', '2026-10-01'] }).feitosSemana).toBe(2)
+  })
+})
+
+describe('descreverRitmo: sem alarme', () => {
+  it('rótulos neutros e tons suaves (nada de "atrás", "atrasado" ou de cor de alerta)', () => {
+    const rotulos = ['adiantado', 'no_ritmo', 'um_pouco_atras', 'atrasado', 'sem_historico'].map(status => descreverRitmo({ ...R(), status } as any))
+    expect(rotulos.map(x => x.rotulo)).toEqual(['Com folga', 'No caminho', 'Dá para acelerar', 'Precisa de ajuste', 'Medindo o seu ritmo'])
+    expect(rotulos.map(x => x.tom)).toEqual(['bom', 'bom', 'ajuste', 'ajuste', 'neutro'])
+    for (const x of rotulos) expect(x.rotulo.toLowerCase()).not.toMatch(/atr[aá]s/)
+  })
+  it('a data só aparece perto do prazo (até 30 dias); diferença grande vira um passo pequeno, sem "dias depois"', () => {
+    const perto = descreverRitmo(R({ concluidosRecentes: feitos(22) }))        // ~21 dias depois do prazo
+    expect(perto.frase).toMatch(/terminaria em \d{2}\/\d{2}\/\d{4}, 21 dias depois do prazo/)
+    const longe = descreverRitmo(R())                                          // ~84 dias depois do prazo
+    expect(longe.frase).toBeNull(); expect(longe.passo).toContain('mais 1 assunto por semana')
+    expect(JSON.stringify(longe)).not.toMatch(/dias depois|84/)
+  })
+  it('adiantado muito à frente não promete data: "bem antes do prazo"', () => {
+    const folga = descreverRitmo(R({ concluidos: 90, concluidosRecentes: feitos(28) }))   // termina com ~mais de 30 dias de sobra
+    expect(folga.frase).toBe('No ritmo atual você termina bem antes do prazo.')
+  })
+  it('no ritmo, adiantado e histórico curto não trazem sugestão de esforço extra', () => {
+    expect(descreverRitmo(R({ concluidosRecentes: feitos(29) })).passo).toBeNull()
+    expect(descreverRitmo(R({ concluidos: 60, concluidosRecentes: feitos(28) })).passo).toBeNull()
+    expect(descreverRitmo(R({ primeiraConclusao: dias(3), concluidosRecentes: [] })).passo).toBeNull()
+  })
+  it('sem nenhuma conclusão recente: convida a um primeiro passo, sem projeção nem número de dias', () => {
+    const x = descreverRitmo(R({ primeiraConclusao: dias(90), concluidosRecentes: [] }))
+    expect(x.frase).toContain('concluir 1 assunto esta semana'); expect(x.frase).not.toMatch(/\d{2}\/\d{2}/)
+    expect(x.passo).toBeNull()   // a frase já convida ao primeiro passo: sem sugestão repetida
+  })
+})
