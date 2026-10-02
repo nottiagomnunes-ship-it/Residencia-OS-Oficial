@@ -1,4 +1,5 @@
 import { addDays } from './review'
+import { weekStart } from './calendar'
 
 export const OPCOES_TEMPO = [0, 30, 60, 90, 120, 180, 240]
 const dow = (d: string) => new Date(d + 'T00:00:00Z').getUTCDay()
@@ -34,3 +35,23 @@ export function dividirPorTempo<T extends { duracao_min: number | null }>(itens:
 
 /** Os 7 dias a partir de uma segunda-feira. */
 export const diasDaSemana = (segunda: string) => Array.from({ length: 7 }, (_, i) => addDays(segunda, i))
+
+/** Das tarefas dos próximos dias, as que cabem no tempo que sobra hoje (na ordem do plano). Menos de 30 min livres, ou nada que caiba: nenhuma. */
+export function escolherAdiantar<T extends { duracao_min: number | null }>(candidatos: T[], livre: number) {
+  if (livre < 30) return []
+  const r = dividirPorTempo(candidatos, livre)
+  return r.maiorQueOTempo ? [] : r.cabem
+}
+
+/**
+ * Semana cujo tempo ainda não foi informado e que merece um lembrete: de sexta a domingo, a próxima; de segunda a quinta, a atual.
+ * Devolve a segunda-feira dessa semana, ou null se algum dia dela (de hoje em diante) já tem tempo informado.
+ */
+export function semanaAAvisar(hoje: string, informados: Record<string, number>): string | null {
+  const d = dow(hoje), seg = weekStart(hoje), alvo = d === 5 || d === 6 || d === 0 ? addDays(seg, 7) : seg
+  return diasDaSemana(alvo).filter(x => x >= hoje).some(x => informados[x] !== undefined) ? null : alvo
+}
+
+/** O tempo da semana mudou depois da última vez que o cronograma foi gerado (ou ele nunca foi gerado). */
+export const planoDesatualizado = (alteradoEm: string | null | undefined, geradoEm: string | null | undefined) =>
+  !!alteradoEm && (!geradoEm || Date.parse(alteradoEm) > Date.parse(geradoEm))

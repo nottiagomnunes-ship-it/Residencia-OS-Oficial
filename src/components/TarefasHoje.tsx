@@ -4,18 +4,29 @@ import Link from 'next/link'
 import { concluirItem } from '@/lib/calendar'
 import { definirCapacidade } from '@/lib/capacidade'
 import { resumoHoje } from '@/lib/engine/hoje'
-import { dividirPorTempo, formatarMinutos, OPCOES_TEMPO } from '@/lib/engine/tempo'
+import { dividirPorTempo, escolherAdiantar, formatarMinutos, OPCOES_TEMPO } from '@/lib/engine/tempo'
 import { diffDays } from '@/lib/engine/review'
-import { Bar } from '@/components/ui'
+import { Bar, fmtData } from '@/components/ui'
+import { adiantarTarefas } from '@/lib/reorganizar'
+import ReorganizarAtrasadas from '@/components/ReorganizarAtrasadas'
 
 type T = { id: string; tipo: string; titulo: string; data: string; hora_ini: string | null; hora_fim: string | null; duracao_min: number | null; topic_id: string | null; qtd_questoes: number | null }
+type Adiantavel = { id: string; titulo: string; data: string; duracao_min: number | null }
 const TIPO: Record<string, string> = { estudo: 'Estudo', revisao: 'Revisão', questoes: 'Questões', flashcards: 'Flashcards', simulado: 'Simulado' }
 
 /** O que fazer hoje, conforme o tempo informado: mostra o que cabe (atrasadas primeiro) e deixa o resto para depois. Sem horários. */
-export default function TarefasHoje({ itens, hoje, concluidasHoje, minutosHoje, informado }: { itens: T[]; hoje: string; concluidasHoje: number; minutosHoje: number; informado: boolean }) {
+export default function TarefasHoje({ itens, hoje, concluidasHoje, minutosHoje, informado, minutosFeitos, adiantaveis, recursos }: { itens: T[]; hoje: string; concluidasHoje: number; minutosHoje: number; informado: boolean; minutosFeitos: number; adiantaveis: Adiantavel[]; recursos: boolean }) {
   const [feitas, setFeitas] = useState<ReadonlySet<string>>(new Set()), [minutos, setMinutos] = useState(minutosHoje), [inf, setInf] = useState(informado), [, start] = useTransition()
   const r = resumoHoje(itens, hoje, concluidasHoje, feitas)
   const d = dividirPorTempo([...r.atrasadas, ...r.deHoje], minutos)
+  // sobra tempo hoje (já descontado o que foi feito): oferece trazer tarefas dos próximos dias, só quando você informou o tempo de hoje
+  const [adiantados, setAdiantados] = useState<ReadonlySet<string>>(new Set()), [aviso, setAviso] = useState<string | null>(null)
+  const livre = minutos - minutosFeitos - d.usado
+  const adi = recursos && inf && minutos > 0 && !d.sobram.length ? escolherAdiantar(adiantaveis.filter(a => !adiantados.has(a.id)), livre) : []
+  const adiantar = () => start(async () => {
+    const x = await adiantarTarefas(adi.map(a => a.id))
+    if (x.erro) setAviso(x.erro); else { setAviso(null); setAdiantados(s => new Set([...s, ...adi.map(a => a.id)])) }
+  })
   const concluir = (id: string) => { setFeitas(s => new Set(s).add(id)); start(() => concluirItem(id)) }
   const escolher = (m: number) => { setMinutos(m); setInf(true); start(() => definirCapacidade(hoje, m)) }
   const linha = (t: T) => {
@@ -43,12 +54,20 @@ export default function TarefasHoje({ itens, hoje, concluidasHoje, minutosHoje, 
             className={`rounded-xl border px-3.5 text-sm ${inf && minutos === m ? 'border-brand bg-brand/15 text-brand' : 'border-line'}`}>{formatarMinutos(m)}</button>))}</div>
         <p className="text-xs text-muted">{inf ? 'Mostro só o que cabe nesse tempo. O resto fica para depois, sem cobrança.' : `Usando o seu tempo padrão (${formatarMinutos(minutos)}). Toque acima para informar o de hoje.`}</p>
       </div>
+      {recursos && r.atrasadas.length > 0 && <ReorganizarAtrasadas n={r.atrasadas.length} />}
       {minutos === 0 && <p className="text-sm">Sem tempo hoje? Tudo bem: nada é cobrado. As tarefas ficam para depois.</p>}
       {d.cabem.length > 0 && (
         <div className="space-y-1"><h3 className="text-sm font-medium text-info">Para fazer hoje ({formatarMinutos(d.usado)} de {formatarMinutos(minutos)})</h3><ul>{d.cabem.map(linha)}</ul>
           {d.maiorQueOTempo && <p className="px-2 text-xs text-warn">A primeira tarefa é maior que o tempo informado. Faça o que der.</p>}</div>)}
       {d.sobram.length > 0 && (
         <details className="text-sm"><summary className="cursor-pointer text-muted">Fica para depois ({d.sobram.length})</summary><ul className="mt-1">{d.sobram.map(linha)}</ul></details>)}
+      {adi.length > 0 && (
+        <div className="space-y-2 rounded-xl border border-line p-3 text-sm">
+          <p>Sobra tempo hoje ({formatarMinutos(livre)}). Posso adiantar dos próximos dias:</p>
+          <ul className="text-muted">{adi.map(a => <li key={a.id}>• {a.titulo} <span className="text-xs">({a.duracao_min ?? 30} min · {fmtData(a.data)})</span></li>)}</ul>
+          <button onClick={adiantar} className="rounded-xl bg-brand px-4 py-2 font-medium text-black">Adiantar {adi.length} {adi.length === 1 ? 'tarefa' : 'tarefas'}</button>
+        </div>)}
+      {aviso && <p className="text-sm text-danger">{aviso}</p>}
       {!d.cabem.length && !d.sobram.length && <p className="text-sm text-muted">{r.total > 0 ? 'Tudo concluído por hoje.' : 'Nada pendente por enquanto.'} <Link href="/cronograma" className="text-brand underline">Ver o cronograma</Link></p>}
     </section>
   )

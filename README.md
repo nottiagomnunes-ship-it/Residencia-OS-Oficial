@@ -53,3 +53,4 @@
 51. XP equilibrado, XP devolvido ao excluir, tempo das questões nas horas estudadas e questões/simulado levam ao registro. Rode `supabase/migrations/0018_xp_equilibrado.sql` ANTES de publicar.
 52. Títulos por nível (Calouro → Professor Titular) e ranking Ferro → Desafiante por % de assuntos concluídos, com aviso de promoção. Rode `supabase/migrations/0019_rank_titulos.sql` (o app funciona sem ela, mas sem o aviso de promoção).
 53. Cada revisão (D1, D7...) tem o SEU mini-checklist, criado desmarcado. As etapas do assunto ficam só no estudo. Rode `supabase/migrations/0020_revisao_etapas.sql` (sem ela o app funciona, mas sem os mini-checklists).
+54. Plano que acompanha a semana: Reorganizar atrasadas (com prévia), Adiantar tarefas quando sobra tempo, lembrete semanal e aviso de cronograma desatualizado. Rode `supabase/migrations/0021_plano_vivo.sql` (sem ela o app funciona, mas sem esses recursos).
