@@ -6,7 +6,9 @@ import { INICIO, GRUPOS, CONFIGURACOES, PAGINAS_DO_MENU, PRINCIPAIS, ativo, type
 
 /** Guarda a escolha (menu recolhido ou aberto) neste aparelho. Vai em cookie para o servidor já desenhar o menu certo, sem piscar. */
 const guardarMenu = (recolhido: boolean) => { document.cookie = `menu=${recolhido ? 'recolhido' : 'aberto'}; path=/; max-age=31536000; SameSite=Lax` }
-const TITULO_GRUPO = 'px-3 text-xs font-medium uppercase tracking-wide text-muted/80'
+// título de seção: pequeno, em maiúsculas espaçadas e com uma linha ao lado. Parece um rótulo, não um botão (os itens clicáveis usam a cor clara do app)
+const TITULO_GRUPO = 'flex select-none items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted'
+const Titulo = ({ texto, recuo }: { texto: string; recuo: string }) => <p aria-hidden className={`${TITULO_GRUPO} ${recuo}`}><span>{texto}</span><span aria-hidden className="h-px flex-1 bg-line" /></p>
 
 /**
  * Menu lateral (telas largas), em grupos, com Configurações no rodapé. O botão ‹ recolhe tudo para uma faixa fina com um ☰, que abre o menu por cima
@@ -24,13 +26,13 @@ export function Sidebar({ recolhidoInicial = false }: { recolhidoInicial?: boole
   }, [gaveta])
   const link = ([nome, href]: ItemMenu) => (
     <Link key={href} href={href} aria-current={ativo(path, href) ? 'page' : undefined}
-      className={`rounded-xl px-3 py-2 text-sm ${ativo(path, href) ? 'bg-brand/15 text-brand' : 'text-muted hover:bg-line/50'}`}>{nome}</Link>)
+      className={`rounded-xl px-3 py-2 text-sm transition-colors ${ativo(path, href) ? 'bg-brand/15 text-brand' : 'hover:bg-line/50'}`}>{nome}</Link>)
   const lista = (
     <>
       {link(INICIO)}
       {GRUPOS.map(g => (
-        <div key={g.titulo} role="group" aria-label={g.titulo} className="mt-3 flex flex-col gap-1">
-          <p aria-hidden className={TITULO_GRUPO}>{g.titulo}</p>{g.itens.map(link)}
+        <div key={g.titulo} role="group" aria-label={g.titulo} className="mt-5 flex flex-col gap-1">
+          <Titulo texto={g.titulo} recuo="px-3" />{g.itens.map(link)}
         </div>))}
       <div className="mt-auto border-t border-line pt-3">{link(CONFIGURACOES)}</div>
     </>)
@@ -82,7 +84,7 @@ export function BottomNav() {
             className="absolute inset-x-0 bottom-0 max-h-[75dvh] space-y-4 overflow-y-auto rounded-t-2xl border-t border-line bg-surface p-4 pb-[calc(5rem+env(safe-area-inset-bottom))]">
             {grupos.map(g => (
               <div key={g.titulo} role="group" aria-label={g.titulo} className="space-y-2">
-                <p aria-hidden className="px-1 text-xs font-medium uppercase tracking-wide text-muted/80">{g.titulo}</p>
+                <Titulo texto={g.titulo} recuo="px-1" />
                 <div className="grid grid-cols-2 gap-2">{g.itens.map(cartao)}</div>
               </div>))}
             <div className="border-t border-line pt-3"><div className="grid grid-cols-2 gap-2">{cartao(CONFIGURACOES)}</div></div>
