@@ -1,11 +1,11 @@
 import { addDays, diffDays } from './review'
+import { tituloDoNivel, proximoTitulo } from './rank'
 
 export const XP_POR_NIVEL = 500 // mesma regra de levelFor()
-export const NOMES_NIVEL = ['Iniciante', 'Dedicado', 'Consistente', 'Avançado', 'Especialista', 'Mestre']
 
 export function nivelDoXp(xp: number) {
   const nivel = Math.floor(xp / XP_POR_NIVEL) + 1, no = xp % XP_POR_NIVEL
-  return { nivel, nome: NOMES_NIVEL[Math.min(nivel - 1, NOMES_NIVEL.length - 1)], xpNoNivel: no, xpParaProximo: XP_POR_NIVEL - no, pct: Math.round((no / XP_POR_NIVEL) * 100) }
+  return { nivel, nome: tituloDoNivel(nivel), proximoTitulo: proximoTitulo(nivel), xpNoNivel: no, xpParaProximo: XP_POR_NIVEL - no, pct: Math.round((no / XP_POR_NIVEL) * 100) }
 }
 
 /** Sequência atual (não quebra até o fim do dia de hoje) e a melhor já registrada. */

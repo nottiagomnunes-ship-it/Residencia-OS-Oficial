@@ -1,7 +1,7 @@
 import { supabaseServer } from '@/lib/supabase/server'
 import { criarMeta, excluirMeta, metasDoPlano } from '@/lib/metas'
 import { carregarGamificacao } from '@/lib/gamificacao-data'
-import { ConquistasGrid } from '@/components/Gamificacao'
+import { ConquistasGrid, JornadaPanel } from '@/components/Gamificacao'
 import { carregarMetas } from '@/lib/metas-data'
 import { hojeBR } from '@/lib/dates'
 import { METRICAS, PERIODOS, type Periodo, type Metrica } from '@/lib/engine/metas'
@@ -32,6 +32,7 @@ export default async function Metas() {
                 <form action={excluirMeta}><input type="hidden" name="id" value={m.id} /><button className="text-danger hover:underline">Excluir</button></form></div>
             </div>))}</div></section>) : null })}
       {!metas.length && <p className="rounded-2xl border border-dashed border-line p-8 text-center text-muted">Nenhuma meta ainda. Crie uma acima ou use o botão para gerar metas diárias a partir do seu plano.</p>}
+      <JornadaPanel g={gam} />
       <ConquistasGrid g={gam} />
     </div>
   )

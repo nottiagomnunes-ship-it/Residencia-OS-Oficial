@@ -4,7 +4,7 @@ import { parseIntervalos } from './config'
 import { prioridadeAssunto, recomendacoes } from './desempenho'
 
 it('nível e progresso de XP', () => {
-  expect(nivelDoXp(0)).toMatchObject({ nivel: 1, nome: 'Iniciante', pct: 0, xpParaProximo: 500 })
+  expect(nivelDoXp(0)).toMatchObject({ nivel: 1, nome: 'Calouro', pct: 0, xpParaProximo: 500 })
   expect(nivelDoXp(750)).toMatchObject({ nivel: 2, xpNoNivel: 250, pct: 50 })
 })
 it('sequência não quebra até o fim do dia e conta a melhor', () => {

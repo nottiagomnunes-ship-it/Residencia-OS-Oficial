@@ -1,5 +1,5 @@
 import { carregarGamificacao } from '@/lib/gamificacao-data'
-import { NivelCard, SequenciaCard } from '@/components/Gamificacao'
+import { NivelCard, RankCard, SequenciaCard } from '@/components/Gamificacao'
 import { carregarMetas } from '@/lib/metas-data'
 import { carregarDesempenho } from '@/lib/desempenho-data'
 import { hojeBR } from '@/lib/dates'
@@ -56,7 +56,7 @@ export default async function Inicio() {
         <Card titulo="Questões" valor={String(totQ)} detalhe={totQ ? `${Math.round((acQ / totQ) * 100)}% de acerto` : 'Registre sua primeira sessão'} />
         <Card titulo="Progresso semanal" valor={progSem == null ? '—' : `${progSem}%`} detalhe={progSem == null ? 'Crie metas semanais em Metas' : `${metasSem.length} ${metasSem.length === 1 ? 'meta semanal' : 'metas semanais'}`} />
       </div>
-      <div className="grid gap-4 md:grid-cols-2"><NivelCard g={gam} /><SequenciaCard g={gam} /></div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"><NivelCard g={gam} /><RankCard g={gam} /><SequenciaCard g={gam} /></div>
     </div>
   )
 }
