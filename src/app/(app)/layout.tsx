@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { supabaseServer } from '@/lib/supabase/server'
 import { NovasConquistas } from '@/components/NovasConquistas'
 import { NovasPromocoes } from '@/components/NovasPromocoes'
@@ -18,11 +19,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { data: nv } = await sb.from('achievements').select('codigo').eq('visto', false)
   const [{ data: gp }, assuntos] = await Promise.all([sb.from('profiles').select('xp,rank_visto,nivel_visto').single(), contarAssuntos(sb)])
   const cron = await carregarCronometro(sb)
+  const menuRecolhido = (await cookies()).get('menu')?.value === 'recolhido' // escolha deste aparelho: menu lateral recolhido
   const promo = gp ? promocoes({ passo: passoDoRank(assuntos.concluidos, assuntos.total), rankVisto: gp.rank_visto ?? 0, nivel: levelFor(gp.xp ?? 0), nivelVisto: gp.nivel_visto ?? 1 }) : { rank: null, titulo: null }
   return (
     <CronometroProvider disponivel={cron.disponivel} ativo={cron.ativo} agora={Date.now()}>
     <div className="flex min-h-dvh">
-      <Sidebar />
+      <Sidebar recolhidoInicial={menuRecolhido} />
       <main className="min-w-0 flex-1 p-4 pb-28 md:p-8 md:pb-28 lg:pb-8"><NovasPromocoes rank={promo.rank} titulo={promo.titulo} /><NovasConquistas codigos={(nv ?? []).map(x => x.codigo)} />{children}</main>
       <BottomNav />
     </div>
