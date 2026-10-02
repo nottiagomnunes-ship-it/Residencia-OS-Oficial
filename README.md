@@ -63,3 +63,4 @@
 61. Menu lateral recolhível: o botão ‹ recolhe o menu para uma faixa fina com ☰ (que abre o menu por cima); a escolha fica guardada neste aparelho. Sem SQL.
 62. Calendário no tablet deitado: no mês, grade larga como no computador e mais compacta (até 3 tarefas por dia, com "+N mais" que abre o dia); semana e dia seguem com o painel de detalhes ao lado. Sem SQL.
 63. Semana em 7 colunas do tablet em diante (cabeçalho com dia da semana, data e "Livre"/"N tarefas"; cartões compactos); o dia no tablet deitado segue com o painel ao lado. Sem SQL.
+64. Restaurar backup: Configurações → Restaurar backup. Confere o arquivo e mostra o que muda (backup × hoje), exige digitar RESTAURAR, troca os dados tudo ou nada (ids novos, ligações refeitas), guarda uma cópia do estado anterior e permite DESFAZER. Rode `supabase/migrations/0026_restaurar_backup.sql` ANTES de publicar (sem ela a tela avisa e não restaura).

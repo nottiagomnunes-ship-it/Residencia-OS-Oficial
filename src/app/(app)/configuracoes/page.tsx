@@ -4,12 +4,16 @@ import { salvarConfiguracoes, reiniciarConfiguracoes, sair } from '@/lib/config'
 import { salvarLembrete, enviarLembreteTeste } from '@/lib/lembretes'
 import { salvarRitmoModo } from '@/lib/config'
 import { inputCls } from '@/components/ui'
+import RestaurarBackup from '@/components/RestaurarBackup'
+import { carregarInfoRestauracao } from '@/lib/backup-restauracao-data'
 
 const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
 export default async function Configuracoes({ searchParams }: { searchParams: Promise<{ ok?: string; erro?: string; aviso?: string }> }) {
   const { ok, erro, aviso } = await searchParams
-  const { data: p } = await (await supabaseServer()).from('profiles').select('*').single()
+  const sb = await supabaseServer()
+  const { data: p } = await sb.from('profiles').select('*').single()
+  const restauracao = await carregarInfoRestauracao(sb)
   const Campo = ({ t, dica, children }: { t: string; dica?: string; children: React.ReactNode }) => <label className="block space-y-1"><span className="text-sm">{t}</span>{children}{dica && <span className="block text-xs text-muted">{dica}</span>}</label>
   const sec = 'space-y-4 rounded-2xl border border-line bg-surface p-5'
   return (
@@ -75,6 +79,9 @@ export default async function Configuracoes({ searchParams }: { searchParams: Pr
             <a key={k} href={`/exportar/${k}`} className="rounded-xl border border-line px-4 py-2 hover:border-brand">{n} (.csv)</a>))}
         </div>
         <p className="text-xs text-muted">Guarde o backup em um lugar seguro: ele contém todo o seu histórico de estudo.</p></section>
+      <section className={sec}><h2 className="font-medium">Restaurar backup</h2>
+        <RestaurarBackup disponivel={restauracao.disponivel} desfazerEm={restauracao.criadoEm} />
+      </section>
       <section className={sec}><h2 className="font-medium">Instalar no celular</h2>
         <p className="text-sm text-muted">O app abre em tela cheia, com ícone na tela inicial, como um aplicativo.</p>
         <ul className="list-disc space-y-1 pl-5 text-sm">
