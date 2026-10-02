@@ -62,3 +62,4 @@
 60. Cronômetro de estudo: um por pessoa, guardado no servidor; barra fixa em qualquer página; ao finalizar você confirma os minutos e o app conclui pelo mesmo caminho de sempre (assunto, revisão) com o tempo real, ou abre o registro de questões/simulado/revisão com o tempo preenchido. Rode `supabase/migrations/0025_cronometro.sql` ANTES de publicar (sem ela o app funciona, só sem o cronômetro).
 61. Menu lateral recolhível: o botão ‹ recolhe o menu para uma faixa fina com ☰ (que abre o menu por cima); a escolha fica guardada neste aparelho. Sem SQL.
 62. Calendário no tablet deitado: no mês, grade larga como no computador e mais compacta (até 3 tarefas por dia, com "+N mais" que abre o dia); semana e dia seguem com o painel de detalhes ao lado. Sem SQL.
+63. Semana em 7 colunas do tablet em diante (cabeçalho com dia da semana, data e "Livre"/"N tarefas"; cartões compactos); o dia no tablet deitado segue com o painel ao lado. Sem SQL.
