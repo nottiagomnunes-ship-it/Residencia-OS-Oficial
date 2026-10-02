@@ -122,6 +122,15 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
             </>}
     </>) : null
 
+  const doAtivo = compacto ? doDia(diaAtivo) : null
+  const listaDia = doAtivo && (
+    <section className={`space-y-2.5 ${painel ? '' : 'mt-4 md:hidden'}`} aria-label="Tarefas do dia selecionado">
+      <h3 className="font-medium"><span className="capitalize">{nomeDia(diaAtivo)}</span> <span className="text-muted">{fmtData(diaAtivo)}</span></h3>
+      {doAtivo.ocup.map((o, k) => <div key={'a' + k} className="rounded-lg border-l-4 border-line bg-line/40 px-3 py-2 text-sm text-muted">{minParaHhmm(o.ini)}–{o.fim >= 1440 ? '24:00' : minParaHhmm(o.fim)} {o.titulo}</div>)}
+      {doAtivo.lista.map(i => cartao(i, false))}
+      {!doAtivo.lista.length && !doAtivo.ocup.length && <p className="text-sm text-muted">Nada neste dia.</p>}
+    </section>)
+
   return (
     <div className={`${pending ? 'opacity-60' : ''} ${painel ? 'grid grid-cols-[minmax(0,1fr)_22rem] items-start gap-6' : ''}`}>
       <div className="min-w-0">
@@ -133,7 +142,7 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
           const secao = (
             <section onDragOver={e => e.preventDefault()}
               onDrop={e => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) mover(f => moverItem(id, d, f)) }}
-              className={`min-h-24 space-y-2.5 rounded-xl border bg-surface p-3 ${compacto ? 'hidden md:block' : ''} ${d === hoje ? 'border-brand' : 'border-line'} ${fora ? 'opacity-40' : ''}`}>
+              className={`min-h-24 space-y-2.5 rounded-xl border bg-surface p-3 ${compacto ? (painel ? 'hidden' : 'hidden md:block') : ''} ${d === hoje ? 'border-brand' : 'border-line'} ${fora ? 'opacity-40' : ''}`}>
               <h3 className="text-sm">{compacto ? +d.slice(8) : <><span className="capitalize">{nomeDia(d)}</span> <span className="text-muted">{d.slice(8)}/{d.slice(5, 7)}</span></>}</h3>
               {ocup.map((o, k) => faixa(o, k, compacto))}
               {lista.map(i => cartao(i, compacto))}
@@ -141,9 +150,9 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
           if (!compacto) return <div key={d} className="contents">{secao}</div>
           return (
             <div key={d} className="contents">
-              <button type="button" onClick={() => setDiaSel(d)} aria-pressed={d === diaAtivo}
+              <button type="button" onClick={() => { setDiaSel(d); if (painel) setSel(null) }} aria-pressed={d === diaAtivo}
                 aria-label={`${nomeDia(d)}, ${d.slice(8)}/${d.slice(5, 7)}: ${lista.length} ${lista.length === 1 ? 'tarefa' : 'tarefas'}`}
-                className={`flex min-h-16 w-full flex-col items-center gap-1.5 rounded-xl border p-1.5 text-sm md:hidden ${d === hoje ? 'border-brand' : 'border-line'} ${d === diaAtivo ? 'bg-brand/15' : 'bg-surface'} ${fora ? 'opacity-40' : ''}`}>
+                className={`flex min-h-16 w-full flex-col items-center gap-1.5 rounded-xl border p-1.5 text-sm ${painel ? '' : 'md:hidden'} ${d === hoje ? 'border-brand' : 'border-line'} ${d === diaAtivo ? 'bg-brand/15' : 'bg-surface'} ${fora ? 'opacity-40' : ''}`}>
                 <span>{+d.slice(8)}</span>
                 <span aria-hidden className="flex flex-wrap justify-center gap-1">{pontos.slice(0, 6).map((c, k) => <span key={k} className={`size-2 rounded-full ${c}`} />)}{pontos.length > 6 && <span className="text-[10px] leading-none text-muted">+</span>}</span>
               </button>
@@ -152,20 +161,11 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
         })}
       </div>
 
-      {compacto && (() => {
-        const { lista, ocup } = doDia(diaAtivo)
-        return (
-          <section className="mt-4 space-y-2.5 md:hidden" aria-label="Tarefas do dia selecionado">
-            <h3 className="font-medium"><span className="capitalize">{nomeDia(diaAtivo)}</span> <span className="text-muted">{fmtData(diaAtivo)}</span></h3>
-            {ocup.map((o, k) => <div key={'a' + k} className="rounded-lg border-l-4 border-line bg-line/40 px-3 py-2 text-sm text-muted">{minParaHhmm(o.ini)}–{o.fim >= 1440 ? '24:00' : minParaHhmm(o.fim)} {o.titulo}</div>)}
-            {lista.map(i => cartao(i, false))}
-            {!lista.length && !ocup.length && <p className="text-sm text-muted">Nada neste dia.</p>}
-          </section>)
-      })()}
+      {!painel && listaDia}
       </div>
       {painel && (
         <aside aria-label="Detalhes da tarefa" className="sticky top-4 max-h-[calc(100dvh-2rem)] space-y-4 overflow-y-auto rounded-2xl border border-line bg-surface p-5">
-          {detalhes ?? <p className="text-sm text-muted">Toque numa tarefa para ver os detalhes aqui. No toque, deslize a tarefa para a direita para concluir e para a esquerda para adiar.</p>}
+          {detalhes ?? listaDia ?? <p className="text-sm text-muted">Toque numa tarefa para ver os detalhes aqui. No toque, deslize a tarefa para a direita para concluir e para a esquerda para adiar.</p>}
         </aside>)}
       {!painel && sel && (
         <div className="fixed inset-0 z-40 grid place-items-end bg-black/60 md:place-items-center" onClick={() => setSel(null)}>
