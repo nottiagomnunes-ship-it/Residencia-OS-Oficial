@@ -1,6 +1,10 @@
 import { pct } from './desempenho'
 
-export const xpSimulado = (total: number) => 20 + Math.floor(total / 5)
+/** 30 XP pela prova + 1 a cada 2 questões (até 300) + bônus por acerto de 80% ou mais (+1 a cada 8). */
+export function xpSimulado(total: number, acertos = 0) {
+  const t = Math.min(Math.max(total, 0), 300)
+  return 30 + Math.floor(t / 2) + ((pct(acertos, total) ?? 0) >= 80 ? Math.floor(t / 8) : 0)
+}
 
 /** Ordena por data e calcula % de cada simulado, variação em pontos sobre o anterior, média e melhor. */
 export function resumoSimulados(ms: { id: string; nome: string; data: string; total: number; acertos: number }[]) {

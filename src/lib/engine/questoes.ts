@@ -8,7 +8,11 @@ export const MOTIVOS = {
 export type Motivo = keyof typeof MOTIVOS
 
 export const aproveitamento = (acertos: number, total: number) => (total > 0 ? Math.round((acertos / total) * 100) : null)
-export const xpQuestoes = (total: number) => Math.floor(total / 5)
+/** 1 XP a cada 2 questões (no máximo 200 por sessão) + bônus por acerto alto: 80% ou mais = +1 a cada 8; 70% a 79% = +1 a cada 16. */
+export function xpQuestoes(total: number, acertos = 0) {
+  const t = Math.min(Math.max(total, 0), 200), p = aproveitamento(acertos, total) ?? 0
+  return Math.floor(t / 2) + (p >= 80 ? Math.floor(t / 8) : p >= 70 ? Math.floor(t / 16) : 0)
+}
 
 /** Distribuição dos erros por motivo (do mais frequente ao menos) e a frase-resumo. */
 export function estatisticasErros(erros: { motivo: string }[]) {

@@ -50,3 +50,4 @@
 48. Questões: atalhos de quantidade, resumo ao vivo (erros e %) e detalhes recolhidos; Caderno de erros: motivo em botões; formulário ao lado do histórico no tablet deitado.
 49. Questões do dia: cada bloco tem UM assunto (rodízio dentro da semana), em vez de listar vários.
 50. Planejamento por TEMPO DISPONÍVEL (sem horários): Minha semana vira "quanto tempo tenho em cada dia"; Início tem "Quanto tempo você tem hoje?". Rode `supabase/migrations/0017_tempo_disponivel.sql` ANTES de publicar.
+51. XP equilibrado, XP devolvido ao excluir, tempo das questões nas horas estudadas e questões/simulado levam ao registro. Rode `supabase/migrations/0018_xp_equilibrado.sql` ANTES de publicar.

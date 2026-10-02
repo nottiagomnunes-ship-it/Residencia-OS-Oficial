@@ -8,13 +8,13 @@ import QuestoesForm from '@/components/QuestoesForm'
 
 const corAcerto = (p: number | null) => (p == null ? '' : p >= 75 ? 'text-brand' : p >= 60 ? 'text-warn' : 'text-danger')
 
-export default async function Questoes({ searchParams }: { searchParams: Promise<{ ok?: string; erro?: string; alvo?: string; total?: string }> }) {
-  const { ok, erro, alvo, total: totalSugerido } = await searchParams, hoje = hojeBR()
+export default async function Questoes({ searchParams }: { searchParams: Promise<{ ok?: string; erro?: string; alvo?: string; total?: string; xp?: string }> }) {
+  const { ok, erro, alvo, total: totalSugerido, xp } = await searchParams, hoje = hojeBR()
   const sb = await supabaseServer()
   const [{ data: ds }, { data: ts }, { data: todas }, { data: hist }] = await Promise.all([
     sb.from('disciplines').select('id,nome').order('ordem'), sb.from('topics').select('id,nome,discipline_id').order('nome'),
     sb.from('question_sets').select('total,acertos').limit(10000),
-    sb.from('question_sets').select('id,total,acertos,erros,banca,prova,ano,tempo_min,realizado_em,disciplines(nome),topics(nome)').order('realizado_em', { ascending: false }).limit(50),
+    sb.from('question_sets').select('id,total,acertos,erros,banca,prova,ano,tempo_min,realizado_em,mock_exam_id,disciplines(nome),topics(nome)').order('realizado_em', { ascending: false }).limit(50),
   ])
   const total = (todas ?? []).reduce((s, x) => s + x.total, 0), acertos = (todas ?? []).reduce((s, x) => s + x.acertos, 0)
   const [t, a] = (ok ?? '').split('-').map(Number)
@@ -22,7 +22,7 @@ export default async function Questoes({ searchParams }: { searchParams: Promise
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Questões</h1>
-      {ok && t > 0 && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-4 text-sm">Registrado: {t} questões, {aproveitamento(a, t)}% de aproveitamento.{t - a > 0 && <> Você errou {t - a}: <Link href="/caderno-de-erros" className="text-brand underline">adicione ao Caderno de Erros</Link>.</>}</p>}
+      {ok && t > 0 && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-4 text-sm">Registrado: {t} questões, {aproveitamento(a, t)}% de aproveitamento.{xp && <b className="text-brand"> +{xp} XP.</b>}{t - a > 0 && <> Você errou {t - a}: <Link href="/caderno-de-erros" className="text-brand underline">adicione ao Caderno de Erros</Link>.</>}</p>}
       {erro && <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">{erro}</p>}
       <div className="space-y-6 lg:grid lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start lg:gap-6 lg:space-y-0">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4 lg:col-start-2 lg:row-start-1 lg:grid-cols-2 xl:grid-cols-4">
@@ -40,7 +40,7 @@ export default async function Questoes({ searchParams }: { searchParams: Promise
               <td data-label="Prova:" className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)] text-muted">{[q.banca, q.prova, q.ano].filter(Boolean).join(' · ') || '—'}</td>
               <td data-label="Questões:" className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]">{q.total}</td><td data-label="Acertos:" className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]">{q.acertos}</td>
               <td data-label="Aproveitamento:" className={`px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)] font-medium ${corAcerto(p)}`}>{p}%</td><td data-label="Tempo:" className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]">{q.tempo_min ? `${q.tempo_min} min` : '—'}</td>
-              <td className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]"><form action={excluirQuestoes}><input type="hidden" name="id" value={q.id} /><button className="text-danger hover:underline">Excluir</button></form></td></tr>) })}</tbody>
+              <td className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]">{q.mock_exam_id ? <span className="text-xs text-muted">Faz parte de um simulado</span> : <form action={excluirQuestoes}><input type="hidden" name="id" value={q.id} /><button className="text-danger hover:underline">Excluir</button></form>}</td></tr>) })}</tbody>
         </table>
         {!hist?.length && <p className="p-6 text-center text-muted">Nenhuma questão registrada. Use o formulário acima depois da sua próxima sessão de questões.</p>}
       </div>
@@ -49,7 +49,7 @@ export default async function Questoes({ searchParams }: { searchParams: Promise
           <article key={q.id} className="rounded-2xl border border-line bg-surface p-4">
             <div className="flex items-baseline justify-between gap-3"><span className="font-medium">{q.topics?.nome ?? q.disciplines?.nome ?? 'Sem assunto'}</span><span className={`font-semibold ${corAcerto(p)}`}>{p}%</span></div>
             <p className="mt-1 text-sm text-muted">{fmtData(q.realizado_em)} · {q.acertos}/{q.total} acertos{q.tempo_min ? ` · ${q.tempo_min} min` : ''}{prova ? ` · ${prova}` : ''}</p>
-            <form action={excluirQuestoes} className="mt-2"><input type="hidden" name="id" value={q.id} /><button className="text-sm text-danger hover:underline">Excluir</button></form>
+            {q.mock_exam_id ? <span className="text-xs text-muted">Faz parte de um simulado</span> : <form action={excluirQuestoes} className="mt-2"><input type="hidden" name="id" value={q.id} /><button className="text-sm text-danger hover:underline">Excluir</button></form>}
           </article>) })}
         {!hist?.length && <p className="rounded-2xl border border-dashed border-line p-8 text-center text-muted">Nenhuma questão registrada. Use o formulário ao lado depois da sua próxima sessão de questões.</p>}
       </div>

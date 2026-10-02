@@ -32,7 +32,7 @@ export default async function Inicio() {
   const metasSem = (await carregarMetas(sb, hoje)).filter(m => m.periodo === 'semana')
   const progSem = metasSem.length ? Math.round(metasSem.reduce((n, m) => n + Math.min(100, m.pct), 0) / metasSem.length) : null
   const gam = await carregarGamificacao(sb, hoje)
-  const { data: itensHoje } = await sb.from('schedule_items').select('id,tipo,titulo,data,hora_ini,hora_fim,duracao_min').lte('data', hoje).neq('status', 'concluido').order('data').order('ordem_dia', { nullsFirst: false }).order('hora_ini', { nullsFirst: false }).limit(60)
+  const { data: itensHoje } = await sb.from('schedule_items').select('id,tipo,titulo,data,hora_ini,hora_fim,duracao_min,topic_id,qtd_questoes').lte('data', hoje).neq('status', 'concluido').order('data').order('ordem_dia', { nullsFirst: false }).order('hora_ini', { nullsFirst: false }).limit(60)
   const { count: concluidasHoje } = await sb.from('schedule_items').select('id', { count: 'exact', head: true }).eq('data', hoje).eq('status', 'concluido')
   const [{ data: capHoje }, { data: perfilTempo }] = await Promise.all([
     sb.from('capacidade_dia').select('minutos').eq('data', hoje).maybeSingle(), sb.from('profiles').select('daily_minutes,available_weekdays').single(),

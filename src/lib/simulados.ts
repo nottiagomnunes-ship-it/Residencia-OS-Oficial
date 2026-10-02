@@ -28,24 +28,21 @@ export async function registrarSimulado(fd: FormData) {
   const acertos = linhas.length ? linhas.reduce((s, l) => s + l.acertos, 0) : Number(fd.get('acertos'))
   if (!Number.isInteger(total) || !Number.isInteger(acertos) || total < 1 || acertos < 0 || acertos > total) fail('Confira os números: acertos não podem passar do total.')
 
-  const { data: m } = await sb.from('mock_exams').insert({ user_id: uid, nome, data: dia, total, acertos, tempo_min: tempo, por_disciplina: linhas }).select('id').single()
+  const { data: m } = await sb.from('mock_exams').insert({ user_id: uid, nome, data: dia, total, acertos, tempo_min: tempo, por_disciplina: linhas, xp_ganho: xpSimulado(total, acertos) }).select('id').single()
   const base = { user_id: uid, banca: 'Simulado', prova: nome, realizado_em: dia, mock_exam_id: m!.id }
   const filhas: Record<string, unknown>[] = linhas.length ? linhas.map(l => ({ ...base, discipline_id: l.discipline_id, total: l.total, acertos: l.acertos }))
     : [{ ...base, discipline_id: null, total, acertos, tempo_min: tempo }]
   await sb.from('question_sets').insert(filhas)
-  await somarDia(sb, uid, dia, { xp: xpSimulado(total), minutos: tempo ?? 0, questoes: total, acertos })
+  await somarDia(sb, uid, dia, { xp: xpSimulado(total, acertos), minutos: tempo ?? 0, questoes: total, acertos })
   const { data: plan } = await sb.from('schedule_items').select('id').eq('tipo', 'simulado').eq('data', dia).neq('status', 'concluido').limit(1)
   if (plan?.[0]) await sb.from('schedule_items').update({ status: 'concluido' }).eq('id', plan[0].id)
   refresh()
   redirect(`/simulados?ok=${total}-${acertos}`)
 }
 
+/** Exclui o simulado (e as questões ligadas) e devolve o XP, o tempo e as questões do dia, numa transação. */
 export async function excluirSimulado(fd: FormData) {
-  const { sb, uid } = await ctx()
-  const { data: m } = await sb.from('mock_exams').select('id,data,total,acertos,tempo_min').eq('id', String(fd.get('id'))).single()
-  if (!m) return
-  await sb.from('mock_exams').delete().eq('id', m.id) // as questões ligadas saem junto (cascata)
-  const { data: s } = await sb.from('daily_stats').select('minutos,questoes,acertos').eq('user_id', uid).eq('data', m.data).maybeSingle()
-  if (s) await sb.from('daily_stats').update({ minutos: Math.max(0, s.minutos - (m.tempo_min ?? 0)), questoes: Math.max(0, s.questoes - m.total), acertos: Math.max(0, s.acertos - m.acertos) }).eq('user_id', uid).eq('data', m.data)
+  const { sb } = await ctx()
+  await sb.rpc('excluir_simulado', { p_id: String(fd.get('id')) })
   refresh()
 }

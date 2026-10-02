@@ -3,7 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
 import { hojeBR } from '@/lib/dates'
-import { addDays } from '@/lib/engine/review'
+import { addDays, xpEstudo } from '@/lib/engine/review'
 import { validarEdicaoTarefa, type EdicaoCampos } from '@/lib/engine/calendar'
 import { concluirConteudo, concluirRevisao } from '@/lib/flow'
 import { conflitosComOcupados, descreverConflitos, hhmmParaMin, ocupadosPorData, paraCompromisso, type Intervalo } from '@/lib/engine/compromissos'
@@ -69,7 +69,12 @@ export async function concluirItem(id: string) {
   const f = new FormData()
   if (i.review_id) { f.set('review_id', i.review_id); await concluirRevisao(f) }
   else if (i.tipo === 'estudo' && i.topic_id) { f.set('topic_id', i.topic_id); f.set('duration_min', String(i.duracao_min ?? 60)); await concluirConteudo(f) }
-  else await sb.from('schedule_items').update({ status: 'concluido' }).eq('id', id)
+  else if (i.tipo === 'estudo') { // estudo sem assunto (reforço ou tarefa manual): conta como sessão de estudo
+    const min = i.duracao_min ?? 60
+    const { error } = await sb.rpc('registrar_dia', { p_dia: hojeBR(), p_xp: xpEstudo(min), p_min: min, p_q: 0, p_ac: 0 })
+    if (!error) await sb.from('schedule_items').update({ status: 'concluido' }).eq('id', id)
+  }
+  else await sb.from('schedule_items').update({ status: 'concluido' }).eq('id', id) // flashcards e afins (questões e simulados passam pelo registro)
   refresh()
 }
 /** Excluir uma revisão automática remove a própria revisão (o item some junto, por cascata). */

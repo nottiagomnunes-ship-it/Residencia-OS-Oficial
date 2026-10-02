@@ -25,23 +25,21 @@ export async function registrarQuestoes(fd: FormData) {
     redirect('/questoes?erro=' + encodeURIComponent('Confira os números: o total deve ser maior que zero e os acertos não podem passar do total.'))
   const dia = ISO.test(String(fd.get('data'))) ? String(fd.get('data')) : hojeBR()
   const alvo = await resolverAlvo(sb, String(fd.get('alvo')))
+  const xp = xpQuestoes(total, acertos)
   const { error } = await sb.rpc('registrar_questoes', {
     p_disc: alvo.discipline_id, p_topic: alvo.topic_id, p_banca: opt(fd, 'banca'), p_prova: opt(fd, 'prova'), p_ano: optN(fd, 'ano'),
-    p_total: total, p_acertos: acertos, p_tempo: optN(fd, 'tempo_min'), p_dif: optN(fd, 'dificuldade'), p_dia: dia, p_xp: xpQuestoes(total),
+    p_total: total, p_acertos: acertos, p_tempo: optN(fd, 'tempo_min'), p_dif: optN(fd, 'dificuldade'), p_dia: dia, p_xp: xp,
   })
   if (error) redirect('/questoes?erro=' + encodeURIComponent('Não foi possível registrar as questões. Nada foi gravado; tente de novo.'))
   await carregarGamificacao(sb, hojeBR()).catch(() => {})
   refresh()
-  redirect(`/questoes?ok=${total}-${acertos}`)
+  redirect(`/questoes?ok=${total}-${acertos}&xp=${xp}`)
 }
 
+/** Exclui a sessão e devolve o XP, o tempo e as questões do dia, tudo numa transação. */
 export async function excluirQuestoes(fd: FormData) {
-  const { sb, uid } = await ctx()
-  const { data: q } = await sb.from('question_sets').select('id,total,acertos,realizado_em').eq('id', String(fd.get('id'))).single()
-  if (!q) return
-  await sb.from('question_sets').delete().eq('id', q.id)
-  const { data: s } = await sb.from('daily_stats').select('minutos,questoes,acertos,xp').eq('user_id', uid).eq('data', q.realizado_em).maybeSingle()
-  if (s) await sb.from('daily_stats').update({ questoes: Math.max(0, s.questoes - q.total), acertos: Math.max(0, s.acertos - q.acertos) }).eq('user_id', uid).eq('data', q.realizado_em)
+  const { sb } = await ctx()
+  await sb.rpc('excluir_questoes', { p_id: String(fd.get('id')) })
   refresh()
 }
 

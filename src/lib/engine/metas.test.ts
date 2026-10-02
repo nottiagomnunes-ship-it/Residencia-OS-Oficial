@@ -13,4 +13,4 @@ it('resumo dos simulados: ordem, variação, média e melhor', () => {
   expect(r.itens.map(i => i.nome)).toEqual(['A', 'B']); expect(r.itens[0].variacao).toBeNull(); expect(r.itens[1].variacao).toBe(10)
   expect(r.media).toBe(65); expect(r.melhor).toBe(70)
 })
-it('resumo vazio e XP do simulado', () => { expect(resumoSimulados([])).toEqual({ itens: [], media: null, melhor: null }); expect(xpSimulado(100)).toBe(40) })
+it('resumo vazio e XP do simulado', () => { expect(resumoSimulados([])).toEqual({ itens: [], media: null, melhor: null }); expect(xpSimulado(100, 70)).toBe(80); expect(xpSimulado(100, 85)).toBe(92); expect(xpSimulado(400, 400)).toBe(217) })

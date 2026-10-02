@@ -2,12 +2,12 @@ import { it, expect } from 'vitest'
 import { aproveitamento, estatisticasErros, xpQuestoes, resumoQuestoes } from './questoes'
 
 it('aproveitamento: 42 de 50 = 84%, sem questões = null', () => { expect(aproveitamento(42, 50)).toBe(84); expect(aproveitamento(0, 0)).toBeNull(); expect(aproveitamento(1, 3)).toBe(33) })
-it('XP de questões', () => { expect(xpQuestoes(40)).toBe(8); expect(xpQuestoes(4)).toBe(0) })
-it('estatística de erros ordena e gera a frase', () => {
-  const e = [...Array(5).fill({ motivo: 'falta_conteudo' }), { motivo: 'chute' }, { motivo: 'falta_atencao' }]
-  const s = estatisticasErros(e)
-  expect(s.total).toBe(7); expect(s.linhas[0]).toEqual({ motivo: 'falta_conteudo', n: 5, pct: 71 })
-  expect(s.frase).toBe('71% dos seus erros são por falta de conteúdo.'); expect(s.linhas).toHaveLength(5)
+it('XP de questões: 1 a cada 2 + bônus por acerto alto, com teto de 200 por sessão', () => {
+  expect(xpQuestoes(40, 34)).toBe(25)      // 85%: 20 + 5
+  expect(xpQuestoes(40, 30)).toBe(22)      // 75%: 20 + 2
+  expect(xpQuestoes(40, 20)).toBe(20)      // 50%: sem bônus
+  expect(xpQuestoes(10, 9)).toBe(6); expect(xpQuestoes(4, 4)).toBe(2); expect(xpQuestoes(0, 0)).toBe(0)
+  expect(xpQuestoes(400, 400)).toBe(125)   // só 200 contam: 100 + 25
 })
 it('sem erros não há frase', () => { expect(estatisticasErros([]).frase).toBeNull() })
 

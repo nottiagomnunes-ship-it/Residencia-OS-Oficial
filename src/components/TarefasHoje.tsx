@@ -8,7 +8,7 @@ import { dividirPorTempo, formatarMinutos, OPCOES_TEMPO } from '@/lib/engine/tem
 import { diffDays } from '@/lib/engine/review'
 import { Bar } from '@/components/ui'
 
-type T = { id: string; tipo: string; titulo: string; data: string; hora_ini: string | null; hora_fim: string | null; duracao_min: number | null }
+type T = { id: string; tipo: string; titulo: string; data: string; hora_ini: string | null; hora_fim: string | null; duracao_min: number | null; topic_id: string | null; qtd_questoes: number | null }
 const TIPO: Record<string, string> = { estudo: 'Estudo', revisao: 'Revisão', questoes: 'Questões', flashcards: 'Flashcards', simulado: 'Simulado' }
 
 /** O que fazer hoje, conforme o tempo informado: mostra o que cabe (atrasadas primeiro) e deixa o resto para depois. Sem horários. */
@@ -22,8 +22,11 @@ export default function TarefasHoje({ itens, hoje, concluidasHoje, minutosHoje, 
     const atraso = diffDays(t.data, hoje)
     const info = <span className="min-w-0 flex-1"><span className="block">{t.titulo}</span>
       <span className="block text-xs text-muted">{TIPO[t.tipo] ?? t.tipo} · {t.duracao_min ?? 30} min{atraso > 0 ? ` · ${atraso} ${atraso === 1 ? 'dia' : 'dias'} de atraso` : ''}</span></span>
-    return t.tipo === 'revisao'
-      ? <li key={t.id}><Link href="/revisoes" className="flex items-center gap-4 rounded-xl px-2 py-2.5 hover:bg-line/40">{info}<span className="rounded-full border border-info px-3 py-1 text-sm text-info">Fazer</span></Link></li>
+    // revisão, questões e simulado não se "concluem" com um toque: levam ao registro, onde o resultado (e o XP) é contado
+    const destino = t.tipo === 'revisao' ? '/revisoes' : t.tipo === 'simulado' ? '/simulados'
+      : t.tipo === 'questoes' ? `/questoes?${[t.topic_id ? `alvo=t:${t.topic_id}` : '', t.qtd_questoes ? `total=${t.qtd_questoes}` : ''].filter(Boolean).join('&')}` : null
+    return destino
+      ? <li key={t.id}><Link href={destino} className="flex items-center gap-4 rounded-xl px-2 py-2.5 hover:bg-line/40">{info}<span className="rounded-full border border-info px-3 py-1 text-sm text-info">{t.tipo === 'revisao' ? 'Fazer' : 'Registrar'}</span></Link></li>
       : <li key={t.id} className="flex items-center gap-4 rounded-xl px-2 py-1.5 hover:bg-line/40">
           <button onClick={() => concluir(t.id)} role="checkbox" aria-checked={false} aria-label={`Concluir: ${t.titulo}`} className="grid size-8 shrink-0 place-items-center rounded-full border-2 border-muted" />
           {info}<Link href={`/calendario?v=dia&d=${t.data}`} className="text-sm text-muted hover:text-brand">Abrir</Link></li>

@@ -114,11 +114,13 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
               <Checklist key={sel.topic_id} topicId={sel.topic_id} inicial={etapas[sel.topic_id] ?? []} modelos={modelos} concluido={sel.status === 'concluido'} compacto />)}
             {sel.status !== 'concluido' && <>
               <div className="flex flex-wrap gap-2">
-                <button onClick={() => run(() => concluirItem(sel.id))} className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Concluir</button>
+                {sel.tipo === 'questoes' || sel.tipo === 'simulado'
+                  ? <button onClick={() => run(() => concluirItem(sel.id))} className="rounded-xl border border-line px-4 py-2 text-sm">Marcar como feito (sem XP)</button>
+                  : <button onClick={() => run(() => concluirItem(sel.id))} className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Concluir</button>}
                 <button onClick={() => mover(f => adiarItem(sel.id, f))} className="rounded-xl border border-line px-4 py-2 text-sm">Adiar 1 dia</button>
                 <button onClick={abrirEdicao} className="rounded-xl border border-line px-4 py-2 text-sm">Editar</button>
-                {sel.tipo === 'questoes' && <Link href={`/questoes?${[sel.topic_id ? `alvo=t:${sel.topic_id}` : '', sel.qtd_questoes ? `total=${sel.qtd_questoes}` : ''].filter(Boolean).join('&')}`}
-                  className="rounded-xl border border-brand px-4 py-2 text-sm text-brand">Registrar questões</Link>}
+                {(sel.tipo === 'questoes' || sel.tipo === 'simulado') && <Link href={sel.tipo === 'simulado' ? '/simulados' : `/questoes?${[sel.topic_id ? `alvo=t:${sel.topic_id}` : '', sel.qtd_questoes ? `total=${sel.qtd_questoes}` : ''].filter(Boolean).join('&')}`}
+                  className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">{sel.tipo === 'simulado' ? 'Registrar simulado' : 'Registrar questões'}</Link>}
                 <button onClick={() => confirm('Excluir esta tarefa?') && run(() => excluirItem(sel.id))} className="rounded-xl px-4 py-2 text-sm text-danger hover:bg-danger/10">Excluir</button>
               </div>
               <div className="flex items-center gap-2"><input type="date" value={novaData} onChange={e => setNovaData(e.target.value)} className={inputCls} aria-label="Nova data" />
