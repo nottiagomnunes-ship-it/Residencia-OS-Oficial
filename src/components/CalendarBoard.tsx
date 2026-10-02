@@ -110,13 +110,16 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
               <button onClick={() => setSel(null)} aria-label="Fechar" className="p-2 text-muted">✕</button>
             </div>
             <p className="text-sm text-muted">{fmtData(sel.data)}{sel.hora_ini ? ` · ${sel.hora_ini.slice(0, 5)}${sel.hora_fim ? `–${sel.hora_fim.slice(0, 5)}` : ''}` : ''}{sel.duracao_min ? ` · ${sel.duracao_min} min` : ''}{sel.qtd_questoes ? ` · ${sel.qtd_questoes} questões` : ''}{sel.origem === 'auto' ? ' · gerada pelo sistema' : ''}</p>
-            {sel.topic_id && (sel.tipo === 'estudo' || sel.tipo === 'revisao') && (
+            {sel.topic_id && sel.tipo === 'estudo' && (
               <Checklist key={sel.topic_id} topicId={sel.topic_id} inicial={etapas[sel.topic_id] ?? []} modelos={modelos} concluido={sel.status === 'concluido'} compacto />)}
             {sel.status !== 'concluido' && <>
               <div className="flex flex-wrap gap-2">
                 {sel.tipo === 'questoes' || sel.tipo === 'simulado'
                   ? <button onClick={() => run(() => concluirItem(sel.id))} className="rounded-xl border border-line px-4 py-2 text-sm">Marcar como feito (sem XP)</button>
-                  : <button onClick={() => run(() => concluirItem(sel.id))} className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Concluir</button>}
+                  : sel.tipo === 'revisao'
+                    ? <><Link href="/revisoes" className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Fazer revisão</Link>
+                      <button onClick={() => run(() => concluirItem(sel.id))} className="rounded-xl border border-line px-4 py-2 text-sm">Marcar como feita</button></>
+                    : <button onClick={() => run(() => concluirItem(sel.id))} className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Concluir</button>}
                 <button onClick={() => mover(f => adiarItem(sel.id, f))} className="rounded-xl border border-line px-4 py-2 text-sm">Adiar 1 dia</button>
                 <button onClick={abrirEdicao} className="rounded-xl border border-line px-4 py-2 text-sm">Editar</button>
                 {(sel.tipo === 'questoes' || sel.tipo === 'simulado') && <Link href={sel.tipo === 'simulado' ? '/simulados' : `/questoes?${[sel.topic_id ? `alvo=t:${sel.topic_id}` : '', sel.qtd_questoes ? `total=${sel.qtd_questoes}` : ''].filter(Boolean).join('&')}`}
