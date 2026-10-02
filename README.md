@@ -55,3 +55,4 @@
 53. Cada revisão (D1, D7...) tem o SEU mini-checklist, criado desmarcado. As etapas do assunto ficam só no estudo. Rode `supabase/migrations/0020_revisao_etapas.sql` (sem ela o app funciona, mas sem os mini-checklists).
 54. Plano que acompanha a semana: Reorganizar atrasadas (com prévia), Adiantar tarefas quando sobra tempo, lembrete semanal e aviso de cronograma desatualizado. Rode `supabase/migrations/0021_plano_vivo.sql` (sem ela o app funciona, mas sem esses recursos).
 55. "Atualizar cronograma" não duplica mais um estudo atrasado (o assunto replanejado levava a tarefa antiga junto). Rode `supabase/migrations/0022_sem_duplicadas.sql` (também limpa as duplicatas que já existem).
+56. Ritmo para a prova: compara o seu ritmo (assuntos concluídos por semana) com o necessário para terminar o estudo novo antes da reta final, no Início e no Cronograma. Sem SQL novo.

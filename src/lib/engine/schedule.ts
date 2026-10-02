@@ -57,6 +57,9 @@ function colocar(blocos: Bloco[], e: Entrada) {
   return ord
 }
 
+/** Dias finais antes da prova reservados a questões e simulados: 20% do período que resta, no máximo 21. O estudo novo termina antes deles. */
+export const reservaRetaFinal = (diasAteAProva: number) => Math.min(21, Math.floor(diasAteAProva * 0.2))
+
 /** Sem horários: ordena por data e numera as tarefas de cada dia na ordem em que foram planejadas (fixos, estudo, questões, simulado). */
 function numerarDia(blocos: Bloco[]) {
   const ord = [...blocos].sort((a, b) => a.data.localeCompare(b.data)), n = new Map<string, number>()
@@ -81,7 +84,7 @@ export function gerarCronograma(e: Entrada) {
   const fimEstudo = addDays(e.prova, -1)
   if (fimEstudo < e.hoje) return { blocos: finalizar(blocos), naoAlocados: ordem.length, minutosFaltantes: falta(0), avisos: ['A data da prova é hoje ou já passou.'] }
 
-  const todos = dias(e.hoje, fimEstudo), reserva = Math.min(21, Math.floor(todos.length * 0.2)), corte = todos.length - reserva
+  const todos = dias(e.hoje, fimEstudo), reserva = reservaRetaFinal(todos.length), corte = todos.length - reserva
   // um dia com tempo informado vale pelo que foi informado (zero = sem estudo); sem informação, vale o dia da semana disponível
   const livres = (l: string[]) => l.filter(d => (e.capacidadePorDia?.[d] !== undefined ? e.capacidadePorDia[d] > 0 : e.diasDisponiveis.includes(dow(d))))
   const estudoDias = livres(todos.slice(0, corte)), finalDias = livres(todos.slice(corte))
