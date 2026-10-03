@@ -15,7 +15,25 @@ export const CATEGORIAS = {
 } as const
 export type Categoria = keyof typeof CATEGORIAS
 export const ehCategoria = (v: unknown): v is Categoria => typeof v === 'string' && v in CATEGORIAS
-export const corDaCategoria = (c: unknown) => (ehCategoria(c) ? CATEGORIAS[c].cor : CATEGORIAS.outro.cor)
+/** Cores que a pessoa pode escolher: legíveis no fundo escuro e sem o verde do estudo nem o vermelho de atrasado. */
+export const PALETA_AGENDA = [
+  { cor: '#3B82F6', nome: 'Azul' }, { cor: '#0EA5E9', nome: 'Azul-claro' }, { cor: '#06B6D4', nome: 'Ciano' }, { cor: '#14B8A6', nome: 'Verde-água' },
+  { cor: '#6366F1', nome: 'Anil' }, { cor: '#A855F7', nome: 'Roxo' }, { cor: '#EC4899', nome: 'Rosa' }, { cor: '#F97316', nome: 'Laranja' },
+  { cor: '#EAB308', nome: 'Amarelo' }, { cor: '#8A9A93', nome: 'Cinza' },
+] as const
+export type CoresAgenda = Partial<Record<Categoria, string>>
+const NA_PALETA = new Set<string>(PALETA_AGENDA.map(p => p.cor))
+export const corPermitida = (v: unknown): v is string => typeof v === 'string' && NA_PALETA.has(v.toUpperCase())
+/** As cores escolhidas (guardadas no perfil): só tipos conhecidos e cores da paleta; o resto é ignorado (volta ao padrão). */
+export function lerCores(v: unknown): CoresAgenda {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {}
+  return Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([k, c]) => ehCategoria(k) && corPermitida(c)).map(([k, c]) => [k, (c as string).toUpperCase()]))
+}
+/** A cor de um tipo: a escolhida pela pessoa ou a padrão. Tipo desconhecido usa a de "Outro". */
+export const corDaCategoria = (c: unknown, cores: CoresAgenda = {}) => {
+  const k: Categoria = ehCategoria(c) ? c : 'outro'
+  return cores[k] ?? CATEGORIAS[k].cor
+}
 
 export const DIAS_CURTOS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'] as const
 

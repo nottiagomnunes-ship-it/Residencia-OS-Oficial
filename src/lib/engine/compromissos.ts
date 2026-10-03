@@ -1,6 +1,6 @@
 import { addDays } from './review'
 
-export type Intervalo = { ini: number; fim: number; titulo?: string; tarefa?: boolean; categoria?: string; id?: string } // minutos desde 00:00
+export type Intervalo = { ini: number; fim: number; titulo?: string; tarefa?: boolean; categoria?: string; id?: string; cor?: string } // minutos desde 00:00
 export type Compromisso = { titulo: string; tipo: 'semanal' | 'pontual'; dias: number[]; data: string | null; ini: number; fim: number; valido_de: string | null; valido_ate: string | null; id?: string; categoria?: string }
 export const MIN_BLOCO = 30
 

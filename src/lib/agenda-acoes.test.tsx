@@ -17,15 +17,16 @@ const cadeia = (t: string) => {
 }
 vi.mock('@/lib/supabase/server', () => ({ supabaseServer: async () => ({ auth: { getUser: async () => ({ data: { user: { id: 'u1' } } }) }, from: (t: string) => cadeia(t) }) }))
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }))
-vi.mock('next/navigation', () => ({ redirect: (u: string) => { h.redirects.push(u); throw new Error('REDIRECT') } }))
+vi.mock('next/navigation', () => ({ redirect: (u: string) => { h.redirects.push(u); throw new Error('REDIRECT') }, useRouter: () => ({ refresh: () => {} }) }))
 vi.mock('@/lib/dates', () => ({ hojeBR: () => '2026-10-07' }))   // quarta-feira
 vi.mock('@/lib/capacidade', () => ({ definirCapacidade: vi.fn(), limparCapacidade: vi.fn(), copiarSemanaAnterior: vi.fn() }))
 
-import { criarNaAgenda, copiarEscalaAnterior, pararDeRepetir, excluirDaAgenda, salvarEscalaRapida } from './agenda'
+import { criarNaAgenda, copiarEscalaAnterior, pararDeRepetir, excluirDaAgenda, salvarEscalaRapida, definirCorDaCategoria } from './agenda'
 import { agendaDosDias } from './agenda-data'
 import AgendaForm from '@/components/AgendaForm'
 import EscalaRapida from '@/components/EscalaRapida'
 import CapacidadeSemana from '@/components/CapacidadeSemana'
+import CoresAgenda from '@/components/CoresAgenda'
 
 const fd = (o: Record<string, string | string[]>) => { const f = new FormData(); for (const [k, v] of Object.entries(o)) for (const x of [v].flat()) f.append(k, x); return f }
 const rodar = async (p: Promise<unknown>) => { await expect(p).rejects.toThrow('REDIRECT'); return decodeURIComponent(h.redirects.at(-1)!) }
@@ -81,7 +82,7 @@ describe('junção com o calendário', () => {
   })
   it('sem a 0029: nada aparece e nada quebra', async () => {
     h.dados['commitments:erro'] = { message: 'column commitments.agenda does not exist' }
-    expect(await agendaDosDias({ from: (t: string) => cadeia(t) } as any, '2026-10-06', '2026-10-08')).toEqual({ disponivel: false, ocupados: {}, livres: {}, sugestoes: {}, linhas: [] })
+    expect(await agendaDosDias({ from: (t: string) => cadeia(t) } as any, '2026-10-06', '2026-10-08')).toEqual({ disponivel: false, ocupados: {}, livres: {}, sugestoes: {}, linhas: [], cores: {} })
   })
 })
 
@@ -122,5 +123,31 @@ describe('sugestão de tempo na Minha semana', () => {
   it('sem agenda, nada muda na tela', () => {
     const html = renderToStaticMarkup(<CapacidadeSemana {...props} />)
     expect(html).not.toContain('Agenda:'); expect(html).not.toContain('Usar as sugestões')
+  })
+})
+
+describe('cores da agenda', () => {
+  it('a cor escolhida vai para os blocos do calendário; o resto segue o padrão', async () => {
+    h.dados.commitments = [
+      { id: 'a', titulo: 'Plantão', categoria: 'plantao', tipo: 'pontual', dias: [], data: '2026-10-07', hora_ini: '07:00:00', hora_fim: '19:00:00', valido_de: null, valido_ate: null },
+      { id: 'b', titulo: 'Academia', categoria: 'academia', tipo: 'pontual', dias: [], data: '2026-10-07', hora_ini: '20:00:00', hora_fim: '21:00:00', valido_de: null, valido_ate: null },
+    ]
+    h.dados['profiles:um'] = { janela_ini: '06:00:00', janela_fim: '23:00:00', folga_min: 30, cores_agenda: { plantao: '#ec4899', academia: '#123456' } }
+    const r = await agendaDosDias({ from: (t: string) => cadeia(t) } as any, '2026-10-07', '2026-10-07')
+    expect(r.ocupados['2026-10-07'].map(o => o.cor)).toEqual(['#EC4899', '#14B8A6'])   // cor fora da paleta é ignorada
+  })
+  it('salvar: só tipo conhecido e cor da paleta; mantém as outras escolhas', async () => {
+    expect(await definirCorDaCategoria('plantao', '#123456')).toEqual({ ok: false }); expect(await definirCorDaCategoria('festa', '#EC4899')).toEqual({ ok: false })
+    expect(h.ops).toEqual([])
+    h.dados['profiles:um'] = { cores_agenda: { aula: '#6366F1' } }
+    expect(await definirCorDaCategoria('plantao', '#eab308')).toEqual({ ok: true })
+    expect(h.ops.find(o => o.op === 'update')!.v).toEqual({ cores_agenda: { aula: '#6366F1', plantao: '#EAB308' } })
+  })
+  it('a tela marca a cor atual de cada tipo e oferece voltar ao padrão só se algo mudou', () => {
+    const html = renderToStaticMarkup(<CoresAgenda cores={{ plantao: '#EC4899' }} disponivel />)
+    expect(html).toMatch(/aria-pressed="true" aria-label="Plantão: Rosa"/); expect(html).toMatch(/aria-pressed="true" aria-label="Internato: Azul"/)
+    expect((html.match(/aria-pressed="true"/g) ?? []).length).toBe(6); expect(html).toContain('Voltar às cores padrão')
+    expect(renderToStaticMarkup(<CoresAgenda cores={{}} disponivel />)).not.toContain('Voltar às cores padrão')
+    expect(renderToStaticMarkup(<CoresAgenda cores={{}} disponivel={false} />)).toContain('0030_cores_da_agenda.sql')
   })
 })

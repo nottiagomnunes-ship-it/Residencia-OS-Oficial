@@ -10,6 +10,8 @@ import { agendaDosDias } from '@/lib/agenda-data'
 import { excluirDaAgenda, pararDeRepetir, copiarEscalaAnterior, trazerHorariosAntigos, salvarJanelaDoDia } from '@/lib/agenda'
 import AgendaForm from '@/components/AgendaForm'
 import EscalaRapida from '@/components/EscalaRapida'
+import CoresAgenda from '@/components/CoresAgenda'
+import { carregarCores } from '@/lib/agenda-data'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
 import { fmtData, inputCls } from '@/components/ui'
 
@@ -22,6 +24,7 @@ export default async function Agenda({ searchParams }: { searchParams: Promise<{
     sb.from('profiles').select('janela_ini,janela_fim,folga_min').single(),
     sb.from('commitments').select('id', { count: 'exact', head: true }).eq('agenda', false),
   ])
+  const coresDisp = (await carregarCores(sb)).disponivel
   const nomeDia = (d: string) => new Date(d + 'T12:00:00Z').toLocaleDateString('pt-BR', { weekday: 'long', timeZone: 'UTC' }).replace('-feira', '')
   const hora = (m: number) => (m >= 1440 ? '24:00' : minParaHhmm(m))
   const pontuaisAnteriores = ag.linhas.some(l => l.tipo === 'pontual' && l.data && l.data >= addDays(seg, -7) && l.data < seg)
@@ -41,7 +44,8 @@ export default async function Agenda({ searchParams }: { searchParams: Promise<{
       {ag.disponivel && <div className="space-y-6 lg:grid lg:grid-cols-[24rem_minmax(0,1fr)] lg:items-start lg:gap-6 lg:space-y-0">
         <div className="space-y-4 lg:sticky lg:top-6">
           <AgendaForm semana={seg} hoje={hoje} />
-          <EscalaRapida semana={seg} />
+          <EscalaRapida semana={seg} cores={ag.cores} />
+          <CoresAgenda cores={ag.cores} disponivel={coresDisp} />
           <details className="rounded-2xl border border-line bg-surface p-5">
             <summary className="cursor-pointer font-medium">Horário do seu dia</summary>
             <form action={salvarJanelaDoDia} className="mt-3 space-y-3 text-sm">
@@ -78,7 +82,7 @@ export default async function Agenda({ searchParams }: { searchParams: Promise<{
                 <li key={d} className={`space-y-2 rounded-xl border bg-surface p-3 ${d === hoje ? 'border-brand' : 'border-line'} ${d < hoje ? 'opacity-60' : ''}`}>
                   <h3 className="text-sm"><span className="capitalize">{nomeDia(d)}</span> <span className="text-muted">{fmtData(d)}</span></h3>
                   {blocos.map((o, k) => (
-                    <div key={k} className="rounded-lg border-l-4 bg-line/40 px-2 py-1 text-xs" style={{ borderLeftColor: corDaCategoria(o.categoria) }}>
+                    <div key={k} className="rounded-lg border-l-4 bg-line/40 px-2 py-1 text-xs" style={{ borderLeftColor: o.cor ?? corDaCategoria(o.categoria, ag.cores) }}>
                       <span className="text-muted">{hora(o.ini)}–{hora(o.fim)}</span> {o.titulo}</div>))}
                   <p className="text-xs text-info">{ag.livres[d] ?? 'Dia livre na agenda'}</p>
                 </li>)
@@ -90,7 +94,7 @@ export default async function Agenda({ searchParams }: { searchParams: Promise<{
             {!ordenadas.length && <p className="rounded-2xl border border-dashed border-line p-6 text-center text-muted">Nada na agenda ainda. Use um atalho ao lado para começar.</p>}
             <ul className="space-y-2">{ordenadas.map(l => (
               <li key={l.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-line bg-surface p-3 text-sm">
-                <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: corDaCategoria(l.categoria) }} />
+                <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: corDaCategoria(l.categoria, ag.cores) }} />
                 <span className="min-w-0 flex-1"><b className="font-medium">{l.titulo}</b> <span className="text-muted">· {ehCategoria(l.categoria) ? CATEGORIAS[l.categoria].rotulo : 'Outro'}</span>
                   <span className="block text-muted">{quando(l)} · {l.hora_ini.slice(0, 5)}–{l.hora_fim.slice(0, 5)}{l.hora_fim < l.hora_ini ? ' (dia seguinte)' : ''}</span></span>
                 {l.tipo === 'semanal' && <form action={pararDeRepetir}><input type="hidden" name="id" value={l.id} /><input type="hidden" name="semana" value={seg} /><button className={btn}>Parar de repetir</button></form>}

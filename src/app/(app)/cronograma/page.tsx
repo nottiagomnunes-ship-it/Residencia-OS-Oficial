@@ -55,7 +55,7 @@ export default async function Cronograma({ searchParams }: { searchParams: Promi
               {ag.livres[d] && <p className="-mt-1 mb-2 text-xs text-info">{ag.livres[d]}</p>}
               {!linhas.length ? <p className="text-sm text-muted">Nada programado.</p> : (
                 <ul className="space-y-2">{linhas.map((l, k) => l.tipo === 'ocupado' ? (
-                  <li key={'o' + k} style={{ borderLeftColor: corDaCategoria(l.o.categoria) }} className="flex flex-wrap items-baseline gap-x-3 border-l-4 pl-3 text-sm text-muted">
+                  <li key={'o' + k} style={{ borderLeftColor: l.o.cor ?? corDaCategoria(l.o.categoria) }} className="flex flex-wrap items-baseline gap-x-3 border-l-4 pl-3 text-sm text-muted">
                     <span className="w-24">{minParaHhmm(l.o.ini)}–{l.o.fim >= 1440 ? '24:00' : minParaHhmm(l.o.fim)}</span><span>{l.o.titulo}</span></li>
                 ) : (
                   <li key={l.x.id} className={`flex flex-wrap items-baseline gap-x-3 border-l-4 pl-3 text-sm ${COR[statusDe(l.x, hoje)]}`}>

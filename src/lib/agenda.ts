@@ -6,7 +6,7 @@ import { hojeBR } from '@/lib/dates'
 import { addDays } from '@/lib/engine/review'
 import { weekStart } from '@/lib/engine/calendar'
 import { hhmmParaMin } from '@/lib/engine/compromissos'
-import { validarCompromisso, copiarEscala, lerEscalaEmTexto } from '@/lib/engine/agenda'
+import { validarCompromisso, copiarEscala, lerEscalaEmTexto, ehCategoria, corPermitida, lerCores } from '@/lib/engine/agenda'
 
 async function ctx() {
   const sb = await supabaseServer()
@@ -93,4 +93,24 @@ export async function salvarEscalaRapida(fd: FormData) {
   const { error } = await sb.from('commitments').insert(linhas)
   if (error) voltar(s, 'erro', /agenda|categoria/.test(error.message) ? SEM_CAMPOS : 'Não foi possível salvar. Nada foi gravado.')
   voltar(s, erros.length ? 'erro' : 'ok', `${linhas.length} ${linhas.length === 1 ? 'horário adicionado' : 'horários adicionados'} à agenda.${erros.length ? ` ${erros.length} ${erros.length === 1 ? 'linha não foi entendida' : 'linhas não foram entendidas'}: ${erros[0]}` : ''}`)
+}
+
+/** Escolhe a cor de um tipo da agenda (da paleta). Chamado pela tela, sem recarregar a página. */
+export async function definirCorDaCategoria(categoria: string, cor: string): Promise<{ ok: boolean; erro?: string }> {
+  const { sb, uid } = await ctx()
+  if (!ehCategoria(categoria) || !corPermitida(cor)) return { ok: false }
+  const { data, error } = await sb.from('profiles').select('cores_agenda').single()
+  if (error) return { ok: false, erro: 'Falta atualizar o banco: rode supabase/migrations/0030_cores_da_agenda.sql no SQL Editor do Supabase.' }
+  const cores = { ...lerCores(data?.cores_agenda), [categoria]: cor.toUpperCase() }
+  const { error: e2 } = await sb.from('profiles').update({ cores_agenda: cores }).eq('id', uid)
+  if (e2) return { ok: false }
+  ;['/agenda', '/calendario', '/cronograma'].forEach(p => revalidatePath(p))
+  return { ok: true }
+}
+/** Volta todas as cores da agenda ao padrão. */
+export async function restaurarCoresDaAgenda(): Promise<{ ok: boolean }> {
+  const { sb, uid } = await ctx()
+  const { error } = await sb.from('profiles').update({ cores_agenda: {} }).eq('id', uid)
+  ;['/agenda', '/calendario', '/cronograma'].forEach(p => revalidatePath(p))
+  return { ok: !error }
 }

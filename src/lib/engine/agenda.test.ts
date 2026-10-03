@@ -98,3 +98,15 @@ describe('texto rápido da escala', () => {
     expect(r.itens).toEqual([]); expect(r.erros).toHaveLength(5)
   })
 })
+
+describe('paleta da agenda', () => {
+  it('lerCores filtra tipo e cor; padrão quando não escolhido; a paleta contém as cores padrão e não tem verde do estudo nem vermelho', async () => {
+    const { lerCores, corDaCategoria, PALETA_AGENDA, CATEGORIAS } = await import('./agenda')
+    expect(lerCores({ plantao: '#ec4899', x: '#EC4899', aula: 'red', academia: 5 })).toEqual({ plantao: '#EC4899' })
+    expect(lerCores(null)).toEqual({}); expect(lerCores([1])).toEqual({})
+    expect(corDaCategoria('plantao', { plantao: '#EC4899' })).toBe('#EC4899'); expect(corDaCategoria('aula', { plantao: '#EC4899' })).toBe(CATEGORIAS.aula.cor)
+    const cores = PALETA_AGENDA.map(p => p.cor) as string[]
+    for (const c of Object.values(CATEGORIAS)) expect(cores).toContain(c.cor)
+    expect(cores).not.toContain('#22C55E'); expect(cores).not.toContain('#EF4444'); expect(new Set(cores).size).toBe(cores.length)
+  })
+})
