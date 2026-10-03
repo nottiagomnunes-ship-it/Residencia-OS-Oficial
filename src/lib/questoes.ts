@@ -3,7 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
 import { hojeBR } from '@/lib/dates'
-import { xpQuestoes } from '@/lib/engine/questoes'
+import { xpQuestoes, MOTIVOS } from '@/lib/engine/questoes'
 import { carregarGamificacao } from '@/lib/gamificacao-data'
 import { somarDia, resolverAlvo } from '@/lib/xp'
 
@@ -51,6 +51,14 @@ export async function adicionarErro(fd: FormData) {
   await sb.from('error_notebook').insert({ user_id: uid, ...alvo, enunciado: opt(fd, 'enunciado'), motivo: String(fd.get('motivo')),
     comentario: opt(fd, 'comentario'), revisar_em: ISO.test(rev) ? rev : null })
   await carregarGamificacao(sb, hojeBR()).catch(() => {})
+  refresh()
+}
+/** Dá o motivo a um erro que chegou sem motivo (os que vêm das provas). */
+export async function definirMotivo(fd: FormData) {
+  const { sb } = await ctx()
+  const motivo = String(fd.get('motivo'))
+  if (!(motivo in MOTIVOS)) return
+  await sb.from('error_notebook').update({ motivo }).eq('id', String(fd.get('id')))
   refresh()
 }
 export async function marcarRevisado(fd: FormData) {

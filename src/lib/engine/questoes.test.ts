@@ -22,3 +22,7 @@ it('resumo ao vivo: valores incompletos ou impossíveis não liberam o registro'
   expect(resumoQuestoes('30', '31')).toMatchObject({ valido: false, tipo: 'erro', mensagem: 'Os acertos (31) não podem passar do total (30).' })
   expect(resumoQuestoes('30', '30')).toMatchObject({ valido: true, mensagem: '0 erros · 100% de aproveitamento' })
 })
+it('erros sem motivo (vindos das provas) ficam fora das porcentagens e são contados à parte', () => {
+  const e = estatisticasErros([{ motivo: 'chute' }, { motivo: null }, { motivo: null }, { motivo: 'chute' }, { motivo: 'falta_atencao' }])
+  expect(e.total).toBe(3); expect(e.semMotivo).toBe(2); expect(e.linhas[0]).toEqual({ motivo: 'chute', n: 2, pct: 67 })
+})

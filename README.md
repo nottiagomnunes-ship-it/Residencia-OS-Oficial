@@ -30,8 +30,7 @@
 29. PWA (instalável, ícone, tela offline) e menu "Mais" no celular. Sem migração nova.
 30. Celular: painel da tarefa acima da barra inferior, etapas que quebram linha e tabelas em formato de cartões.
 31. Celular: corrige a página que "dava zoom out" por causa de campos largos (min-width nas grades, minimum-scale 1).
-32. Tarefas ficam "atrasadas" quando o horário marcado termina sem conclusão (Calendário e Cronograma). Sem migração.
-32. Tarefa com horário vira "atrasada" quando o horário de término passa sem concluir (Calendário e Cronograma; sem migração).
+32. Tarefa com horário vira "atrasada" quando o horário de término passa sem concluir (Calendário e Cronograma; sem migração). Substituído pelo item 41.
 33. Etapas (subtópicos) dentro do painel da tarefa no Calendário, com contador nos cartões (sem migração).
 34. Cadastro em página própria (/cadastro), login só com "Entrar", mensagens de erro em português (sem migração).
 35. Toda conta nova começa com 0 assuntos: o onboarding não carrega mais o catálogo sugerido (ele continua disponível, só se você pedir, em Conteúdos).
@@ -68,3 +67,4 @@
 66. Menu: os títulos dos grupos viraram rótulos de seção (cinza, maiúsculas espaçadas, linha divisória) e os itens clicáveis usam a cor clara do app, para não se confundirem. Sem SQL.
 67. Avisos unificados: aviso temporário no topo (some em 6 s; erro em 15 s; pausa ao tocar), usado pelo cronômetro, pelo painel Hoje, por reorganizar atrasadas, restaurar backup e pelas páginas Questões, Simulados e Configurações (a URL é limpa). Adiar/mover uma tarefa oferece "Desfazer" por 8 s. Sem SQL.
 68. Áreas da prova: cada disciplina pode pertencer a uma das 5 grandes áreas (Clínica Médica, Cirurgia, Pediatria, GO, Preventiva). Disciplinas agrupadas por área, "Organizar por áreas" (sugestão pelo nome, revisável), resumo por área no Desempenho, filtro em Conteúdos, listas de escolha ordenadas por área. SQL 0027 (campo opcional); sem ele o app segue como antes.
+69. Provas dentro do app (menu Estudar → Provas): importar uma prova em .docx ("QUESTÃO N" + alternativas "A)"...), com figuras; colar o gabarito em qualquer formato (pares, tabela do PDF ou só letras; anulada = X); áreas sugeridas pelo texto (prova em 5 blocos é reconhecida) e ajuste por faixa; fazer a prova com cronômetro, grade, riscar alternativa, "voltar depois" e "chutei", salvando cada toque (sem internet, guarda no aparelho e envia depois); ao entregar, corrige tudo ou nada: resultado em Simulados (com acerto por área), questões no Desempenho, XP, e erradas, em branco e acertos no chute no Caderno de Erros (motivo e disciplina escolhidos na correção). Rode `supabase/migrations/0028_provas.sql` ANTES de usar (pode rodar mais de uma vez; cria também o armazenamento privado "provas" para as figuras). Sem ela, a página Provas avisa e o resto do app segue igual. Teste do SQL num Postgres local: `supabase/tests/`.

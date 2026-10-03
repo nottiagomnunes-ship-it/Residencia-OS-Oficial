@@ -4,7 +4,7 @@ export type ItemMenu = readonly [nome: string, href: string]
 export const INICIO: ItemMenu = ['Início', '/inicio']
 export const GRUPOS: readonly { titulo: string; itens: readonly ItemMenu[] }[] = [
   { titulo: 'Planejar', itens: [['Meu Cronograma', '/cronograma'], ['Minha semana', '/semana'], ['Calendário', '/calendario']] },
-  { titulo: 'Estudar', itens: [['Revisões', '/revisoes'], ['Questões', '/questoes'], ['Simulados', '/simulados'], ['Caderno de Erros', '/caderno-de-erros']] },
+  { titulo: 'Estudar', itens: [['Revisões', '/revisoes'], ['Questões', '/questoes'], ['Simulados', '/simulados'], ['Provas', '/provas'], ['Caderno de Erros', '/caderno-de-erros']] },
   { titulo: 'Acompanhar', itens: [['Desempenho', '/desempenho'], ['Metas', '/metas']] },
   { titulo: 'Organizar', itens: [['Disciplinas', '/disciplinas'], ['Conteúdos', '/conteudos']] },
 ]

@@ -51,7 +51,7 @@ export default async function Simulados({ searchParams }: { searchParams: Promis
             <span className="text-sm">{i.acertos}/{i.total} · <b className={i.pct >= 75 ? 'text-brand' : i.pct >= 65 ? 'text-warn' : 'text-danger'}>{i.pct}%</b>
               {i.variacao != null && <span className={`ml-2 ${i.variacao >= 0 ? 'text-brand' : 'text-danger'}`}>{i.variacao >= 0 ? '▲' : '▼'} {Math.abs(i.variacao)} pts</span>}</span>
           </div>
-          {linhas.length > 0 && <details className="text-sm"><summary className="cursor-pointer text-muted">Por disciplina</summary>
+          {linhas.length > 0 && <details className="text-sm"><summary className="cursor-pointer text-muted">{linhas.some(l => l.area) ? 'Por área' : 'Por disciplina'}</summary>
             <ul className="mt-2 space-y-1">{linhas.map(l => <li key={l.discipline_id} className="flex justify-between"><span>{l.nome}</span><span>{l.acertos}/{l.total} · {pct(l.acertos, l.total)}%</span></li>)}</ul></details>}
           <form action={excluirSimulado}><input type="hidden" name="id" value={i.id} /><button className="text-sm text-danger hover:underline">Excluir</button></form>
         </li>) })}</ul>

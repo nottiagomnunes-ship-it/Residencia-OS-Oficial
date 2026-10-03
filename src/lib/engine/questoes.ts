@@ -15,14 +15,14 @@ export function xpQuestoes(total: number, acertos = 0) {
 }
 
 /** Distribuição dos erros por motivo (do mais frequente ao menos) e a frase-resumo. */
-export function estatisticasErros(erros: { motivo: string }[]) {
-  const total = erros.length
+export function estatisticasErros(erros: { motivo: string | null }[]) {
+  const semMotivo = erros.filter(e => !e.motivo || !(e.motivo in MOTIVOS)).length, total = erros.length - semMotivo // os "a definir" (vindos das provas) ficam fora da conta
   const linhas = (Object.keys(MOTIVOS) as Motivo[]).map(m => {
     const n = erros.filter(e => e.motivo === m).length
     return { motivo: m, n, pct: total ? Math.round((n / total) * 100) : 0 }
   }).sort((a, b) => b.n - a.n)
   const topo = linhas[0]
-  return { total, linhas, frase: total && topo.n ? `${topo.pct}% dos seus erros ${MOTIVOS[topo.motivo].frase}.` : null }
+  return { total, semMotivo, linhas, frase: total && topo.n ? `${topo.pct}% dos seus erros ${MOTIVOS[topo.motivo].frase}.` : null }
 }
 
 /** Resumo ao vivo enquanto se digita: erros e aproveitamento, ou o motivo de o registro ainda não poder ser feito. */
