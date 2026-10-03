@@ -145,3 +145,70 @@ export async function restaurarCoresDaAgenda(): Promise<{ ok: boolean }> {
   ;['/agenda', '/calendario', '/cronograma'].forEach(p => revalidatePath(p))
   return { ok: !error }
 }
+
+// ---------- Liberar um horário direto pelo Calendário ----------
+
+const SEM_LIBERAR = 'Para liberar só um dia de um horário que se repete, rode supabase/migrations/0033_liberar_horario.sql no SQL Editor do Supabase.'
+const CAMPOS_LINHA = 'id,titulo,categoria,tipo,dias,data,hora_ini,hora_fim,valido_de,valido_ate'
+export type DesfazerAgenda = { tipo: 'excecao'; id: string; data: string } | { tipo: 'recriar'; linha: Record<string, unknown> }
+type Resultado = { ok: boolean; erro?: string; desfazer?: DesfazerAgenda }
+const atualizarTelas = () => ['/agenda', '/calendario', '/cronograma', '/semana', '/inicio'].forEach(p => revalidatePath(p))
+
+/**
+ * Deixa livre o horário de um compromisso num dia (`data` = o dia em que a ocorrência começa). "Só um dia": apaga o compromisso.
+ * "Toda semana": só aquela data fica livre (as outras semanas continuam). Devolve como desfazer.
+ */
+export async function liberarHorario(id: string, data: string): Promise<Resultado> {
+  const { sb } = await ctx()
+  if (!ISO.test(data)) return { ok: false }
+  const { data: c } = await sb.from('commitments').select(CAMPOS_LINHA).eq('id', id).eq('agenda', true).maybeSingle()
+  if (!c) return { ok: false, erro: 'Esse horário não está mais na agenda.' }
+  if (c.tipo === 'pontual') {
+    const { error } = await sb.from('commitments').delete().eq('id', id)
+    if (error) return { ok: false, erro: 'Não foi possível liberar. Tente de novo.' }
+    atualizarTelas()
+    const { id: _id, ...linha } = c
+    return { ok: true, desfazer: { tipo: 'recriar', linha } }
+  }
+  const { data: e, error: semCampo } = await sb.from('commitments').select('excecoes').eq('id', id).maybeSingle()
+  if (semCampo) return { ok: false, erro: SEM_LIBERAR }
+  const atuais: string[] = Array.isArray(e?.excecoes) ? e!.excecoes : []
+  const { error } = await sb.from('commitments').update({ excecoes: [...new Set([...atuais, data])].sort() }).eq('id', id)
+  if (error) return { ok: false, erro: 'Não foi possível liberar. Tente de novo.' }
+  atualizarTelas()
+  return { ok: true, desfazer: { tipo: 'excecao', id, data } }
+}
+
+/** Tira o compromisso da agenda de vez (todas as semanas), com desfazer. */
+export async function excluirHorarioDaAgenda(id: string): Promise<Resultado> {
+  const { sb } = await ctx()
+  const ler = (campos: string) => sb.from('commitments').select(campos).eq('id', id).eq('agenda', true).maybeSingle() as unknown as Promise<{ data: Record<string, unknown> | null; error: unknown }>
+  let r = await ler(CAMPOS_LINHA + ',excecoes')
+  if (r.error) r = await ler(CAMPOS_LINHA) // sem a 0033
+  const c = r.data
+  if (!c) return { ok: false, erro: 'Esse horário não está mais na agenda.' }
+  const { error } = await sb.from('commitments').delete().eq('id', id)
+  if (error) return { ok: false, erro: 'Não foi possível excluir. Tente de novo.' }
+  atualizarTelas()
+  const { id: _id, ...linha } = c
+  return { ok: true, desfazer: { tipo: 'recriar', linha } }
+}
+
+/** Desfaz "liberar" ou "excluir": o dia volta a ficar ocupado, ou o compromisso volta (como era). */
+export async function desfazerNaAgenda(d: DesfazerAgenda): Promise<{ ok: boolean }> {
+  const { sb, uid } = await ctx()
+  if (d.tipo === 'excecao') {
+    const { data: e } = await sb.from('commitments').select('excecoes').eq('id', d.id).maybeSingle()
+    if (!e) return { ok: false }
+    const { error } = await sb.from('commitments').update({ excecoes: (e.excecoes ?? []).filter((x: string) => x !== d.data) }).eq('id', d.id)
+    atualizarTelas()
+    return { ok: !error }
+  }
+  const l = d.linha
+  const v = validarCompromisso({ ...l, hora_ini: String(l.hora_ini ?? ''), hora_fim: String(l.hora_fim ?? '') })
+  if (!v.ok) return { ok: false }
+  const excecoes = Array.isArray(l.excecoes) ? l.excecoes.filter((x): x is string => typeof x === 'string' && ISO.test(x)) : []
+  const { error } = await sb.from('commitments').insert({ ...v.c, user_id: uid, agenda: true, ...(excecoes.length ? { excecoes } : {}) })
+  atualizarTelas()
+  return { ok: !error }
+}

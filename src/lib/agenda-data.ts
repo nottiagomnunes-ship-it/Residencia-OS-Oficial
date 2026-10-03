@@ -4,16 +4,19 @@ import { ocupadosPorData, paraCompromisso, type Intervalo } from './engine/compr
 import { janelaDoPerfil, livreDoDia, descreverJanelas, sugestaoDeEstudo, lerCores, corDaCategoria, type CoresAgenda } from './engine/agenda'
 import { formatarMinutos } from './engine/tempo'
 
-export type LinhaAgenda = { id: string; titulo: string; categoria: string; tipo: 'semanal' | 'pontual'; dias: number[]; data: string | null; hora_ini: string; hora_fim: string; valido_de: string | null; valido_ate: string | null }
+export type LinhaAgenda = { id: string; titulo: string; categoria: string; tipo: 'semanal' | 'pontual'; dias: number[]; data: string | null; hora_ini: string; hora_fim: string; valido_de: string | null; valido_ate: string | null; excecoes?: string[] }
 
 /**
  * A agenda pessoal. Consulta SEPARADA de propósito: sem a atualização 0029 do banco (campos "agenda" e "categoria"), `disponivel` vem falso e
  * as telas seguem como antes, sem quebrar.
  */
 export async function carregarAgenda(sb: SupabaseClient): Promise<{ disponivel: boolean; linhas: LinhaAgenda[] }> {
-  const { data, error } = await sb.from('commitments').select('id,titulo,categoria,tipo,dias,data,hora_ini,hora_fim,valido_de,valido_ate').eq('agenda', true).order('hora_ini')
-  if (error) return { disponivel: false, linhas: [] }
-  return { disponivel: true, linhas: (data ?? []) as LinhaAgenda[] }
+  const campos = 'id,titulo,categoria,tipo,dias,data,hora_ini,hora_fim,valido_de,valido_ate'
+  const ler = (c: string) => sb.from('commitments').select(c).eq('agenda', true).order('hora_ini') as unknown as Promise<{ data: LinhaAgenda[] | null; error: unknown }>
+  let r = await ler(campos + ',excecoes')
+  if (r.error) r = await ler(campos) // sem a 0033: sem dias liberados
+  if (r.error) return { disponivel: false, linhas: [] }
+  return { disponivel: true, linhas: r.data ?? [] }
 }
 
 /** As cores escolhidas para os tipos. Consulta à parte: sem a 0030 do banco, valem as cores padrão. */

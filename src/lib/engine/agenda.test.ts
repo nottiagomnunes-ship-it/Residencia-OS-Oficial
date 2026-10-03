@@ -36,7 +36,7 @@ describe('tempo livre do dia', () => {
   const C = (o: object) => paraCompromisso({ titulo: 'X', tipo: 'semanal', dias: [1], hora_ini: '07:00:00', hora_fim: '13:00:00', ...o })
   it('janela menos a agenda, com folga; plantão da noite anterior ocupa a manhã', () => {
     const oc = ocupadosPorData([C({}), C({ hora_ini: '18:00:00', hora_fim: '19:00:00', categoria: 'academia', id: 'a1' }), C({ tipo: 'pontual', dias: [], data: '2026-10-04', hora_ini: '19:00:00', hora_fim: '07:00:00' })], '2026-10-04', '2026-10-05')
-    expect(oc['2026-10-05'].find(o => o.id === 'a1')).toEqual({ ini: 1080, fim: 1140, titulo: 'X', id: 'a1', categoria: 'academia' })
+    expect(oc['2026-10-05'].find(o => o.id === 'a1')).toEqual({ ini: 1080, fim: 1140, titulo: 'X', id: 'a1', categoria: 'academia', inicio: '2026-10-05', recorrente: true })
     const l = livreDoDia(oc['2026-10-05'], { ini: 360, fim: 1380 }, 30)
     expect(l.janelas).toEqual([[810, 1050], [1170, 1380]]); expect(l.minutos).toBe(450)
     expect(descreverJanelas(l.janelas)).toBe('13h30–17h30 e 19h30–23h')

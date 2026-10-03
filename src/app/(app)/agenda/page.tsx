@@ -9,6 +9,7 @@ import { CATEGORIAS, corDaCategoria, quando, ehCategoria } from '@/lib/engine/ag
 import { agendaDosDias } from '@/lib/agenda-data'
 import { excluirDaAgenda, pararDeRepetir, copiarEscalaAnterior, trazerHorariosAntigos, salvarJanelaDoDia } from '@/lib/agenda'
 import AgendaForm from '@/components/AgendaForm'
+import BlocoAgenda from '@/components/BlocoAgenda'
 import EscalaRapida from '@/components/EscalaRapida'
 import CoresAgenda from '@/components/CoresAgenda'
 import { carregarCores } from '@/lib/agenda-data'
@@ -85,8 +86,8 @@ export default async function Agenda({ searchParams }: { searchParams: Promise<{
                 <li key={d} className={`space-y-2 rounded-xl border bg-surface p-3 ${d === hoje ? 'border-brand' : 'border-line'} ${d < hoje ? 'opacity-60' : ''}`}>
                   <h3 className="text-sm"><span className="capitalize">{nomeDia(d)}</span> <span className="text-muted">{fmtData(d)}</span></h3>
                   {blocos.map((o, k) => (
-                    <div key={k} className="rounded-lg border-l-4 bg-line/40 px-2 py-1 text-xs" style={{ borderLeftColor: o.cor ?? corDaCategoria(o.categoria, ag.cores) }}>
-                      <span className="text-muted">{hora(o.ini)}–{hora(o.fim)}</span> {o.titulo}</div>))}
+                    <BlocoAgenda key={k} o={o} className="block rounded-lg border-l-4 bg-line/40 px-2 py-1 text-xs">
+                      <span className="text-muted">{hora(o.ini)}–{hora(o.fim)}</span> {o.titulo}</BlocoAgenda>))}
                   <p className="text-xs text-info">{ag.livres[d] ?? 'Dia livre na agenda'}</p>
                 </li>)
             })}</ul>
