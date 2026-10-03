@@ -27,6 +27,7 @@ export default async function Agenda({ searchParams }: { searchParams: Promise<{
   const coresDisp = (await carregarCores(sb)).disponivel
   const nomeDia = (d: string) => new Date(d + 'T12:00:00Z').toLocaleDateString('pt-BR', { weekday: 'long', timeZone: 'UTC' }).replace('-feira', '')
   const hora = (m: number) => (m >= 1440 ? '24:00' : minParaHhmm(m))
+  const daSemana = ag.linhas.filter(l => l.tipo === 'pontual' && l.data && l.data >= seg && l.data <= dias[6]).map(l => ({ data: l.data!, hora_ini: l.hora_ini, hora_fim: l.hora_fim, titulo: l.titulo }))
   const pontuaisAnteriores = ag.linhas.some(l => l.tipo === 'pontual' && l.data && l.data >= addDays(seg, -7) && l.data < seg)
   const ordenadas = [...ag.linhas].filter(l => l.tipo === 'semanal' ? !l.valido_ate || l.valido_ate >= hoje : (l.data ?? '') >= addDays(hoje, -1))
     .sort((a, b) => (a.tipo === b.tipo ? 0 : a.tipo === 'semanal' ? -1 : 1) || (a.data ?? '').localeCompare(b.data ?? '') || a.hora_ini.localeCompare(b.hora_ini))
@@ -44,7 +45,7 @@ export default async function Agenda({ searchParams }: { searchParams: Promise<{
       {ag.disponivel && <div className="space-y-6 lg:grid lg:grid-cols-[24rem_minmax(0,1fr)] lg:items-start lg:gap-6 lg:space-y-0">
         <div className="space-y-4 lg:sticky lg:top-6">
           <AgendaForm semana={seg} hoje={hoje} />
-          <EscalaRapida semana={seg} cores={ag.cores} />
+          <EscalaRapida semana={seg} cores={ag.cores} existentes={daSemana} />
           <CoresAgenda cores={ag.cores} disponivel={coresDisp} />
           <details className="rounded-2xl border border-line bg-surface p-5">
             <summary className="cursor-pointer font-medium">Horário do seu dia</summary>
@@ -74,6 +75,8 @@ export default async function Agenda({ searchParams }: { searchParams: Promise<{
             {pontuaisAnteriores && <form action={copiarEscalaAnterior} className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface p-3 text-sm">
               <input type="hidden" name="semana" value={seg} />
               <span className="flex-1 text-muted">A escala mudou pouco? Copie os horários de um dia só (plantões, enfermarias) da semana anterior e depois ajuste.</span>
+              {daSemana.length > 0 && <label className="flex w-full items-center gap-2 sm:order-last"><input type="checkbox" name="modo" value="substituir" defaultChecked className="accent-brand" />
+                Substituir os {daSemana.length} {daSemana.length === 1 ? 'horário' : 'horários'} de um dia só que já estão nesta semana (sem marcar, só entra o que falta)</label>}
               <button className={btn}>Copiar a semana anterior</button>
             </form>}
             <ul className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">{dias.map(d => {

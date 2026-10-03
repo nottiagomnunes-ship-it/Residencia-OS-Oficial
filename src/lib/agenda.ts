@@ -6,7 +6,7 @@ import { hojeBR } from '@/lib/dates'
 import { addDays } from '@/lib/engine/review'
 import { weekStart } from '@/lib/engine/calendar'
 import { hhmmParaMin } from '@/lib/engine/compromissos'
-import { validarCompromisso, copiarEscala, lerEscalaEmTexto, ehCategoria, corPermitida, lerCores } from '@/lib/engine/agenda'
+import { validarCompromisso, copiarEscala, lerEscalaEmTexto, ehCategoria, corPermitida, lerCores, semDuplicados } from '@/lib/engine/agenda'
 
 async function ctx() {
   const sb = await supabaseServer()
@@ -15,6 +15,7 @@ async function ctx() {
   return { sb, uid: user.id }
 }
 const ISO = /^\d{4}-\d{2}-\d{2}$/, HORA = /^\d{2}:\d{2}$/
+const SEM_SUBSTITUIR = 'Falta atualizar o banco: rode supabase/migrations/0032_substituir_agenda.sql no SQL Editor do Supabase.'
 const SEM_CAMPOS = 'Falta atualizar o banco: rode supabase/migrations/0029_agenda_pessoal.sql no SQL Editor do Supabase.'
 const semana = (fd: FormData) => { const s = String(fd.get('semana') || ''); return ISO.test(s) ? weekStart(s) : weekStart(hojeBR()) }
 const voltar = (s: string, k: 'ok' | 'erro', m: string): never => {
@@ -29,6 +30,8 @@ export async function criarNaAgenda(fd: FormData) {
     hora_ini: fd.get('hora_ini'), hora_fim: fd.get('hora_fim'), valido_de: fd.get('valido_de'), valido_ate: fd.get('valido_ate') })
   if (!v.ok) voltar(s, 'erro', v.erro)
   const { c } = v as Extract<typeof v, { ok: true }>
+  const { data: iguais } = await sb.from('commitments').select('titulo,tipo,data,dias,hora_ini,hora_fim').eq('agenda', true).eq('tipo', c.tipo).ilike('titulo', c.titulo)
+  if (!semDuplicados([c], (iguais ?? []) as never[]).novos.length) voltar(c.tipo === 'pontual' && c.data ? weekStart(c.data) : s, 'ok', `"${c.titulo}" já estava na agenda com esse dia e horário. Nada foi repetido.`)
   const { error } = await sb.from('commitments').insert({ user_id: uid, ...c, agenda: true })
   if (error) voltar(s, 'erro', /agenda|categoria/.test(error.message) ? SEM_CAMPOS : 'Não foi possível salvar. Tente de novo.')
   voltar(c.tipo === 'pontual' && c.data ? weekStart(c.data) : s, 'ok', `"${c.titulo}" adicionado à agenda.`)
@@ -58,6 +61,15 @@ export async function copiarEscalaAnterior(fd: FormData) {
   const { data, error } = await sb.from('commitments').select('titulo,categoria,tipo,data,hora_ini,hora_fim').eq('agenda', true).eq('tipo', 'pontual')
     .gte('data', addDays(s, -7)).lte('data', addDays(s, 6))
   if (error) voltar(s, 'erro', SEM_CAMPOS)
+  if (fd.get('modo') === 'substituir') {
+    // a semana passa a ser exatamente a cópia da anterior (o que havia nela sai)
+    const anteriores = (data ?? []).filter(p => p.data && p.data < s)
+    const copia = copiarEscala(anteriores, s)
+    if (!copia.length) voltar(s, 'erro', 'Nada para copiar: a semana anterior não tem horários de um dia só.')
+    const { data: r, error: e3 } = await sb.rpc('substituir_agenda_semana', { p_de: s, p_ate: addDays(s, 6), p_itens: copia })
+    if (e3) voltar(s, 'erro', /substituir_agenda_semana/.test(e3.message) ? SEM_SUBSTITUIR : 'Não foi possível substituir. Nada foi alterado.')
+    voltar(s, 'ok', `Semana substituída: ${(r as any)?.inseridos ?? copia.length} ${copia.length === 1 ? 'horário copiado' : 'horários copiados'} da semana anterior (${(r as any)?.removidos ?? 0} removidos).`)
+  }
   const novos = copiarEscala(data ?? [], s)
   if (!novos.length) voltar(s, 'erro', 'Nada para copiar: a semana anterior não tem horários de um dia só (ou eles já estão nesta semana).')
   const { error: e2 } = await sb.from('commitments').insert(novos.map(n => ({ ...n, user_id: uid, agenda: true })))
@@ -89,10 +101,29 @@ export async function salvarEscalaRapida(fd: FormData) {
   const s = semana(fd)
   const { itens, erros } = lerEscalaEmTexto(String(fd.get('texto') ?? '').slice(0, 5000), s)
   if (!itens.length) voltar(s, 'erro', erros[0] ?? 'Escreva pelo menos um horário, por exemplo: seg 7-13 Enfermaria.')
-  const linhas = itens.slice(0, 100).flatMap(i => { const v = validarCompromisso({ ...i, tipo: 'pontual' }); return v.ok ? [{ ...v.c, user_id: uid, agenda: true }] : [] })
-  const { error } = await sb.from('commitments').insert(linhas)
+  const validos = itens.slice(0, 100).flatMap(i => { const v = validarCompromisso({ ...i, tipo: 'pontual' }); return v.ok ? [v.c] : [] })
+  const naoEntendidas = erros.length ? ` ${erros.length} ${erros.length === 1 ? 'linha não foi entendida' : 'linhas não foram entendidas'}: ${erros[0]}` : ''
+  const fim = addDays(s, 6)
+  if (fd.get('modo') === 'substituir') {
+    // os horários de um dia só DESTA semana saem; os novos desta semana entram no lugar (tudo ou nada). Datas fora da semana são só adicionadas.
+    const naSemana = semDuplicados(validos.filter(c => c.data! >= s && c.data! <= fim), []).novos, fora = validos.filter(c => c.data! < s || c.data! > fim)
+    const { data: r, error } = await sb.rpc('substituir_agenda_semana', { p_de: s, p_ate: fim, p_itens: naSemana })
+    if (error) voltar(s, 'erro', /substituir_agenda_semana/.test(error.message) ? SEM_SUBSTITUIR : 'Não foi possível substituir. Nada foi alterado.')
+    let extra = 0
+    if (fora.length) {
+      const { data: ex } = await sb.from('commitments').select('titulo,tipo,data,dias,hora_ini,hora_fim').eq('agenda', true).eq('tipo', 'pontual').in('data', [...new Set(fora.map(c => c.data!))])
+      const add = semDuplicados(fora, (ex ?? []) as never[]).novos
+      if (add.length && !(await sb.from('commitments').insert(add.map(c => ({ ...c, user_id: uid, agenda: true })))).error) extra = add.length
+    }
+    voltar(s, erros.length ? 'erro' : 'ok', `Escala da semana substituída: ${(r as any)?.removidos ?? 0} ${((r as any)?.removidos ?? 0) === 1 ? 'horário removido' : 'horários removidos'} e ${naSemana.length + extra} adicionados.${naoEntendidas}`)
+  }
+  const datas = [...new Set(validos.map(c => c.data!))]
+  const { data: ex } = datas.length ? await sb.from('commitments').select('titulo,tipo,data,dias,hora_ini,hora_fim').eq('agenda', true).eq('tipo', 'pontual').in('data', datas) : { data: [] }
+  const { novos, repetidos } = semDuplicados(validos, (ex ?? []) as never[])
+  if (!novos.length) voltar(s, 'ok', `Tudo isso já estava na agenda. Nada foi repetido.${naoEntendidas}`)
+  const { error } = await sb.from('commitments').insert(novos.map(c => ({ ...c, user_id: uid, agenda: true })))
   if (error) voltar(s, 'erro', /agenda|categoria/.test(error.message) ? SEM_CAMPOS : 'Não foi possível salvar. Nada foi gravado.')
-  voltar(s, erros.length ? 'erro' : 'ok', `${linhas.length} ${linhas.length === 1 ? 'horário adicionado' : 'horários adicionados'} à agenda.${erros.length ? ` ${erros.length} ${erros.length === 1 ? 'linha não foi entendida' : 'linhas não foram entendidas'}: ${erros[0]}` : ''}`)
+  voltar(s, erros.length ? 'erro' : 'ok', `${novos.length} ${novos.length === 1 ? 'horário adicionado' : 'horários adicionados'} à agenda.${repetidos ? ` ${repetidos} já ${repetidos === 1 ? 'existia' : 'existiam'} e não ${repetidos === 1 ? 'foi repetido' : 'foram repetidos'}.` : ''}${naoEntendidas}`)
 }
 
 /** Escolhe a cor de um tipo da agenda (da paleta). Chamado pela tela, sem recarregar a página. */

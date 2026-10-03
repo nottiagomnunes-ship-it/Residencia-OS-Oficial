@@ -110,3 +110,17 @@ describe('paleta da agenda', () => {
     expect(cores).not.toContain('#22C55E'); expect(cores).not.toContain('#EF4444'); expect(new Set(cores).size).toBe(cores.length)
   })
 })
+
+describe('sem duplicar', () => {
+  it('mesmo nome (sem maiúsculas), dia(s) e horário = igual; a ordem dos dias não importa', async () => {
+    const { semDuplicados } = await import('./agenda')
+    const ex = [{ titulo: 'Academia', tipo: 'semanal', data: null, dias: [5, 1, 3], hora_ini: '18:00:00', hora_fim: '19:00:00' }]
+    const r = semDuplicados([
+      { titulo: ' academia ', tipo: 'semanal', data: null, dias: [1, 3, 5], hora_ini: '18:00', hora_fim: '19:00' },
+      { titulo: 'Academia', tipo: 'semanal', data: null, dias: [1, 3], hora_ini: '18:00', hora_fim: '19:00' },
+      { titulo: 'PS', tipo: 'pontual', data: '2026-10-06', dias: [], hora_ini: '19:00', hora_fim: '07:00' },
+      { titulo: 'ps', tipo: 'pontual', data: '2026-10-06', dias: [], hora_ini: '19:00', hora_fim: '07:00' },
+    ], ex)
+    expect(r.novos.map(n => `${n.titulo}|${n.dias}`)).toEqual(['Academia|1,3', 'PS|']); expect(r.repetidos).toBe(2)
+  })
+})

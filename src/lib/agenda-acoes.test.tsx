@@ -5,7 +5,7 @@ const h = vi.hoisted(() => ({ dados: {} as Record<string, any>, erro: null as an
 const cadeia = (t: string) => {
   const o = { t, op: 'select', v: undefined as any, filtros: [] as string[] }
   const r: any = {}
-  for (const m of ['select', 'order', 'gte', 'lte']) r[m] = (...a: any[]) => { if (m !== 'select' && m !== 'order') o.filtros.push(`${m}:${a.join('=')}`); return r }
+  for (const m of ['select', 'order', 'gte', 'lte', 'ilike', 'in']) r[m] = (...a: any[]) => { if (m !== 'select' && m !== 'order') o.filtros.push(`${m}:${a.join('=')}`); return r }
   r.eq = (k: string, v: any) => { o.filtros.push(`eq:${k}=${v}`); return r }
   r.insert = (v: any) => { o.op = 'insert'; o.v = v; h.ops.push(o); return Promise.resolve({ error: h.erro }) }
   r.update = (v: any) => { o.op = 'update'; o.v = v; h.ops.push(o); return r }
@@ -15,7 +15,8 @@ const cadeia = (t: string) => {
   r.then = (ok: any) => Promise.resolve({ data: h.dados[t] ?? [], error: h.dados[t + ':erro'] ?? null }).then(ok)
   return r
 }
-vi.mock('@/lib/supabase/server', () => ({ supabaseServer: async () => ({ auth: { getUser: async () => ({ data: { user: { id: 'u1' } } }) }, from: (t: string) => cadeia(t) }) }))
+vi.mock('@/lib/supabase/server', () => ({ supabaseServer: async () => ({ auth: { getUser: async () => ({ data: { user: { id: 'u1' } } }) }, from: (t: string) => cadeia(t),
+  rpc: async (nome: string, args: any) => { h.ops.push({ t: nome, op: 'rpc', v: args, filtros: [] }); return { data: { removidos: 3, inseridos: (args.p_itens ?? []).length }, error: h.erro } } }) }))
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }))
 vi.mock('next/navigation', () => ({ redirect: (u: string) => { h.redirects.push(u); throw new Error('REDIRECT') }, useRouter: () => ({ refresh: () => {} }) }))
 vi.mock('@/lib/dates', () => ({ hojeBR: () => '2026-10-07' }))   // quarta-feira
@@ -149,5 +150,44 @@ describe('cores da agenda', () => {
     expect((html.match(/aria-pressed="true"/g) ?? []).length).toBe(6); expect(html).toContain('Voltar às cores padrão')
     expect(renderToStaticMarkup(<CoresAgenda cores={{}} disponivel />)).not.toContain('Voltar às cores padrão')
     expect(renderToStaticMarkup(<CoresAgenda cores={{}} disponivel={false} />)).toContain('0030_cores_da_agenda.sql')
+  })
+})
+
+describe('substituir em vez de duplicar', () => {
+  const P = (data: string, titulo: string, ini = '07:00:00', fim = '13:00:00') => ({ titulo, categoria: 'internato', tipo: 'pontual', data, dias: [], hora_ini: ini, hora_fim: fim })
+  it('adicionar um horário que já existe igual não repete', async () => {
+    h.dados.commitments = [{ titulo: 'academia', tipo: 'semanal', data: null, dias: [5, 1, 3], hora_ini: '18:00:00', hora_fim: '19:00:00' }]
+    const url = await rodar(criarNaAgenda(fd({ semana: '2026-10-05', titulo: 'Academia', categoria: 'academia', tipo: 'semanal', dias: ['1', '3', '5'], hora_ini: '18:00', hora_fim: '19:00' })))
+    expect(h.ops.filter(o => o.op === 'insert')).toEqual([]); expect(url).toContain('já estava na agenda')
+  })
+  it('escala em texto, "adicionar": entra só o que falta', async () => {
+    h.dados.commitments = [P('2026-10-05', 'Enfermaria')]
+    const url = await rodar(salvarEscalaRapida(fd({ semana: '2026-10-05', modo: 'adicionar', texto: 'seg 7-13 enfermaria; ter 7-13 Enfermaria' })))
+    expect(h.ops.find(o => o.op === 'insert')!.v.map((x: any) => x.data)).toEqual(['2026-10-06'])
+    expect(url).toContain('1 horário adicionado à agenda. 1 já existia e não foi repetido.')
+  })
+  it('escala em texto, "substituir": a semana é trocada numa chamada só; data de outra semana só é adicionada', async () => {
+    const url = await rodar(salvarEscalaRapida(fd({ semana: '2026-10-05', modo: 'substituir', texto: 'seg 7-13 UBS; seg 7-13 UBS; ter 19-7 PS; 20/10 14-15 Dentista' })))
+    const rpc = h.ops.find(o => o.op === 'rpc')!
+    expect(rpc.t).toBe('substituir_agenda_semana'); expect(rpc.v.p_de).toBe('2026-10-05'); expect(rpc.v.p_ate).toBe('2026-10-11')
+    expect(rpc.v.p_itens.map((x: any) => `${x.data} ${x.titulo}`)).toEqual(['2026-10-05 UBS', '2026-10-06 PS'])   // repetido dentro do texto entra uma vez
+    expect(h.ops.find(o => o.op === 'insert')!.v.map((x: any) => x.data)).toEqual(['2026-10-20'])
+    expect(url).toContain('Escala da semana substituída: 3 horários removidos e 3 adicionados.')
+  })
+  it('copiar a semana anterior, "substituir": a semana vira a cópia da anterior', async () => {
+    h.dados.commitments = [P('2026-09-29', 'Enfermaria'), P('2026-10-06', 'Velho')]
+    await rodar(copiarEscalaAnterior(fd({ semana: '2026-10-05', modo: 'substituir' })))
+    const rpc = h.ops.find(o => o.op === 'rpc')!
+    expect(rpc.v.p_itens.map((x: any) => `${x.data} ${x.titulo}`)).toEqual(['2026-10-06 Enfermaria'])
+    expect(h.ops.filter(o => o.op === 'insert')).toEqual([])
+  })
+  it('sem a 0032: avisa e não apaga nada', async () => {
+    h.erro = { message: 'Could not find the function public.substituir_agenda_semana' }
+    expect(await rodar(salvarEscalaRapida(fd({ semana: '2026-10-05', modo: 'substituir', texto: 'seg 7-13 UBS' })))).toContain('0032_substituir_agenda.sql')
+  })
+  it('a tela oferece substituir (marcado) só quando a semana já tem horários', () => {
+    const com = renderToStaticMarkup(<EscalaRapida semana="2026-10-05" existentes={[{ data: '2026-10-05', hora_ini: '07:00:00', hora_fim: '13:00:00', titulo: 'UBS' }]} />)
+    expect(com).toMatch(/checked="" value="substituir"/); expect(com).toContain('Esta semana já tem 1 horário de um dia só')
+    expect(renderToStaticMarkup(<EscalaRapida semana="2026-10-05" />)).not.toContain('Substituir a escala')
   })
 })

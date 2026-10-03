@@ -194,3 +194,17 @@ export function lerEscalaEmTexto(texto: string, segunda: string): { itens: ItemD
   }
   return { itens, erros }
 }
+
+// ---------- Sem duplicar ----------
+
+type ParaComparar = { titulo: string; tipo: string; data: string | null; dias?: number[] | null; hora_ini: string; hora_fim: string }
+/** Dois horários são "o mesmo" quando têm o mesmo nome (sem diferenciar maiúsculas), tipo, dia(s) e horário. A cor/tipo não conta. */
+export const chaveDoHorario = (c: ParaComparar) =>
+  [c.tipo, c.tipo === 'pontual' ? c.data : [...(c.dias ?? [])].sort().join(','), c.hora_ini.slice(0, 5), c.hora_fim.slice(0, 5), c.titulo.trim().toLowerCase()].join('|')
+
+/** Tira dos novos o que já existe e o que se repete dentro da própria lista. Devolve quantos foram deixados de fora. */
+export function semDuplicados<T extends ParaComparar>(novos: T[], existentes: ParaComparar[]) {
+  const vistos = new Set(existentes.map(chaveDoHorario)), saida: T[] = []
+  for (const n of novos) { const k = chaveDoHorario(n); if (!vistos.has(k)) { vistos.add(k); saida.push(n) } }
+  return { novos: saida, repetidos: novos.length - saida.length }
+}
