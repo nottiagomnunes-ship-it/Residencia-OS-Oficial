@@ -8,8 +8,11 @@ export const GRUPOS: readonly { titulo: string; itens: readonly ItemMenu[] }[] =
   { titulo: 'Acompanhar', itens: [['Desempenho', '/desempenho'], ['Metas', '/metas']] },
   { titulo: 'Organizar', itens: [['Disciplinas', '/disciplinas'], ['Conteúdos', '/conteudos']] },
 ]
+export const AJUDA: ItemMenu = ['Ajuda', '/ajuda']
 export const CONFIGURACOES: ItemMenu = ['Configurações', '/configuracoes']
-export const PAGINAS_DO_MENU: readonly ItemMenu[] = [INICIO, ...GRUPOS.flatMap(g => g.itens), CONFIGURACOES]
+/** Rodapé do menu: Ajuda e Configurações. */
+export const RODAPE: readonly ItemMenu[] = [AJUDA, CONFIGURACOES]
+export const PAGINAS_DO_MENU: readonly ItemMenu[] = [INICIO, ...GRUPOS.flatMap(g => g.itens), ...RODAPE]
 
 /** As quatro abas fixas da barra inferior do celular; o resto fica em "Mais". */
 export const PRINCIPAIS = ['/inicio', '/calendario', '/revisoes', '/questoes']

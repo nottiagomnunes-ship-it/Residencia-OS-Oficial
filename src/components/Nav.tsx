@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { INICIO, GRUPOS, CONFIGURACOES, PAGINAS_DO_MENU, PRINCIPAIS, ativo, type ItemMenu } from '@/lib/engine/menu'
+import { INICIO, GRUPOS, RODAPE, PAGINAS_DO_MENU, PRINCIPAIS, ativo, type ItemMenu } from '@/lib/engine/menu'
 
 /** Guarda a escolha (menu recolhido ou aberto) neste aparelho. Vai em cookie para o servidor já desenhar o menu certo, sem piscar. */
 const guardarMenu = (recolhido: boolean) => { document.cookie = `menu=${recolhido ? 'recolhido' : 'aberto'}; path=/; max-age=31536000; SameSite=Lax` }
@@ -34,7 +34,7 @@ export function Sidebar({ recolhidoInicial = false }: { recolhidoInicial?: boole
         <div key={g.titulo} role="group" aria-label={g.titulo} className="mt-5 flex flex-col gap-1">
           <Titulo texto={g.titulo} recuo="px-3" />{g.itens.map(link)}
         </div>))}
-      <div className="mt-auto border-t border-line pt-3">{link(CONFIGURACOES)}</div>
+      <div className="mt-auto flex flex-col gap-1 border-t border-line pt-3">{RODAPE.map(link)}</div>
     </>)
   const botao = 'grid size-11 shrink-0 place-items-center rounded-xl text-lg text-muted hover:bg-line/50 hover:text-brand'
 
@@ -71,7 +71,7 @@ export function BottomNav() {
   useEffect(() => setAberto(false), [path])
   const abas = PRINCIPAIS.map(h => PAGINAS_DO_MENU.find(([, x]) => x === h)!)
   const grupos = GRUPOS.map(g => ({ titulo: g.titulo, itens: g.itens.filter(([, h]) => !PRINCIPAIS.includes(h)) })).filter(g => g.itens.length)
-  const noMais = [...grupos.flatMap(g => g.itens), CONFIGURACOES].some(([, h]) => ativo(path, h))
+  const noMais = [...grupos.flatMap(g => g.itens), ...RODAPE].some(([, h]) => ativo(path, h))
   const aba = (on: boolean) => `flex min-h-14 flex-1 items-center justify-center text-xs ${on ? 'text-brand' : 'text-muted'}`
   const cartao = ([nome, href]: ItemMenu) => (
     <Link key={href} href={href} aria-current={ativo(path, href) ? 'page' : undefined}
@@ -87,7 +87,7 @@ export function BottomNav() {
                 <Titulo texto={g.titulo} recuo="px-1" />
                 <div className="grid grid-cols-2 gap-2">{g.itens.map(cartao)}</div>
               </div>))}
-            <div className="border-t border-line pt-3"><div className="grid grid-cols-2 gap-2">{cartao(CONFIGURACOES)}</div></div>
+            <div className="border-t border-line pt-3"><div className="grid grid-cols-2 gap-2">{RODAPE.map(cartao)}</div></div>
           </div>
         </div>)}
       <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">

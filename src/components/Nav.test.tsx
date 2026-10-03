@@ -17,7 +17,7 @@ describe('menu: títulos de grupo não podem parecer botões', () => {
     }
   })
   it('os itens clicáveis usam a cor clara do app (os títulos usam o cinza), e têm destaque ao passar o dedo ou o mouse', () => {
-    const itens = links.map(l => ({ classe: l[1], nome: l[2] })); expect(itens.length).toBe(15)
+    const itens = links.map(l => ({ classe: l[1], nome: l[2] })); expect(itens.length).toBe(16)
     for (const { classe, nome } of itens) { expect(classe, nome).not.toContain('text-muted'); expect(classe, nome).toContain('rounded-xl') }
     for (const { classe, nome } of itens.filter(i => i.nome !== 'Calendário')) expect(classe, nome).toContain('hover:bg-line/50')
     expect(itens.find(i => i.nome === 'Calendário')!.classe).toContain('text-brand')     // a página atual

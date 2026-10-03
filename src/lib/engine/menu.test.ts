@@ -7,7 +7,7 @@ const ESCONDIDAS = ['diagnostico'] // páginas de apoio, de propósito fora do m
 
 describe('estrutura do menu', () => {
   it('Início no topo, Configurações no fim, e 13 páginas no total, sem repetir', () => {
-    expect(PAGINAS_DO_MENU[0]).toEqual(INICIO); expect(PAGINAS_DO_MENU.at(-1)).toEqual(CONFIGURACOES); expect(PAGINAS_DO_MENU).toHaveLength(15)
+    expect(PAGINAS_DO_MENU[0]).toEqual(INICIO); expect(PAGINAS_DO_MENU.at(-1)).toEqual(CONFIGURACOES); expect(PAGINAS_DO_MENU).toHaveLength(16)
     const hrefs = PAGINAS_DO_MENU.map(([, h]) => h); expect(new Set(hrefs).size).toBe(hrefs.length)
   })
   it('os quatro grupos, nesta ordem, cada um com itens', () => {
