@@ -13,7 +13,7 @@ export default async function Semana() {
   const [{ data: p }, { data: caps }, { count: antigos }, { data: pp }] = await Promise.all([
     sb.from('profiles').select('daily_minutes,available_weekdays').single(),
     sb.from('capacidade_dia').select('data,minutos').gte('data', seg).lte('data', addDays(prox, 6)),
-    sb.from('commitments').select('id', { count: 'exact', head: true }),
+    sb.from('commitments').select('id', { count: 'exact', head: true }).eq('agenda', false),
     sb.from('profiles').select('plano_gerado_em,capacidade_alterada_em').single(),
   ])
   const informados = Object.fromEntries((caps ?? []).map(c => [c.data as string, c.minutos as number]))
@@ -39,7 +39,7 @@ export default async function Semana() {
       {!!antigos && (
         <section className="space-y-2 rounded-2xl border border-line bg-surface p-5 text-sm">
           <h2 className="font-medium">Horários do modelo antigo</h2>
-          <p className="text-muted">Você tem {antigos} {antigos === 1 ? 'horário cadastrado' : 'horários cadastrados'} do modelo antigo de Minha semana. Eles não são mais usados.</p>
+          <p className="text-muted">Você tem {antigos} {antigos === 1 ? 'horário cadastrado' : 'horários cadastrados'} do modelo antigo de Minha semana. Eles não entram no estudo, mas podem ir para a <Link href="/agenda" className="text-brand underline">Agenda pessoal</Link>.</p>
           <form action={apagarCompromissosAntigos}><button className="rounded-xl border border-line px-4 py-2 hover:border-danger hover:text-danger">Apagar horários antigos</button></form>
         </section>)}
     </div>

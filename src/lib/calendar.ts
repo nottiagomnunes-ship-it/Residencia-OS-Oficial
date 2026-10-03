@@ -42,7 +42,7 @@ async function conflitoEm(sb: SB, data: string, horaIni: string | null, horaFim:
   if (!horaIni) return null
   const ini = hhmmParaMin(horaIni), fim = horaFim ? hhmmParaMin(horaFim) : ini + (dur ?? 30)
   const [{ data: cm }, { data: outras }] = await Promise.all([
-    sb.from('commitments').select('*'),
+    sb.from('commitments').select('*').eq('agenda', true), // só a agenda pessoal (os horários antigos não valem mais)
     sb.from('schedule_items').select('id,titulo,hora_ini,hora_fim,duracao_min').eq('data', data).neq('status', 'concluido').not('hora_ini', 'is', null),
   ])
   const oc: Intervalo[] = [

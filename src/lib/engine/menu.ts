@@ -3,7 +3,7 @@ export type ItemMenu = readonly [nome: string, href: string]
 /** O menu, em grupos: o que a pessoa faz em cada momento. Início fica sozinho no topo e Configurações no rodapé. */
 export const INICIO: ItemMenu = ['Início', '/inicio']
 export const GRUPOS: readonly { titulo: string; itens: readonly ItemMenu[] }[] = [
-  { titulo: 'Planejar', itens: [['Meu Cronograma', '/cronograma'], ['Minha semana', '/semana'], ['Calendário', '/calendario']] },
+  { titulo: 'Planejar', itens: [['Meu Cronograma', '/cronograma'], ['Minha semana', '/semana'], ['Agenda pessoal', '/agenda'], ['Calendário', '/calendario']] },
   { titulo: 'Estudar', itens: [['Revisões', '/revisoes'], ['Questões', '/questoes'], ['Simulados', '/simulados'], ['Provas', '/provas'], ['Caderno de Erros', '/caderno-de-erros']] },
   { titulo: 'Acompanhar', itens: [['Desempenho', '/desempenho'], ['Metas', '/metas']] },
   { titulo: 'Organizar', itens: [['Disciplinas', '/disciplinas'], ['Conteúdos', '/conteudos']] },

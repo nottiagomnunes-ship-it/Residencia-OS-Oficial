@@ -1,14 +1,14 @@
 import { addDays } from './review'
 
-export type Intervalo = { ini: number; fim: number; titulo?: string; tarefa?: boolean } // minutos desde 00:00
-export type Compromisso = { titulo: string; tipo: 'semanal' | 'pontual'; dias: number[]; data: string | null; ini: number; fim: number; valido_de: string | null; valido_ate: string | null }
+export type Intervalo = { ini: number; fim: number; titulo?: string; tarefa?: boolean; categoria?: string; id?: string } // minutos desde 00:00
+export type Compromisso = { titulo: string; tipo: 'semanal' | 'pontual'; dias: number[]; data: string | null; ini: number; fim: number; valido_de: string | null; valido_ate: string | null; id?: string; categoria?: string }
 export const MIN_BLOCO = 30
 
 export const hhmmParaMin = (t: string) => { const [h, m] = t.split(':'); return Number(h) * 60 + Number(m) }
 export const minParaHhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
 export const paraCompromisso = (r: any): Compromisso => ({
   titulo: r.titulo ?? '', tipo: r.tipo, dias: r.dias ?? [], data: r.data ?? null, ini: hhmmParaMin(r.hora_ini), fim: hhmmParaMin(r.hora_fim),
-  valido_de: r.valido_de ?? null, valido_ate: r.valido_ate ?? null,
+  valido_de: r.valido_de ?? null, valido_ate: r.valido_ate ?? null, ...(r.id ? { id: r.id } : {}), ...(r.categoria ? { categoria: r.categoria } : {}),
 })
 const dow = (d: string) => new Date(d + 'T00:00:00Z').getUTCDay()
 
@@ -19,8 +19,9 @@ export function ocupadosPorData(cs: Compromisso[], de: string, ate: string) {
   for (let d = de; d <= ate; d = addDays(d, 1)) for (const c of cs) {
     const aplica = c.tipo === 'pontual' ? c.data === d : c.dias.includes(dow(d)) && (!c.valido_de || d >= c.valido_de) && (!c.valido_ate || d <= c.valido_ate)
     if (!aplica) continue
-    if (c.fim > c.ini) add(d, { ini: c.ini, fim: c.fim, titulo: c.titulo })
-    else { add(d, { ini: c.ini, fim: 1440, titulo: c.titulo }); add(addDays(d, 1), { ini: 0, fim: c.fim, titulo: `${c.titulo} (continuação)` }) }
+    const extra = { ...(c.id ? { id: c.id } : {}), ...(c.categoria ? { categoria: c.categoria } : {}) }
+    if (c.fim > c.ini) add(d, { ini: c.ini, fim: c.fim, titulo: c.titulo, ...extra })
+    else { add(d, { ini: c.ini, fim: 1440, titulo: c.titulo, ...extra }); add(addDays(d, 1), { ini: 0, fim: c.fim, titulo: `${c.titulo} (continuação)`, ...extra }) }
   }
   return out
 }

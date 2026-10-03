@@ -7,6 +7,7 @@ import { progressoEtapas, type Etapa, type Modelo } from '@/lib/engine/etapas'
 import ChecklistRevisao from '@/components/ChecklistRevisao'
 import Checklist from '@/components/Checklist'
 import { minParaHhmm, type Intervalo } from '@/lib/engine/compromissos'
+import { corDaCategoria } from '@/lib/engine/agenda'
 import { fmtData, inputCls } from '@/components/ui'
 import Deslizavel from '@/components/Deslizavel'
 import { useAvisoDeMovimento } from '@/components/useAvisoDeMovimento'
@@ -22,7 +23,7 @@ const TIPO: Record<string, string> = { estudo: 'Estudo', revisao: 'Revisão', qu
 const TIPO_COR: Record<string, string> = { questoes: 'text-violet', flashcards: 'text-pink', simulado: 'text-violet' }
 const SEMANA = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 
-export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, etapas, etapasRev, modelos }: { items: Item[]; dias: string[]; view: string; hoje: string; mes: string; ocupados: Record<string, Intervalo[]>; etapas: Record<string, Etapa[]>; etapasRev: Record<string, Etapa[]>; modelos: Modelo[] }) {
+export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, livres = {}, etapas, etapasRev, modelos }: { items: Item[]; dias: string[]; view: string; hoje: string; mes: string; ocupados: Record<string, Intervalo[]>; livres?: Record<string, string>; etapas: Record<string, Etapa[]>; etapasRev: Record<string, Etapa[]>; modelos: Modelo[] }) {
   const [sel, setSel] = useState<Item | null>(null)
   const tabletDeitado = useMediaQuery('(min-width: 1024px) and (max-width: 1279.98px)')
   const painel = tabletDeitado && view === 'dia' // dia no tablet deitado: a lista à esquerda e os detalhes da tarefa ao lado, sem janela por cima (a semana usa as 7 colunas e o mês, a grade larga)
@@ -60,7 +61,8 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
   const PONTO: Record<string, string> = { concluido: 'bg-brand', agendado: 'bg-info', proximo: 'bg-warn', atrasado: 'bg-danger' }
   const faixa = (o: Intervalo, k: number, miudo: boolean) => (
     <div key={'o' + k} title={`${o.titulo}: ${minParaHhmm(o.ini)} às ${o.fim >= 1440 ? '24:00' : minParaHhmm(o.fim)}`}
-      className={`rounded-lg border-l-4 border-line bg-line/40 px-2 py-1 text-muted ${miudo ? 'hidden truncate text-xs md:block' : 'text-xs'}`}>
+      style={{ borderLeftColor: corDaCategoria(o.categoria) }}
+      className={`rounded-lg border-l-4 bg-line/40 px-2 py-1 text-muted ${miudo ? 'hidden truncate text-xs md:block' : 'text-xs'}`}>
       {miudo ? minParaHhmm(o.ini) : `${minParaHhmm(o.ini)}–${o.fim >= 1440 ? '24:00' : minParaHhmm(o.fim)}`} {o.titulo}</div>)
   const cartao = (i: Item, miudo: boolean, semana = false) => {
     const st = statusDe(i, hoje)
@@ -147,11 +149,12 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
                   <div className="hidden text-center md:block">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted">{nomeDia(d)}</p>
                     <p className="text-xl font-semibold leading-tight">{+d.slice(8)}<span className="text-xs font-normal text-muted">/{d.slice(5, 7)}</span></p>
-                    <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[0.6875rem] ${lista.length ? 'bg-brand/15 text-brand' : 'bg-info/15 text-info'}`}>{lista.length ? `${lista.length} ${lista.length === 1 ? 'tarefa' : 'tarefas'}` : 'Livre'}</span>
+                    <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[0.6875rem] ${lista.length ? 'bg-brand/15 text-brand' : 'bg-info/15 text-info'}`}>{lista.length ? `${lista.length} ${lista.length === 1 ? 'tarefa' : 'tarefas'}` : 'Sem tarefas'}</span>
                   </div>
                 </>)
                 : <h3 className="text-sm">{compacto ? +d.slice(8) : <><span className="capitalize">{nomeDia(d)}</span> <span className="text-muted">{d.slice(8)}/{d.slice(5, 7)}</span></>}</h3>}
               {ocup.map((o, k) => faixa(o, k, compacto))}
+              {!compacto && livres[d] && <p className="text-xs text-info">{livres[d]}</p>}
               {(denso ? lista.slice(0, 3) : lista).map(i => cartao(i, compacto, view === 'semana'))}
               {denso && lista.length > 3 && (
                 <button type="button" onClick={() => setDiaAberto(d)} aria-label={`Ver as ${lista.length} tarefas de ${nomeDia(d)}, ${d.slice(8)}/${d.slice(5, 7)}`}
@@ -176,7 +179,8 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
         return (
           <section className="mt-4 space-y-2.5 md:hidden" aria-label="Tarefas do dia selecionado">
             <h3 className="font-medium"><span className="capitalize">{nomeDia(diaAtivo)}</span> <span className="text-muted">{fmtData(diaAtivo)}</span></h3>
-            {ocup.map((o, k) => <div key={'a' + k} className="rounded-lg border-l-4 border-line bg-line/40 px-3 py-2 text-sm text-muted">{minParaHhmm(o.ini)}–{o.fim >= 1440 ? '24:00' : minParaHhmm(o.fim)} {o.titulo}</div>)}
+            {ocup.map((o, k) => <div key={'a' + k} style={{ borderLeftColor: corDaCategoria(o.categoria) }} className="rounded-lg border-l-4 bg-line/40 px-3 py-2 text-sm text-muted">{minParaHhmm(o.ini)}–{o.fim >= 1440 ? '24:00' : minParaHhmm(o.fim)} {o.titulo}</div>)}
+            {livres[diaAtivo] && <p className="text-xs text-info">{livres[diaAtivo]}</p>}
             {lista.map(i => cartao(i, false))}
             {!lista.length && !ocup.length && <p className="text-sm text-muted">Nada neste dia.</p>}
           </section>)

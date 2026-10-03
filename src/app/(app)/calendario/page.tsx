@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { supabaseServer } from '@/lib/supabase/server'
 import { hojeBR } from '@/lib/dates'
 import { addDays } from '@/lib/engine/review'
-import { ocupadosPorData, paraCompromisso } from '@/lib/engine/compromissos'
+import { agendaDosDias } from '@/lib/agenda-data'
 import { diasDaVisao, mover, type Visao } from '@/lib/engine/calendar'
 import NovaTarefa from '@/components/NovaTarefa'
 import { carregarModelos } from '@/lib/etapas-data'
@@ -26,7 +26,8 @@ export default async function Calendario({ searchParams }: { searchParams: Promi
   const etapasRev = await etapasDasRevisoes(sb, (data ?? []).filter((i: any) => i.review_id && i.status !== 'concluido').map((i: any) => i.review_id))
   const etapas: Record<string, Etapa[]> = {}
   for (const e of et ?? []) if (comTopico.has(e.topic_id)) (etapas[e.topic_id] ??= []).push(e as Etapa)
-  const ocupados: Record<string, never[]> = {} // o modelo por horários foi substituído pelo tempo disponível
+  // agenda pessoal (internato, academia...): só aparece junto, com o tempo livre do dia; o estudo continua sem horário
+  const { ocupados, livres } = await agendaDosDias(sb, dias[0], dias[dias.length - 1])
   const link = (view: string, d: string) => `/calendario?v=${view}&d=${d}`
   const fmt = (d: string, o: Intl.DateTimeFormatOptions) => new Date(d + 'T12:00:00Z').toLocaleDateString('pt-BR', { ...o, timeZone: 'UTC' })
   const titulo = v === 'mes' ? fmt(ancora, { month: 'long', year: 'numeric' }) : v === 'dia' ? fmt(ancora, { weekday: 'long', day: 'numeric', month: 'long' })
@@ -49,8 +50,8 @@ export default async function Calendario({ searchParams }: { searchParams: Promi
         </div>
       </div>
       <NovaTarefa ancora={ancora} />
-      <CalendarBoard items={(data ?? []) as Item[]} dias={dias} view={v} hoje={hoje} mes={ancora.slice(0, 7)} ocupados={ocupados} etapas={etapas} etapasRev={etapasRev} modelos={modelos} />
-      <p className="text-xs text-muted">No computador, arraste uma tarefa para outro dia. No celular, toque na tarefa e use “Mover para esta data”.</p>
+      <CalendarBoard items={(data ?? []) as Item[]} dias={dias} view={v} hoje={hoje} mes={ancora.slice(0, 7)} ocupados={ocupados} livres={livres} etapas={etapas} etapasRev={etapasRev} modelos={modelos} />
+      <p className="text-xs text-muted">No computador, arraste uma tarefa para outro dia. No celular, toque na tarefa e use “Mover para esta data”. Internato, academia e compromissos (com o tempo livre do dia) vêm da <Link href="/agenda" className="text-brand underline">Agenda pessoal</Link>.</p>
     </div>
   )
 }

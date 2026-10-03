@@ -4,7 +4,9 @@ import { gerarCronogramaAction } from '@/lib/schedule'
 import { hojeBR } from '@/lib/dates'
 import { addDays, diffDays } from '@/lib/engine/review'
 import { statusDe } from '@/lib/engine/calendar'
-import { hhmmParaMin, minParaHhmm, ocupadosPorData, ordenarDia, paraCompromisso } from '@/lib/engine/compromissos'
+import { hhmmParaMin, minParaHhmm, ordenarDia } from '@/lib/engine/compromissos'
+import { agendaDosDias } from '@/lib/agenda-data'
+import { corDaCategoria } from '@/lib/engine/agenda'
 import { Bar } from '@/components/ui'
 import { RitmoCard } from '@/components/RitmoCard'
 import { carregarRitmo, carregarModoRitmo } from '@/lib/ritmo-data'
@@ -15,15 +17,15 @@ const TIPO: Record<string, string> = { estudo: 'Estudo', revisao: 'Revisão', qu
 export default async function Cronograma({ searchParams }: { searchParams: Promise<{ msg?: string }> }) {
   const { msg } = await searchParams
   const sb = await supabaseServer(), hoje = hojeBR()
-  const [{ data: p }, { data: ts }, { data: it }, { data: cm }] = await Promise.all([
+  const [{ data: p }, { data: ts }, { data: it }, ag] = await Promise.all([
     sb.from('profiles').select('exam_date,daily_minutes,daily_questions_goal').single(),
     sb.from('topics').select('status'),
     sb.from('schedule_items').select('id,tipo,titulo,data,hora_ini,hora_fim,duracao_min,status').gte('data', hoje).lte('data', addDays(hoje, 6)).order('data').order('ordem_dia', { nullsFirst: false }).order('hora_ini', { nullsFirst: false }),
-    sb.from('commitments').select('*'),
+    agendaDosDias(sb, hoje, addDays(hoje, 6)),
   ])
   const total = ts?.length ?? 0, ok = ts?.filter(t => t.status === 'concluido').length ?? 0, pct = total ? Math.round((ok / total) * 100) : 0
   const dias = Array.from({ length: 7 }, (_, i) => addDays(hoje, i))
-  const oc: Record<string, never[]> = {}
+  const oc = ag.ocupados // agenda pessoal, só para ver junto (o plano de estudo não depende dela)
   const rotulo = (d: string, i: number) => (i === 0 ? 'Hoje' : new Date(d + 'T12:00:00Z').toLocaleDateString('pt-BR', { weekday: 'long', timeZone: 'UTC' }).replace('-feira', '')) + ` ${d.slice(8)}/${d.slice(5, 7)}`
   const modoRitmo = await carregarModoRitmo(sb)
   const ritmo = modoRitmo === 'oculto' ? null : await carregarRitmo(sb, hoje)
@@ -50,9 +52,10 @@ export default async function Cronograma({ searchParams }: { searchParams: Promi
           return (
             <section key={d} className="rounded-2xl border border-line bg-surface p-4">
               <h2 className="mb-2 font-medium capitalize">{rotulo(d, i)}</h2>
+              {ag.livres[d] && <p className="-mt-1 mb-2 text-xs text-info">{ag.livres[d]}</p>}
               {!linhas.length ? <p className="text-sm text-muted">Nada programado.</p> : (
                 <ul className="space-y-2">{linhas.map((l, k) => l.tipo === 'ocupado' ? (
-                  <li key={'o' + k} className="flex flex-wrap items-baseline gap-x-3 border-l-4 border-line pl-3 text-sm text-muted">
+                  <li key={'o' + k} style={{ borderLeftColor: corDaCategoria(l.o.categoria) }} className="flex flex-wrap items-baseline gap-x-3 border-l-4 pl-3 text-sm text-muted">
                     <span className="w-24">{minParaHhmm(l.o.ini)}–{l.o.fim >= 1440 ? '24:00' : minParaHhmm(l.o.fim)}</span><span>{l.o.titulo}</span></li>
                 ) : (
                   <li key={l.x.id} className={`flex flex-wrap items-baseline gap-x-3 border-l-4 pl-3 text-sm ${COR[statusDe(l.x, hoje)]}`}>
