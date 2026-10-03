@@ -7,6 +7,7 @@ import {
   type Cron, type OpcaoId,
 } from '@/lib/engine/cronometro'
 import { Bar, inputCls } from '@/components/ui'
+import { useAvisos } from '@/components/Avisos'
 
 type Valor = { disponivel: boolean; ativo: Cron | null; iniciar: (itemId: string | null, titulo?: string) => void; ocupado: boolean }
 const Ctx = createContext<Valor>({ disponivel: false, ativo: null, iniciar: () => {}, ocupado: false })
@@ -21,7 +22,7 @@ export default function CronometroProvider({ disponivel, ativo: ativoServidor, a
   const [ativo, setAtivo] = useState<Cron | null>(ativoServidor)
   const [agoraMs, setAgoraMs] = useState(agora)
   const dif = useRef(0)   // diferença entre o relógio do servidor e o deste aparelho
-  const [aviso, setAviso] = useState<string | null>(null)
+  const { mostrar } = useAvisos()
   const [dialogo, setDialogo] = useState<{ minutos: string; passou: boolean } | null>(null)
   const [pend, start] = useTransition()
   const tituloAntes = useRef<string | null>(null)
@@ -35,7 +36,6 @@ export default function CronometroProvider({ disponivel, ativo: ativoServidor, a
     const t = setInterval(() => setAgoraMs(Date.now() + dif.current), 1000)
     return () => clearInterval(t)
   }, [ativo])
-  useEffect(() => { if (!aviso) return; const t = setTimeout(() => setAviso(null), 9000); return () => clearTimeout(t) }, [aviso])
 
   const seg = ativo ? segundosDecorridos(ativo, agoraMs) : 0
   // o relógio também aparece na aba do navegador, para acompanhar sem ficar nesta tela
@@ -46,14 +46,13 @@ export default function CronometroProvider({ disponivel, ativo: ativoServidor, a
   }, [ativo, seg])
 
   const iniciar = (itemId: string | null, titulo?: string) => start(async () => {
-    setAviso(null)
     const r = await iniciarCronometro(itemId, titulo)
     if (r.cron) { setAtivo(r.cron); return }
-    setAviso(r.erro === 'ativo' ? `Já há um cronômetro em andamento${r.ativo ? ` (${r.ativo})` : ''}. Finalize ou descarte antes de iniciar outro.` : 'Não foi possível iniciar o cronômetro. Tente de novo.')
+    mostrar(r.erro === 'ativo' ? { tipo: 'info', conteudo: `Já há um cronômetro em andamento${r.ativo ? ` (${r.ativo})` : ''}. Finalize ou descarte antes de iniciar outro.` } : { tipo: 'erro', conteudo: 'Não foi possível iniciar o cronômetro. Tente de novo.' })
   })
   const alternar = () => ativo && start(async () => {
     const r = await (ativo.pausado ? retomarCronometro() : pausarCronometro())
-    if (r.cron) setAtivo(r.cron); else setAviso('Não foi possível atualizar o cronômetro. Tente de novo.')
+    if (r.cron) setAtivo(r.cron); else mostrar({ tipo: 'erro', conteudo: 'Não foi possível atualizar o cronômetro. Tente de novo.' })
   })
   // finalizar pausa na hora (o tempo para de contar enquanto você decide) e abre o diálogo com os minutos sugeridos
   const finalizar = () => ativo && start(async () => {
@@ -72,8 +71,8 @@ export default function CronometroProvider({ disponivel, ativo: ativoServidor, a
       return
     }
     const r = await finalizarCronometro(id, minutosNum)
-    if (r.ok) { setAtivo(null); setDialogo(null); setAviso(r.aviso ?? `Registrei ${minutosNum} min de estudo.`); router.refresh() }
-    else setAviso(r.erro ?? 'Não foi possível finalizar. Tente de novo.')
+    if (r.ok) { setAtivo(null); setDialogo(null); mostrar(r.aviso ? { tipo: 'info', conteudo: r.aviso } : { tipo: 'ok', conteudo: `Registrei ${minutosNum} min de estudo.` }); router.refresh() }
+    else mostrar({ tipo: 'erro', conteudo: r.erro ?? 'Não foi possível finalizar. Tente de novo.' })
   })
   const descartar = () => { if (window.confirm('Descartar este cronômetro sem registrar o tempo?')) start(async () => { await descartarCronometro(); setAtivo(null); setDialogo(null) }) }
 
@@ -82,12 +81,8 @@ export default function CronometroProvider({ disponivel, ativo: ativoServidor, a
     <Ctx.Provider value={{ disponivel, ativo, iniciar, ocupado: pend }}>
       {children}
       {ativo && <div aria-hidden className="h-24 lg:h-0" />}
-      {(ativo || aviso) && (
+      {ativo && (
         <div className="fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-40 space-y-2 lg:inset-x-auto lg:bottom-4 lg:right-4 lg:w-[26rem]">
-          {aviso && (
-            <div role="status" className="flex items-start justify-between gap-3 rounded-xl border border-line bg-surface p-3 text-sm shadow-lg">
-              <span>{aviso}</span><button onClick={() => setAviso(null)} aria-label="Fechar aviso" className="text-muted">✕</button>
-            </div>)}
           {ativo && (
             <section aria-label="Cronômetro de estudo" className="rounded-2xl border border-line bg-surface p-3 shadow-lg">
               <div className="flex items-center gap-3">

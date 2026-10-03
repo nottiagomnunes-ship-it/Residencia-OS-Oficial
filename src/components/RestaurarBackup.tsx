@@ -5,6 +5,7 @@ import { desfazerRestauracao } from '@/lib/backup'
 import { comprimirParaEnvio, LIMITE_PEDIDO_BYTES } from '@/lib/comprimir'
 import { PALAVRA_DE_CONFIRMACAO, type LinhaComparacao } from '@/lib/engine/restauracao'
 import { inputCls } from '@/components/ui'
+import { useAvisos } from '@/components/Avisos'
 
 type Previa = { exportadoEm: string | null; conta: string | null; linhas: LinhaComparacao[]; avisos: string[]; concluidos: { backup: number; atual: number } }
 type Resultado = { restauradas: Record<string, number>; descartadas: Record<string, number> }
@@ -19,7 +20,7 @@ export default function RestaurarBackup({ disponivel, desfazerEm }: { disponivel
   const router = useRouter(), entrada = useRef<HTMLInputElement>(null)
   const [arquivo, setArquivo] = useState<File | null>(null), [previa, setPrevia] = useState<Previa | null>(null), [erro, setErro] = useState<string | null>(null)
   const [entendi, setEntendi] = useState(false), [palavra, setPalavra] = useState(''), [resultado, setResultado] = useState<Resultado | null>(null)
-  const [temCopia, setTemCopia] = useState(desfazerEm), [aviso, setAviso] = useState<string | null>(null), [pend, start] = useTransition()
+  const [temCopia, setTemCopia] = useState(desfazerEm), [pend, start] = useTransition(), { mostrar } = useAvisos()
   const reiniciar = () => { setArquivo(null); setPrevia(null); setErro(null); setEntendi(false); setPalavra(''); if (entrada.current) entrada.current.value = '' }
 
   if (!disponivel) return <p className="text-sm text-muted">Para usar a restauração, é preciso aplicar a atualização do banco de dados (SQL <code>0026_restaurar_backup</code>) no Supabase.</p>
@@ -41,7 +42,7 @@ export default function RestaurarBackup({ disponivel, desfazerEm }: { disponivel
     if (j?.ok) { setResultado({ restauradas: j.restauradas, descartadas: j.descartadas ?? {} }); setTemCopia(new Date().toISOString()); reiniciar(); router.refresh() }
   })
   const desfazer = () => { if (!window.confirm('Voltar ao estado de antes da última restauração? O que você restaurou será substituído por essa cópia.')) return
-    start(async () => { const r = await desfazerRestauracao(); if (r.ok) { setTemCopia(null); setResultado(null); setAviso('Restauração desfeita: seus dados voltaram ao estado anterior.'); router.refresh() } else setAviso(r.erro ?? 'Não foi possível desfazer.') }) }
+    start(async () => { const r = await desfazerRestauracao(); if (r.ok) { setTemCopia(null); setResultado(null); mostrar({ tipo: 'ok', conteudo: 'Restauração desfeita: seus dados voltaram ao estado anterior.' }); router.refresh() } else mostrar({ tipo: 'erro', conteudo: r.erro ?? 'Não foi possível desfazer.' }) }) }
 
   const confirmado = entendi && palavra.trim().toUpperCase() === PALAVRA_DE_CONFIRMACAO
   return (
@@ -83,7 +84,6 @@ export default function RestaurarBackup({ disponivel, desfazerEm }: { disponivel
           <p className="text-muted">{Object.values(resultado.restauradas).reduce((s, n) => s + n, 0)} registros restaurados.</p>
           {Object.keys(resultado.descartadas).length > 0 && <p className="text-warn">{Object.values(resultado.descartadas).reduce((s, n) => s + n, 0)} registros do arquivo não puderam ser ligados aos seus assuntos e ficaram de fora.</p>}
         </div>)}
-      {aviso && <p role="status" className="text-sm">{aviso}</p>}
 
       {temCopia && (
         <div className="space-y-2 rounded-xl border border-line p-4">

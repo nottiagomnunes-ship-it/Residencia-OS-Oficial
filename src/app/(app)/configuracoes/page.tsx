@@ -6,6 +6,7 @@ import { salvarRitmoModo } from '@/lib/config'
 import { inputCls } from '@/components/ui'
 import RestaurarBackup from '@/components/RestaurarBackup'
 import TamanhoTexto from '@/components/TamanhoTexto'
+import AvisoDaUrl from '@/components/AvisoDaUrl'
 import { cookies } from 'next/headers'
 import { lerTamanho } from '@/lib/engine/texto'
 import { carregarInfoRestauracao } from '@/lib/backup-restauracao-data'
@@ -23,9 +24,9 @@ export default async function Configuracoes({ searchParams }: { searchParams: Pr
   return (
     <div className="max-w-3xl space-y-6">
       <h1 className="text-2xl font-semibold">Configurações</h1>
-      {ok && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-4 text-sm">Configurações salvas. Para aplicar a nova rotina ao plano, <Link href="/cronograma" className="text-brand underline">gere o cronograma novamente</Link>.</p>}
-      {aviso && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-4 text-sm">{aviso}</p>}
-      {erro && <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">{erro}</p>}
+      {ok && <AvisoDaUrl tipo="ok" chaves={['ok']}>Configurações salvas. Para aplicar a nova rotina ao plano, <Link href="/cronograma" className="text-brand underline">gere o cronograma novamente</Link>.</AvisoDaUrl>}
+      {aviso && <AvisoDaUrl tipo="ok" chaves={['aviso']}>{aviso}</AvisoDaUrl>}
+      {erro && <AvisoDaUrl tipo="erro" chaves={['erro']}>{erro}</AvisoDaUrl>}
       <form action={salvarConfiguracoes} className="space-y-6">
         <section className={sec}><h2 className="font-medium">Prova e rotina</h2>
           <div className="grid gap-4 sm:grid-cols-2">

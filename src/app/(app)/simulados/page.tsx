@@ -5,6 +5,7 @@ import { resumoSimulados } from '@/lib/engine/simulados'
 import { pct } from '@/lib/engine/desempenho'
 import { fmtData, inputCls } from '@/components/ui'
 import EvolucaoSimulados from '@/components/EvolucaoSimulados'
+import AvisoDaUrl from '@/components/AvisoDaUrl'
 
 export default async function Simulados({ searchParams }: { searchParams: Promise<{ ok?: string; erro?: string; tempo?: string }> }) {
   const { ok, erro, tempo } = await searchParams
@@ -19,8 +20,8 @@ export default async function Simulados({ searchParams }: { searchParams: Promis
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Simulados</h1>
-      {ok && t > 0 && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-4 text-sm">Simulado registrado: {a}/{t} ({pct(a, t)}%). As questões já entram no Desempenho.</p>}
-      {erro && <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">{erro}</p>}
+      {ok && t > 0 && <AvisoDaUrl tipo="ok" chaves={['ok']}>Simulado registrado: {a}/{t} ({pct(a, t)}%). As questões já entram no Desempenho.</AvisoDaUrl>}
+      {erro && <AvisoDaUrl tipo="erro" chaves={['erro']}>{erro}</AvisoDaUrl>}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         {card('Simulados feitos', String(r.itens.length))}{card('Média de acerto', r.media == null ? '—' : `${r.media}%`)}
         {card('Melhor resultado', r.melhor == null ? '—' : `${r.melhor}%`)}{card('Último', r.itens.length ? `${r.itens.at(-1)!.pct}%` : '—')}

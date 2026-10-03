@@ -3,6 +3,8 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
 import { hojeBR } from '@/lib/dates'
+import { rotuloDoDia } from '@/lib/engine/avisos'
+import { validarDesfazer, type Desfazer } from '@/lib/engine/movimento'
 import { addDays, xpEstudo } from '@/lib/engine/review'
 import { validarEdicaoTarefa, type EdicaoCampos } from '@/lib/engine/calendar'
 import { concluirConteudo, concluirRevisao } from '@/lib/flow'
@@ -16,12 +18,22 @@ async function ctx() {
 }
 const refresh = () => ['/calendario', '/inicio', '/revisoes', '/conteudos', '/disciplinas'].forEach(p => revalidatePath(p, 'layout'))
 const ISO = /^\d{4}-\d{2}-\d{2}$/
-const COLS = 'id,tipo,status,data,review_id,topic_id,duracao_min,hora_ini,hora_fim'
+const COLS = 'id,titulo,tipo,status,data,review_id,topic_id,duracao_min,hora_ini,hora_fim'
 
-async function reagendar(sb: Awaited<ReturnType<typeof ctx>>['sb'], i: any, data: string) {
+/** Muda a tarefa de dia (a revisão muda de prazo; o estudo, a data planejada do assunto) e devolve o estado de ANTES, para o "Desfazer". */
+async function reagendar(sb: Awaited<ReturnType<typeof ctx>>['sb'], i: any, data: string): Promise<Desfazer> {
+  const antes: Desfazer = { id: i.id, titulo: String(i.titulo ?? ''), de: i.data, para: data, rotulo: rotuloDoDia(data, hojeBR()), status: i.status, review: null, topic: null }
+  if (i.review_id) {
+    const { data: r } = await sb.from('reviews').select('due_date').eq('id', i.review_id).maybeSingle()
+    antes.review = { id: i.review_id, due: r?.due_date ?? i.data }
+  } else if (i.tipo === 'estudo' && i.topic_id) {
+    const { data: t } = await sb.from('topics').select('planned_date,planned_auto').eq('id', i.topic_id).maybeSingle()
+    antes.topic = { id: i.topic_id, planned: t?.planned_date ?? null, auto: t?.planned_auto ?? false }
+  }
   await sb.from('schedule_items').update({ data, status: 'agendado' }).eq('id', i.id)
   if (i.review_id) await sb.from('reviews').update({ due_date: data }).eq('id', i.review_id)
   else if (i.tipo === 'estudo' && i.topic_id) await sb.from('topics').update({ planned_date: data, planned_auto: false }).eq('id', i.topic_id)
+  return antes
 }
 
 type SB = Awaited<ReturnType<typeof ctx>>['sb']
@@ -44,22 +56,42 @@ async function conflitoEm(sb: SB, data: string, horaIni: string | null, horaFim:
 }
 
 /** Sem `forcar`, devolve o conflito (se houver) em vez de mover; o cliente pergunta e repete com forcar = true. */
-export async function moverItem(id: string, data: string, forcar = false): Promise<{ conflito?: string }> {
+export async function moverItem(id: string, data: string, forcar = false): Promise<{ conflito?: string; desfazer?: Desfazer }> {
   const { sb } = await ctx()
   const { data: i } = await sb.from('schedule_items').select(COLS).eq('id', id).single()
   if (!i || i.status === 'concluido' || !ISO.test(data)) return {}
   if (!forcar) { const c = await conflitoEm(sb, data, i.hora_ini, i.hora_fim, i.duracao_min, id); if (c) return { conflito: c } }
-  await reagendar(sb, i, data); refresh()
-  return {}
+  const desfazer = await reagendar(sb, i, data); refresh()
+  return { desfazer }
 }
-export async function adiarItem(id: string, forcar = false): Promise<{ conflito?: string }> {
+export async function adiarItem(id: string, forcar = false): Promise<{ conflito?: string; desfazer?: Desfazer }> {
   const { sb } = await ctx()
   const { data: i } = await sb.from('schedule_items').select(COLS).eq('id', id).single()
   if (!i || i.status === 'concluido') return {}
   const base = i.data > hojeBR() ? i.data : hojeBR(), novo = addDays(base, 1)
   if (!forcar) { const c = await conflitoEm(sb, novo, i.hora_ini, i.hora_fim, i.duracao_min, id); if (c) return { conflito: c } }
-  await reagendar(sb, i, novo); refresh()
-  return {}
+  const desfazer = await reagendar(sb, i, novo); refresh()
+  return { desfazer }
+}
+
+/**
+ * Desfaz um adiamento ou uma mudança de data: devolve a tarefa (e a revisão ou o assunto dela) ao estado de antes.
+ * Só desfaz se a tarefa ainda estiver no dia para onde foi movida e não tiver sido concluída; senão, não mexe em nada.
+ */
+export async function desfazerMovimento(entrada: unknown): Promise<{ ok: boolean; erro?: string }> {
+  const d = validarDesfazer(entrada)
+  if (!d) return { ok: false, erro: 'Não foi possível desfazer.' }
+  const { sb } = await ctx()
+  const { data: i } = await sb.from('schedule_items').select('id,status,data').eq('id', d.id).maybeSingle()
+  if (!i) return { ok: false, erro: 'A tarefa não existe mais; nada foi desfeito.' }
+  if (i.status === 'concluido') return { ok: false, erro: 'A tarefa já foi concluída; nada foi desfeito.' }
+  if (i.data !== d.para) return { ok: false, erro: 'A tarefa mudou de data depois; nada foi desfeito.' }
+  const { error } = await sb.from('schedule_items').update({ data: d.de, status: d.status }).eq('id', d.id)
+  if (error) return { ok: false, erro: 'Não foi possível desfazer. Tente de novo.' }
+  if (d.review) await sb.from('reviews').update({ due_date: d.review.due }).eq('id', d.review.id)
+  if (d.topic) await sb.from('topics').update({ planned_date: d.topic.planned, planned_auto: d.topic.auto }).eq('id', d.topic.id)
+  refresh()
+  return { ok: true }
 }
 /** Concluir usa o mesmo fluxo de Revisões/Conteúdos, então gera revisões, XP e estatísticas. */
 export async function concluirItem(id: string) {

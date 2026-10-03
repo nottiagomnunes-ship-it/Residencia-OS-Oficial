@@ -8,6 +8,7 @@ import { levelFor } from '@/lib/engine/review'
 import { promocoes, passoDoRank } from '@/lib/engine/rank'
 import { Sidebar, BottomNav } from '@/components/Nav'
 import CronometroProvider from '@/components/CronometroProvider'
+import { AvisosProvider } from '@/components/Avisos'
 import { carregarCronometro } from '@/lib/cronometro-data'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -22,6 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const menuRecolhido = (await cookies()).get('menu')?.value === 'recolhido' // escolha deste aparelho: menu lateral recolhido
   const promo = gp ? promocoes({ passo: passoDoRank(assuntos.concluidos, assuntos.total), rankVisto: gp.rank_visto ?? 0, nivel: levelFor(gp.xp ?? 0), nivelVisto: gp.nivel_visto ?? 1 }) : { rank: null, titulo: null }
   return (
+    <AvisosProvider>
     <CronometroProvider disponivel={cron.disponivel} ativo={cron.ativo} agora={Date.now()}>
     <div className="flex min-h-dvh">
       <Sidebar recolhidoInicial={menuRecolhido} />
@@ -29,5 +31,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <BottomNav />
     </div>
     </CronometroProvider>
+    </AvisosProvider>
   )
 }

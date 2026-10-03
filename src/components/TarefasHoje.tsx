@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { concluirItem, adiarItem } from '@/lib/calendar'
 import Deslizavel from '@/components/Deslizavel'
 import BotaoCronometro from '@/components/BotaoCronometro'
+import { useAvisos } from '@/components/Avisos'
+import { useAvisoDeMovimento } from '@/components/useAvisoDeMovimento'
 import { acaoDoGesto, rotuloDoGesto } from '@/lib/engine/gestos'
 import { definirCapacidade } from '@/lib/capacidade'
 import { resumoHoje } from '@/lib/engine/hoje'
@@ -21,16 +23,17 @@ const TIPO: Record<string, string> = { estudo: 'Estudo', revisao: 'Revisão', qu
 /** O que fazer hoje, conforme o tempo informado: mostra o que cabe (atrasadas primeiro) e deixa o resto para depois. Sem horários. */
 export default function TarefasHoje({ itens, hoje, concluidasHoje, minutosHoje, informado, minutosFeitos, adiantaveis, recursos }: { itens: T[]; hoje: string; concluidasHoje: number; minutosHoje: number; informado: boolean; minutosFeitos: number; adiantaveis: Adiantavel[]; recursos: boolean }) {
   const [feitas, setFeitas] = useState<ReadonlySet<string>>(new Set()), [minutos, setMinutos] = useState(minutosHoje), [inf, setInf] = useState(informado), [, start] = useTransition()
-  const router = useRouter(), [adiadas, setAdiadas] = useState<ReadonlySet<string>>(new Set()), [avisoGesto, setAvisoGesto] = useState<string | null>(null)
+  const router = useRouter(), [adiadas, setAdiadas] = useState<ReadonlySet<string>>(new Set())
+  const { mostrar } = useAvisos(), avisarMovida = useAvisoDeMovimento()
   const r = resumoHoje(itens.filter(i => !adiadas.has(i.id)), hoje, concluidasHoje, feitas)
   const d = dividirPorTempo([...r.atrasadas, ...r.deHoje], minutos)
   // sobra tempo hoje (já descontado o que foi feito): oferece trazer tarefas dos próximos dias, só quando você informou o tempo de hoje
-  const [adiantados, setAdiantados] = useState<ReadonlySet<string>>(new Set()), [aviso, setAviso] = useState<string | null>(null)
+  const [adiantados, setAdiantados] = useState<ReadonlySet<string>>(new Set())
   const livre = minutos - minutosFeitos - d.usado
   const adi = recursos && inf && minutos > 0 && !d.sobram.length ? escolherAdiantar(adiantaveis.filter(a => !adiantados.has(a.id)), livre) : []
   const adiantar = () => start(async () => {
     const x = await adiantarTarefas(adi.map(a => a.id))
-    if (x.erro) setAviso(x.erro); else { setAviso(null); setAdiantados(s => new Set([...s, ...adi.map(a => a.id)])) }
+    if (x.erro) mostrar({ tipo: 'erro', conteudo: x.erro }); else setAdiantados(s => new Set([...s, ...adi.map(a => a.id)]))
   })
   const concluir = (id: string) => { setFeitas(s => new Set(s).add(id)); start(() => concluirItem(id)) }
   const escolher = (m: number) => { setMinutos(m); setInf(true); start(() => definirCapacidade(hoje, m)) }
@@ -45,8 +48,9 @@ export default function TarefasHoje({ itens, hoje, concluidasHoje, minutosHoje, 
     const dir = acaoDoGesto('direita', t.tipo, 'agendado'), esq = acaoDoGesto('esquerda', t.tipo, 'agendado')
     const adiar = () => start(async () => {
       const x = await adiarItem(t.id, false)
-      if (x.conflito) { setAvisoGesto('Esse dia tem um conflito de horário. Abra a tarefa para decidir.'); return }
-      setAvisoGesto(null); setAdiadas(s => new Set(s).add(t.id))
+      if (x.conflito) { mostrar({ tipo: 'info', conteudo: 'Esse dia tem um conflito de horário. Abra a tarefa para decidir.' }); return }
+      setAdiadas(s => new Set(s).add(t.id))
+      if (x.desfazer) avisarMovida(x.desfazer, () => setAdiadas(s => { const n = new Set(s); n.delete(t.id); return n })) // desfazer: a tarefa volta à lista na hora
     })
     const desliza = (filho: React.ReactNode) => (
       <Deslizavel direita={rotuloDoGesto(dir, t.tipo)} esquerda={rotuloDoGesto(esq, t.tipo)} onEsquerda={adiar}
@@ -82,8 +86,6 @@ export default function TarefasHoje({ itens, hoje, concluidasHoje, minutosHoje, 
           <ul className="text-muted">{adi.map(a => <li key={a.id}>• {a.titulo} <span className="text-xs">({a.duracao_min ?? 30} min · {fmtData(a.data)})</span></li>)}</ul>
           <button onClick={adiantar} className="rounded-xl bg-brand px-4 py-2 font-medium text-black">Adiantar {adi.length} {adi.length === 1 ? 'tarefa' : 'tarefas'}</button>
         </div>)}
-      {aviso && <p className="text-sm text-danger">{aviso}</p>}
-      {avisoGesto && <p role="status" className="text-sm text-muted">{avisoGesto}</p>}
       {!d.cabem.length && !d.sobram.length && <p className="text-sm text-muted">{r.total > 0 ? 'Tudo concluído por hoje.' : 'Nada pendente por enquanto.'} <Link href="/cronograma" className="text-brand underline">Ver o cronograma</Link></p>}
     </section>
   )

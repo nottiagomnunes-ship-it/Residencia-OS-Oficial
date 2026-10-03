@@ -9,6 +9,8 @@ import Checklist from '@/components/Checklist'
 import { minParaHhmm, type Intervalo } from '@/lib/engine/compromissos'
 import { fmtData, inputCls } from '@/components/ui'
 import Deslizavel from '@/components/Deslizavel'
+import { useAvisoDeMovimento } from '@/components/useAvisoDeMovimento'
+import type { Desfazer } from '@/lib/engine/movimento'
 import BotaoCronometro from '@/components/BotaoCronometro'
 import { acaoDoGesto, rotuloDoGesto } from '@/lib/engine/gestos'
 import { useMediaQuery } from '@/lib/useMediaQuery'
@@ -32,10 +34,12 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
   const [editandoId, setEditandoId] = useState<string | null>(null), [ed, setEd] = useState({ titulo: '', hora: '', dur: '', qtd: '' }), [erro, setErro] = useState<string | null>(null)
   const run = (fn: () => Promise<unknown>) => start(async () => { await fn(); setSel(null) })
   /** Move/adia; se cair sobre um compromisso, pergunta antes de forçar. Cancelar não muda nada. */
-  const mover = (fn: (forcar: boolean) => Promise<{ conflito?: string }>) => start(async () => {
-    const r = await fn(false)
-    if (r.conflito) { if (!window.confirm(`⚠ Conflito de horário\n\n${r.conflito}\n\nMover mesmo assim?`)) return; await fn(true) }
+  const avisarMovida = useAvisoDeMovimento()
+  const mover = (fn: (forcar: boolean) => Promise<{ conflito?: string; desfazer?: Desfazer }>) => start(async () => {
+    let r = await fn(false)
+    if (r.conflito) { if (!window.confirm(`⚠ Conflito de horário\n\n${r.conflito}\n\nMover mesmo assim?`)) return; r = await fn(true) }
     setSel(null)
+    if (r.desfazer) avisarMovida(r.desfazer)   // "Movida para amanhã: ..." com Desfazer por 8 s
   })
   const abrirEdicao = () => {
     if (!sel) return

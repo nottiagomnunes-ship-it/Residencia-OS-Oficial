@@ -3,25 +3,26 @@ import { useState, useTransition } from 'react'
 import { previaReorganizar, reorganizarAtrasadas, type Previa } from '@/lib/reorganizar'
 import { addDays } from '@/lib/engine/review'
 import { formatarMinutos } from '@/lib/engine/tempo'
+import { useAvisos } from '@/components/Avisos'
 
 const curta = (d: string) => `${d.slice(8)}/${d.slice(5, 7)}`
 
 /** Mostra como as atrasadas seriam distribuídas pelos próximos dias e só muda depois de confirmar. */
 export default function ReorganizarAtrasadas({ n }: { n: number }) {
-  const [previa, setPrevia] = useState<Previa | null>(null), [msg, setMsg] = useState<string | null>(null), [pend, start] = useTransition()
+  const [previa, setPrevia] = useState<Previa | null>(null), [pend, start] = useTransition(), { mostrar } = useAvisos()
   const rotulo = (p: Previa, d: string) => (d === p.hoje ? 'Hoje' : d === addDays(p.hoje, 1) ? 'Amanhã' : curta(d))
-  const abrir = () => { setMsg(null); start(async () => setPrevia(await previaReorganizar())) }
+  const abrir = () => start(async () => setPrevia(await previaReorganizar()))
   const aplicar = () => start(async () => {
     const r = await reorganizarAtrasadas()
     setPrevia(null)
-    setMsg(r.erro ?? (r.movidas ? `Pronto: ${r.movidas} ${r.movidas === 1 ? 'tarefa reorganizada' : 'tarefas reorganizadas'}.` : 'Nada coube nos próximos dias.'))
+    mostrar(r.erro ? { tipo: 'erro', conteudo: r.erro } : r.movidas ? { tipo: 'ok', conteudo: `Pronto: ${r.movidas} ${r.movidas === 1 ? 'tarefa reorganizada' : 'tarefas reorganizadas'}.` } : { tipo: 'info', conteudo: 'Nada coube nos próximos dias.' })
   })
   const movel = previa ? previa.total - previa.semLugar : 0
   return (
     <div className="space-y-2 rounded-xl border border-line p-3 text-sm">
       {!previa && (
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p>{msg ?? `Você tem ${n} ${n === 1 ? 'tarefa atrasada' : 'tarefas atrasadas'}. Posso distribuí-las pelos próximos dias, dentro do seu tempo.`}</p>
+          <p>{`Você tem ${n} ${n === 1 ? 'tarefa atrasada' : 'tarefas atrasadas'}. Posso distribuí-las pelos próximos dias, dentro do seu tempo.`}</p>
           <button onClick={abrir} disabled={pend} className="rounded-xl border border-brand px-4 py-2 text-brand disabled:opacity-60">{pend ? 'Calculando…' : 'Reorganizar atrasadas'}</button>
         </div>)}
       {previa && (movel > 0 ? (

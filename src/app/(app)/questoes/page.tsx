@@ -5,6 +5,7 @@ import { hojeBR } from '@/lib/dates'
 import { aproveitamento } from '@/lib/engine/questoes'
 import { fmtData, inputCls } from '@/components/ui'
 import QuestoesForm from '@/components/QuestoesForm'
+import AvisoDaUrl from '@/components/AvisoDaUrl'
 
 const corAcerto = (p: number | null) => (p == null ? '' : p >= 75 ? 'text-brand' : p >= 60 ? 'text-warn' : 'text-danger')
 
@@ -22,8 +23,8 @@ export default async function Questoes({ searchParams }: { searchParams: Promise
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Questões</h1>
-      {ok && t > 0 && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-4 text-sm">Registrado: {t} questões, {aproveitamento(a, t)}% de aproveitamento.{xp && <b className="text-brand"> +{xp} XP.</b>}{etapas && +etapas > 0 && <> Marquei {etapas} {+etapas === 1 ? 'etapa' : 'etapas'} automaticamente.</>}{t - a > 0 && <> Você errou {t - a}: <Link href="/caderno-de-erros" className="text-brand underline">adicione ao Caderno de Erros</Link>.</>}</p>}
-      {erro && <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">{erro}</p>}
+      {ok && t > 0 && <AvisoDaUrl tipo="ok" chaves={['ok', 'xp', 'etapas']}>Registrado: {t} questões, {aproveitamento(a, t)}% de aproveitamento.{xp && <b className="text-brand"> +{xp} XP.</b>}{etapas && +etapas > 0 && <> Marquei {etapas} {+etapas === 1 ? 'etapa' : 'etapas'} automaticamente.</>}{t - a > 0 && <> Você errou {t - a}: <Link href="/caderno-de-erros" className="text-brand underline">adicione ao Caderno de Erros</Link>.</>}</AvisoDaUrl>}
+      {erro && <AvisoDaUrl tipo="erro" chaves={['erro']}>{erro}</AvisoDaUrl>}
       <div className="space-y-6 lg:grid lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start lg:gap-6 lg:space-y-0">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4 lg:col-start-2 lg:row-start-1 lg:grid-cols-2 xl:grid-cols-4">
         {card('Questões realizadas', String(total))}{card('Aproveitamento', total ? `${aproveitamento(acertos, total)}%` : '—', corAcerto(aproveitamento(acertos, total)))}

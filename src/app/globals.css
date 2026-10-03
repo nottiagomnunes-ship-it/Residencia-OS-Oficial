@@ -39,3 +39,6 @@ body { overflow-x: clip; }
 html { font-size: calc(var(--texto-base) * var(--texto-escala)); }
 html[data-texto='grande'] { --texto-escala: 1.125; }
 html[data-texto='maior'] { --texto-escala: 1.25; }
+
+/* Aviso temporário: entra de cima, suavemente */
+@keyframes aviso-entra { from { opacity: 0; transform: translateY(-0.5rem); } to { opacity: 1; transform: none; } }
