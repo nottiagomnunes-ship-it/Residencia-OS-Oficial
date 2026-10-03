@@ -21,7 +21,7 @@ type Adiantavel = { id: string; titulo: string; data: string; duracao_min: numbe
 const TIPO: Record<string, string> = { estudo: 'Estudo', revisao: 'Revisão', questoes: 'Questões', flashcards: 'Flashcards', simulado: 'Simulado' }
 
 /** O que fazer hoje, conforme o tempo informado: mostra o que cabe (atrasadas primeiro) e deixa o resto para depois. Sem horários. */
-export default function TarefasHoje({ itens, hoje, concluidasHoje, minutosHoje, informado, minutosFeitos, adiantaveis, recursos }: { itens: T[]; hoje: string; concluidasHoje: number; minutosHoje: number; informado: boolean; minutosFeitos: number; adiantaveis: Adiantavel[]; recursos: boolean }) {
+export default function TarefasHoje({ itens, hoje, concluidasHoje, minutosHoje, informado, minutosFeitos, adiantaveis, recursos, agenda = null }: { itens: T[]; hoje: string; concluidasHoje: number; minutosHoje: number; informado: boolean; minutosFeitos: number; adiantaveis: Adiantavel[]; recursos: boolean; agenda?: { texto: string; sugestao: number } | null }) {
   const [feitas, setFeitas] = useState<ReadonlySet<string>>(new Set()), [minutos, setMinutos] = useState(minutosHoje), [inf, setInf] = useState(informado), [, start] = useTransition()
   const router = useRouter(), [adiadas, setAdiadas] = useState<ReadonlySet<string>>(new Set())
   const { mostrar } = useAvisos(), avisarMovida = useAvisoDeMovimento()
@@ -72,6 +72,11 @@ export default function TarefasHoje({ itens, hoje, concluidasHoje, minutosHoje, 
           <button key={m} type="button" onClick={() => escolher(m)} aria-pressed={inf && minutos === m}
             className={`rounded-xl border px-3.5 text-sm ${inf && minutos === m ? 'border-brand bg-brand/15 text-brand' : 'border-line'}`}>{formatarMinutos(m)}</button>))}</div>
         <p className="text-xs text-muted">{inf ? 'Mostro só o que cabe nesse tempo. O resto fica para depois, sem cobrança.' : `Usando o seu tempo padrão (${formatarMinutos(minutos)}). Toque acima para informar o de hoje.`}</p>
+        {agenda && !(inf && minutos === agenda.sugestao) && (
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+            <span className="text-info">Pela sua agenda, hoje: {agenda.texto}. Sugestão: {formatarMinutos(agenda.sugestao)}.</span>
+            <button type="button" onClick={() => escolher(agenda.sugestao)} className="rounded-xl border border-info px-3 py-1 text-info hover:bg-info/10">Usar {formatarMinutos(agenda.sugestao)}</button>
+          </p>)}
       </div>
       {recursos && r.atrasadas.length > 0 && <ReorganizarAtrasadas n={r.atrasadas.length} />}
       {minutos === 0 && <p className="text-sm">Sem tempo hoje? Tudo bem: nada é cobrado. As tarefas ficam para depois.</p>}

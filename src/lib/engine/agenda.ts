@@ -100,3 +100,79 @@ export function quando(c: { tipo: string; dias: number[] | null; data: string | 
   const lista = ds.length === 7 ? 'Todos os dias' : ds.length <= 1 ? (ds[0] ?? '') : `${ds.slice(0, -1).join(', ')} e ${ds.at(-1)}`
   return [lista, c.valido_de ? `desde ${br(c.valido_de)}` : '', c.valido_ate ? `até ${br(c.valido_ate)}` : ''].filter(Boolean).join(' · ')
 }
+
+// ---------- Sugestão de tempo de estudo (só sugere: muda só com um toque seu) ----------
+
+/** As mesmas opções da Minha semana e do Início. */
+const OPCOES = [0, 30, 60, 90, 120, 180, 240]
+/**
+ * Quanto estudar num dia, a partir do tempo livre que a agenda deixa. Usa METADE do livre (o resto fica para deslocamento, comer, descansar
+ * depois de plantão...), arredondada para baixo nas opções, no máximo 4h. Com 45 a 59 min livres, sugere 30 min; com menos, nada.
+ */
+export function sugestaoDeEstudo(livreMin: number) {
+  const alvo = Math.max(livreMin / 2, livreMin >= 45 ? 30 : 0)
+  return OPCOES.filter(o => o <= Math.min(alvo, 240)).at(-1) ?? 0
+}
+
+// ---------- Texto rápido da escala ----------
+
+const DIAS_TEXTO: Record<string, number> = { dom: 0, domingo: 0, seg: 1, segunda: 1, ter: 2, terca: 2, qua: 3, quarta: 3, qui: 4, quinta: 4, sex: 5, sexta: 5, sab: 6, sabado: 6 }
+const PISTAS_CATEGORIA: [Categoria, RegExp][] = [
+  ['plantao', /\b(plant[aã]o|ps|pronto[ -]socorro|uti|cti|sala vermelha|emerg[eê]ncia|noturno)\b/i],
+  ['academia', /\b(academia|treino|muscula[cç][aã]o|corrida|crossfit|pilates|nata[cç][aã]o|futebol|yoga|ioga)\b/i],
+  ['aula', /\b(aula|curso|cursinho|liga|palestra|semin[aá]rio|sess[aã]o cl[ií]nica)\b/i],
+  ['internato', /\b(internato|enfermaria|ambulat[oó]rio|est[aá]gio|rod[ií]zio|ubs|visita|centro cir[uú]rgico|cc|bloco|maternidade|ala)\b/i],
+]
+export const categoriaPeloNome = (t: string): Categoria => PISTAS_CATEGORIA.find(([, r]) => r.test(t))?.[0] ?? 'compromisso'
+
+const semAcento = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+/** "7" → 07:00; "7h30" → 07:30; "19:00" → 19:00; "24" → null. */
+function lerHora(s: string): string | null {
+  const m = s.trim().match(/^(\d{1,2})(?:\s*(?:h|:)\s*(\d{2})?)?\s*(?:h|hs|min)?$/i)
+  if (!m) return null
+  const h = Number(m[1]), mi = Number(m[2] ?? 0)
+  return h <= 23 && mi <= 59 ? `${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}` : null
+}
+
+export type ItemDaEscala = { titulo: string; categoria: Categoria; data: string; hora_ini: string; hora_fim: string }
+/**
+ * Lê uma escala digitada ou colada, um compromisso por linha ou separados por ";":
+ *   "seg 7-13 Enfermaria", "ter 19h–7h PS", "seg a sex 7h às 13h Ambulatório", "seg, qua e sex 18-19 academia", "14/10 14h30-15h Dentista".
+ * Os dias da semana caem na semana que começa em `segunda`; datas (dd/mm) valem como escritas. Tudo vira "só um dia" (a escala muda toda semana).
+ * O tipo (cor) vem do nome: plantão/PS, enfermaria/ambulatório, academia, aula; o resto é "compromisso".
+ */
+export function lerEscalaEmTexto(texto: string, segunda: string): { itens: ItemDaEscala[]; erros: string[] } {
+  const itens: ItemDaEscala[] = [], erros: string[] = []
+  const anoBase = Number(segunda.slice(0, 4)), mesBase = Number(segunda.slice(5, 7))
+  for (const bruto of texto.split(/[;\n]+/).map(l => l.trim()).filter(Boolean)) {
+    // dias: "seg a sex", "seg, qua e sex", "seg/qua", "segunda-feira" ou datas "14/10"
+    const m = bruto.match(/^((?:(?:\d{1,2}\/\d{1,2})|(?:[a-zA-ZÀ-ú]+(?:-feira)?))(?:\s*(?:,|\/|\be\b|\ba\b|\bate\b|\baté\b|-)\s*(?:(?:\d{1,2}\/\d{1,2})|(?:[a-zA-ZÀ-ú]+(?:-feira)?)))*)\s+(.+)$/)
+    const horas = m?.[2].match(/^(\d{1,2}(?:\s*[h:]\s*\d{2})?\s*h?)\s*(?:-|–|—|às|as|a|até|ate)\s*(\d{1,2}(?:\s*[h:]\s*\d{2})?\s*h?)\s+(.+)$/i)
+    const ini = horas && lerHora(horas[1]), fim = horas && lerHora(horas[2]), titulo = horas?.[3].trim().slice(0, 80)
+    if (!m || !horas || !ini || !fim || !titulo) { erros.push(`Não entendi: "${bruto}". Use, por exemplo: seg 7-13 Enfermaria`); continue }
+    if (ini === fim) { erros.push(`"${bruto}": início e fim iguais.`); continue }
+    const partes = semAcento(m[1]).replace(/-feira/g, '')
+    const datas: string[] = []
+    const intervalo = partes.match(/^([a-z]+)\s*(?:a|ate|-)\s*([a-z]+)$/)
+    if (intervalo && intervalo[1] in DIAS_TEXTO && intervalo[2] in DIAS_TEXTO) {
+      const a = (DIAS_TEXTO[intervalo[1]] + 6) % 7, b = (DIAS_TEXTO[intervalo[2]] + 6) % 7   // 0 = segunda
+      for (let i = a; i <= (b >= a ? b : b + 7) && i < a + 7; i++) datas.push(addDays(segunda, i % 7))
+    } else {
+      let ok = true
+      for (const p of partes.split(/\s*(?:,|(?<=[a-z])\/(?=[a-z])|\be\b)\s*/).filter(Boolean)) {
+        const dm = p.match(/^(\d{1,2})\/(\d{1,2})$/)
+        if (dm) {
+          const dia = Number(dm[1]), mes = Number(dm[2])
+          if (mes < 1 || mes > 12 || dia < 1 || dia > 31) { ok = false; break }
+          const ano = mes < mesBase - 6 ? anoBase + 1 : anoBase, d = `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`
+          if (new Date(d + 'T00:00:00Z').toISOString().slice(0, 10) !== d) { ok = false; break }
+          datas.push(d)
+        } else if (p in DIAS_TEXTO) datas.push(addDays(segunda, (DIAS_TEXTO[p] + 6) % 7))
+        else { ok = false; break }
+      }
+      if (!ok) { erros.push(`"${bruto}": não reconheci o dia. Use seg, ter, qua... ou uma data como 14/10.`); continue }
+    }
+    for (const data of [...new Set(datas)].sort()) itens.push({ titulo, categoria: categoriaPeloNome(titulo), data, hora_ini: ini, hora_fim: fim })
+  }
+  return { itens, erros }
+}

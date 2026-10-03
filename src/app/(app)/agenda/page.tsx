@@ -9,6 +9,7 @@ import { CATEGORIAS, corDaCategoria, quando, ehCategoria } from '@/lib/engine/ag
 import { agendaDosDias } from '@/lib/agenda-data'
 import { excluirDaAgenda, pararDeRepetir, copiarEscalaAnterior, trazerHorariosAntigos, salvarJanelaDoDia } from '@/lib/agenda'
 import AgendaForm from '@/components/AgendaForm'
+import EscalaRapida from '@/components/EscalaRapida'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
 import { fmtData, inputCls } from '@/components/ui'
 
@@ -40,6 +41,7 @@ export default async function Agenda({ searchParams }: { searchParams: Promise<{
       {ag.disponivel && <div className="space-y-6 lg:grid lg:grid-cols-[24rem_minmax(0,1fr)] lg:items-start lg:gap-6 lg:space-y-0">
         <div className="space-y-4 lg:sticky lg:top-6">
           <AgendaForm semana={seg} hoje={hoje} />
+          <EscalaRapida semana={seg} />
           <details className="rounded-2xl border border-line bg-surface p-5">
             <summary className="cursor-pointer font-medium">Horário do seu dia</summary>
             <form action={salvarJanelaDoDia} className="mt-3 space-y-3 text-sm">

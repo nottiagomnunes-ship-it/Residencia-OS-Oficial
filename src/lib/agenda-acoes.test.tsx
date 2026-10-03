@@ -19,10 +19,13 @@ vi.mock('@/lib/supabase/server', () => ({ supabaseServer: async () => ({ auth: {
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }))
 vi.mock('next/navigation', () => ({ redirect: (u: string) => { h.redirects.push(u); throw new Error('REDIRECT') } }))
 vi.mock('@/lib/dates', () => ({ hojeBR: () => '2026-10-07' }))   // quarta-feira
+vi.mock('@/lib/capacidade', () => ({ definirCapacidade: vi.fn(), limparCapacidade: vi.fn(), copiarSemanaAnterior: vi.fn() }))
 
-import { criarNaAgenda, copiarEscalaAnterior, pararDeRepetir, excluirDaAgenda } from './agenda'
+import { criarNaAgenda, copiarEscalaAnterior, pararDeRepetir, excluirDaAgenda, salvarEscalaRapida } from './agenda'
 import { agendaDosDias } from './agenda-data'
 import AgendaForm from '@/components/AgendaForm'
+import EscalaRapida from '@/components/EscalaRapida'
+import CapacidadeSemana from '@/components/CapacidadeSemana'
 
 const fd = (o: Record<string, string | string[]>) => { const f = new FormData(); for (const [k, v] of Object.entries(o)) for (const x of [v].flat()) f.append(k, x); return f }
 const rodar = async (p: Promise<unknown>) => { await expect(p).rejects.toThrow('REDIRECT'); return decodeURIComponent(h.redirects.at(-1)!) }
@@ -72,12 +75,13 @@ describe('junção com o calendário', () => {
     h.dados['profiles:um'] = { janela_ini: '06:00:00', janela_fim: '23:00:00', folga_min: 30 }
     const r = await agendaDosDias({ from: (t: string) => cadeia(t) } as any, '2026-10-06', '2026-10-08')
     expect(r.ocupados['2026-10-07'].map(o => `${o.titulo}:${o.ini}-${o.fim}`)).toEqual(['Plantão (continuação):0-420', 'Internato:420-780'])
-    expect(r.livres['2026-10-07']).toBe('Livre: 13h30–23h (9h30)')
-    expect(r.livres['2026-10-06']).toBe('Livre: 6h–6h30 e 13h30–18h30 (5h30)')   // antes do internato sobra meia hora; antes do plantão, a folga de 30 min
+    expect(r.livres['2026-10-07']).toBe('Livre: 13h30–23h (9 h 30)')
+    expect(r.sugestoes['2026-10-07']).toEqual({ livre: 570, texto: '9 h 30 livres (13h30–23h)', sugestao: 240 })
+    expect(r.livres['2026-10-06']).toBe('Livre: 6h–6h30 e 13h30–18h30 (5 h 30)')   // antes do internato sobra meia hora; antes do plantão, a folga de 30 min
   })
   it('sem a 0029: nada aparece e nada quebra', async () => {
     h.dados['commitments:erro'] = { message: 'column commitments.agenda does not exist' }
-    expect(await agendaDosDias({ from: (t: string) => cadeia(t) } as any, '2026-10-06', '2026-10-08')).toEqual({ disponivel: false, ocupados: {}, livres: {}, linhas: [] })
+    expect(await agendaDosDias({ from: (t: string) => cadeia(t) } as any, '2026-10-06', '2026-10-08')).toEqual({ disponivel: false, ocupados: {}, livres: {}, sugestoes: {}, linhas: [] })
   })
 })
 
@@ -86,5 +90,37 @@ describe('formulário', () => {
     const html = renderToStaticMarkup(<AgendaForm semana="2026-10-05" hoje="2026-10-07" />)
     expect(html).toContain('Plantão noturno · 19h–7h'); expect(html).toMatch(/aria-pressed="true"[^>]*>Toda semana/)
     expect((html.match(/name="dias"/g) ?? []).length).toBe(7); expect(html).not.toContain('Termina no dia seguinte')
+  })
+})
+
+describe('escala em texto', () => {
+  it('grava tudo de uma vez como "só um dia", na semana mostrada, e avisa o que não entendeu', async () => {
+    const url = await rodar(salvarEscalaRapida(fd({ semana: '2026-10-05', texto: 'seg 7-13 Enfermaria; ter 19-7 PS; amanhã sei lá' })))
+    const ins = h.ops.find(o => o.op === 'insert')!
+    expect(ins.v.map((x: any) => `${x.data} ${x.hora_ini}-${x.hora_fim} ${x.titulo} ${x.categoria} ${x.tipo} ${x.agenda}`)).toEqual([
+      '2026-10-05 07:00-13:00 Enfermaria internato pontual true', '2026-10-06 19:00-07:00 PS plantao pontual true'])
+    expect(url).toContain('erro=2 horários adicionados à agenda. 1 linha não foi entendida')
+  })
+  it('nada entendido: não grava', async () => {
+    await rodar(salvarEscalaRapida(fd({ semana: '2026-10-05', texto: 'qualquer coisa' })))
+    expect(h.ops).toEqual([])
+  })
+  it('a tela começa com o botão desligado', () => {
+    const html = renderToStaticMarkup(<EscalaRapida semana="2026-10-05" />)
+    expect(html).toMatch(/<button disabled=""[^>]*>Adicionar à agenda/)
+  })
+})
+
+describe('sugestão de tempo na Minha semana', () => {
+  const props = { titulo: 'Esta semana', segunda: '2026-10-05', dias: ['2026-10-07', '2026-10-08'], informados: { '2026-10-07': 120 }, padroes: { '2026-10-07': 120, '2026-10-08': 120 } }
+  it('mostra o livre e a sugestão só nos dias com agenda; "usar" só quando difere do que está valendo', () => {
+    const html = renderToStaticMarkup(<CapacidadeSemana {...props} agenda={{ '2026-10-07': { texto: '5h livres (13h30–18h30)', sugestao: 120 }, '2026-10-08': { texto: 'nenhum tempo livre', sugestao: 0 } }} />)
+    expect(html).toContain('Agenda: 5h livres (13h30–18h30)'); expect(html).toContain('Agenda: nenhum tempo livre')
+    expect((html.match(/>usar /g) ?? []).length).toBe(1)   // 07/10 já está em 2h; 08/10 (padrão) sugere "Sem tempo"
+    expect(html).toContain('A agenda sugere outro tempo em 1 dia'); expect(html).toContain('Usar as sugestões')
+  })
+  it('sem agenda, nada muda na tela', () => {
+    const html = renderToStaticMarkup(<CapacidadeSemana {...props} />)
+    expect(html).not.toContain('Agenda:'); expect(html).not.toContain('Usar as sugestões')
   })
 })

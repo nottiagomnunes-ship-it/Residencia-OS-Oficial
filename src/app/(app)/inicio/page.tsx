@@ -5,6 +5,7 @@ import { carregarDesempenho } from '@/lib/desempenho-data'
 import { hojeBR } from '@/lib/dates'
 import Link from 'next/link'
 import TarefasHoje from '@/components/TarefasHoje'
+import { agendaDosDias } from '@/lib/agenda-data'
 import { capacidadeDoDia, semanaAAvisar, planoDesatualizado } from '@/lib/engine/tempo'
 import { AvisosPlano } from '@/components/AvisosPlano'
 import { RitmoCard } from '@/components/RitmoCard'
@@ -42,6 +43,7 @@ export default async function Inicio() {
   const [{ data: capHoje }, { data: perfilTempo }] = await Promise.all([
     sb.from('capacidade_dia').select('minutos').eq('data', hoje).maybeSingle(), sb.from('profiles').select('daily_minutes,available_weekdays').single(),
   ])
+  const agendaHoje = (await agendaDosDias(sb, hoje, hoje)).sugestoes[hoje] ?? null // só sugere; o tempo muda com um toque
   const tempoHoje = capacidadeDoDia(hoje, capHoje ? { [hoje]: capHoje.minutos } : {}, perfilTempo?.daily_minutes ?? 120, perfilTempo?.available_weekdays ?? [1, 2, 3, 4, 5])
   const segProx = addDays(weekStart(hoje), 7)
   const [{ data: capsSemana }, { data: perfilPlano }, { data: adi }, { data: feitosHoje }] = await Promise.all([
@@ -68,7 +70,7 @@ export default async function Inicio() {
         <p className="text-muted">{rev + atras === 0 ? 'Nenhuma revisão pendente. Cadastre conteúdos para começar o plano.' : `Você tem ${rev} revisões para hoje e ${atras} atrasadas.`}</p>
       </header>
       <AvisosPlano desatualizado={desatualizado} semana={semanaAviso} semanaAtual={!!semanaAviso && semanaAviso <= hoje} />
-      <TarefasHoje itens={itensHoje ?? []} hoje={hoje} concluidasHoje={concluidasHoje ?? 0} minutosHoje={tempoHoje.minutos} informado={tempoHoje.informado} minutosFeitos={minutosFeitos} adiantaveis={adi ?? []} recursos={recursos} />
+      <TarefasHoje itens={itensHoje ?? []} hoje={hoje} concluidasHoje={concluidasHoje ?? 0} minutosHoje={tempoHoje.minutos} informado={tempoHoje.informado} minutosFeitos={minutosFeitos} adiantaveis={adi ?? []} recursos={recursos} agenda={agendaHoje} />
       {alerta && <Link href="/desempenho" className="block rounded-2xl border border-warn/40 bg-warn/10 p-4"><p className="font-medium">{alerta.titulo}</p><p className="text-sm">{alerta.texto}</p></Link>}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         <Card titulo="Revisões de hoje" valor={String(rev)} cor="text-info" />

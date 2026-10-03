@@ -63,3 +63,38 @@ describe('rótulos', () => {
     for (const c of Object.values(CATEGORIAS)) { expect(c.cor).not.toBe('#22C55E'); expect(c.cor).not.toBe('#EF4444') }
   })
 })
+
+describe('sugestão de tempo de estudo', () => {
+  it('metade do livre, arredondada para baixo nas opções, no máximo 4h', async () => {
+    const { sugestaoDeEstudo } = await import('./agenda')
+    expect(sugestaoDeEstudo(300)).toBe(120)   // 5h livres → 2h
+    expect(sugestaoDeEstudo(450)).toBe(180)   // 7h30 → 3h
+    expect(sugestaoDeEstudo(1020)).toBe(240)  // dia todo → 4h
+    expect(sugestaoDeEstudo(50)).toBe(30); expect(sugestaoDeEstudo(30)).toBe(0); expect(sugestaoDeEstudo(0)).toBe(0)
+  })
+})
+
+describe('texto rápido da escala', () => {
+  const seg = '2026-10-05'
+  it('dias, intervalos, listas, datas, horas em vários formatos e o tipo pelo nome', async () => {
+    const { lerEscalaEmTexto } = await import('./agenda')
+    const r = lerEscalaEmTexto('seg 7-13 Enfermaria; ter 19h–7h PS\nqua a sex 7h às 13h Ambulatório\nseg, qua e sex 18-19 academia\n14/10 14h30-15h Dentista\nsábado 8:00-12:00 Aula do cursinho', seg)
+    expect(r.erros).toEqual([])
+    expect(r.itens.map(i => `${i.data} ${i.hora_ini}-${i.hora_fim} ${i.titulo} [${i.categoria}]`)).toEqual([
+      '2026-10-05 07:00-13:00 Enfermaria [internato]', '2026-10-06 19:00-07:00 PS [plantao]',
+      '2026-10-07 07:00-13:00 Ambulatório [internato]', '2026-10-08 07:00-13:00 Ambulatório [internato]', '2026-10-09 07:00-13:00 Ambulatório [internato]',
+      '2026-10-05 18:00-19:00 academia [academia]', '2026-10-07 18:00-19:00 academia [academia]', '2026-10-09 18:00-19:00 academia [academia]',
+      '2026-10-14 14:30-15:00 Dentista [compromisso]', '2026-10-10 08:00-12:00 Aula do cursinho [aula]'])
+  })
+  it('sex a seg atravessa o fim de semana; segunda-feira por extenso; data de janeiro numa semana de dezembro vai para o ano seguinte', async () => {
+    const { lerEscalaEmTexto } = await import('./agenda')
+    expect(lerEscalaEmTexto('sex a seg 7-19 Plantão', seg).itens.map(i => i.data)).toEqual(['2026-10-05', '2026-10-09', '2026-10-10', '2026-10-11'])
+    expect(lerEscalaEmTexto('segunda-feira 7-13 Visita', seg).itens[0].data).toBe('2026-10-05')
+    expect(lerEscalaEmTexto('05/01 7-13 UBS', '2026-12-28').itens[0].data).toBe('2027-01-05')
+  })
+  it('o que não entende vira aviso, sem inventar', async () => {
+    const { lerEscalaEmTexto } = await import('./agenda')
+    const r = lerEscalaEmTexto('amanhã cedo enfermaria; xyz 7-13 Algo; seg 25-26 X; seg 7-7 Y; 31/02 7-13 Z', seg)
+    expect(r.itens).toEqual([]); expect(r.erros).toHaveLength(5)
+  })
+})

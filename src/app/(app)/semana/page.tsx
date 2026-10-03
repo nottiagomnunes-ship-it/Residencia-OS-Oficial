@@ -7,6 +7,7 @@ import { addDays } from '@/lib/engine/review'
 import { weekStart } from '@/lib/engine/calendar'
 import { capacidadeDoDia, diasDaSemana, formatarMinutos, planoDesatualizado } from '@/lib/engine/tempo'
 import CapacidadeSemana from '@/components/CapacidadeSemana'
+import { agendaDosDias } from '@/lib/agenda-data'
 
 export default async function Semana() {
   const sb = await supabaseServer(), hoje = hojeBR(), seg = weekStart(hoje), prox = addDays(seg, 7)
@@ -25,6 +26,7 @@ export default async function Semana() {
       padroes: Object.fromEntries(dias.map(d => [d, capacidadeDoDia(d, {}, padrao, disponiveis).minutos])),
     }
   }
+  const ag = await agendaDosDias(sb, hoje, addDays(prox, 6)) // a agenda só SUGERE o tempo de cada dia
   const a = semana(seg), b = semana(prox)
   return (
     <div className="max-w-4xl space-y-6">
@@ -34,8 +36,9 @@ export default async function Semana() {
       </div>
       <p className="text-sm text-muted">Escala mudou? É só tocar no tempo de cada dia. Os dias que você não preencher usam o seu tempo padrão ({formatarMinutos(padrao)} nos dias disponíveis). Para mudar o padrão, vá em <Link href="/configuracoes" className="text-brand underline">Configurações</Link>. Depois de mexer, toque em <b>Atualizar meu cronograma</b>.</p>
       {planoDesatualizado(pp?.capacidade_alterada_em, pp?.plano_gerado_em) && <p role="status" className="rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm">Você mudou o tempo desde a última atualização. Toque em <b>Atualizar meu cronograma</b> para o plano acompanhar.</p>}
-      {a.dias.length > 0 && <CapacidadeSemana titulo="Esta semana" segunda={seg} {...a} />}
-      <CapacidadeSemana titulo="Próxima semana" segunda={prox} {...b} />
+      {a.dias.length > 0 && <CapacidadeSemana titulo="Esta semana" segunda={seg} {...a} agenda={ag.sugestoes} />}
+      <CapacidadeSemana titulo="Próxima semana" segunda={prox} {...b} agenda={ag.sugestoes} />
+      {ag.disponivel && !ag.linhas.length && <p className="text-sm text-muted">Cadastre internato, plantões e academia na <Link href="/agenda" className="text-brand underline">Agenda pessoal</Link> e eu sugiro o tempo de estudo de cada dia pelo que sobra livre.</p>}
       {!!antigos && (
         <section className="space-y-2 rounded-2xl border border-line bg-surface p-5 text-sm">
           <h2 className="font-medium">Horários do modelo antigo</h2>

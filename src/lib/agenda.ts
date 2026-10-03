@@ -6,7 +6,7 @@ import { hojeBR } from '@/lib/dates'
 import { addDays } from '@/lib/engine/review'
 import { weekStart } from '@/lib/engine/calendar'
 import { hhmmParaMin } from '@/lib/engine/compromissos'
-import { validarCompromisso, copiarEscala } from '@/lib/engine/agenda'
+import { validarCompromisso, copiarEscala, lerEscalaEmTexto } from '@/lib/engine/agenda'
 
 async function ctx() {
   const sb = await supabaseServer()
@@ -81,4 +81,16 @@ export async function salvarJanelaDoDia(fd: FormData) {
   if (!Number.isInteger(folga) || folga < 0 || folga > 180) voltar(s, 'erro', 'A folga deve ficar entre 0 e 180 minutos.')
   await sb.from('profiles').update({ janela_ini: ini, janela_fim: fim, folga_min: folga }).eq('id', uid)
   voltar(s, 'ok', 'Horário do dia salvo.')
+}
+
+/** Texto rápido da escala ("seg 7-13 Enfermaria; ter 19-7 PS"): grava tudo de uma vez, como horários de um dia só. */
+export async function salvarEscalaRapida(fd: FormData) {
+  const { sb, uid } = await ctx()
+  const s = semana(fd)
+  const { itens, erros } = lerEscalaEmTexto(String(fd.get('texto') ?? '').slice(0, 5000), s)
+  if (!itens.length) voltar(s, 'erro', erros[0] ?? 'Escreva pelo menos um horário, por exemplo: seg 7-13 Enfermaria.')
+  const linhas = itens.slice(0, 100).flatMap(i => { const v = validarCompromisso({ ...i, tipo: 'pontual' }); return v.ok ? [{ ...v.c, user_id: uid, agenda: true }] : [] })
+  const { error } = await sb.from('commitments').insert(linhas)
+  if (error) voltar(s, 'erro', /agenda|categoria/.test(error.message) ? SEM_CAMPOS : 'Não foi possível salvar. Nada foi gravado.')
+  voltar(s, erros.length ? 'erro' : 'ok', `${linhas.length} ${linhas.length === 1 ? 'horário adicionado' : 'horários adicionados'} à agenda.${erros.length ? ` ${erros.length} ${erros.length === 1 ? 'linha não foi entendida' : 'linhas não foram entendidas'}: ${erros[0]}` : ''}`)
 }
