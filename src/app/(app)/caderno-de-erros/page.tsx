@@ -7,10 +7,12 @@ import { MOTIVOS, estatisticasErros, type Motivo } from '@/lib/engine/questoes'
 import { fmtData, inputCls } from '@/components/ui'
 import { AlvoSelect } from '@/components/AlvoSelect'
 
+import { carregarAreas, comArea } from '@/lib/areas-data'
 export default async function CadernoDeErros({ searchParams }: { searchParams: Promise<{ m?: string }> }) {
   const { m } = await searchParams, hoje = hojeBR()
   const filtro = m && m in MOTIVOS ? (m as Motivo) : null
   const sb = await supabaseServer()
+  const areas = await carregarAreas(sb)
   const [{ data: ds }, { data: ts }, { data: todos }] = await Promise.all([
     sb.from('disciplines').select('id,nome').order('ordem'), sb.from('topics').select('id,nome,discipline_id').order('nome'),
     sb.from('error_notebook').select('id,motivo,enunciado,comentario,revisar_em,revisado,disciplines(nome),topics(nome)').order('created_at', { ascending: false }).limit(1000),
@@ -50,7 +52,7 @@ export default async function CadernoDeErros({ searchParams }: { searchParams: P
       {paraHoje.length > 0 && <section className="space-y-3 lg:col-start-2"><h2 className="font-medium text-warn">Para revisar hoje ({paraHoje.length})</h2><ul className="space-y-3">{paraHoje.map(e => <Item key={e.id} e={e} />)}</ul></section>}
       <form action={adicionarErro} className="space-y-4 rounded-2xl border border-line bg-surface p-5 lg:col-start-1 lg:row-span-4 lg:row-start-1 lg:sticky lg:top-6 lg:self-start">
         <h2 className="font-medium">Adicionar erro</h2>
-        <AlvoSelect ds={ds ?? []} ts={ts ?? []} />
+        <AlvoSelect ds={comArea(ds ?? [], areas.mapa)} ts={ts ?? []} />
         <fieldset>
           <legend className="mb-2 text-sm text-muted">Por que você errou?</legend>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2">{(Object.keys(MOTIVOS) as Motivo[]).map((k, i) => (

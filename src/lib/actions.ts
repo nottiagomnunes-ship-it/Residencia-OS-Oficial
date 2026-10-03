@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
 import { seedCatalog } from '@/lib/seed'
+import { atribuirAreasPorNome } from '@/lib/areas-data'
 
 const CORES = ['#22C55E', '#3B82F6', '#F59E0B', '#EC4899', '#A855F7', '#EF4444', '#14B8A6', '#F97316']
 
@@ -19,6 +20,7 @@ export async function addDiscipline(fd: FormData) {
   const { count } = await sb.from('disciplines').select('id', { count: 'exact', head: true })
   await sb.from('disciplines').insert({ user_id: uid, nome: String(fd.get('nome')).trim(), peso: Number(fd.get('peso')),
     cor: CORES[(count ?? 0) % CORES.length], ordem: count ?? 0 })
+  await atribuirAreasPorNome(sb, [String(fd.get('nome')).trim()]) // a área sugerida pelo nome (ex.: Ortopedia → Cirurgia); falha aqui nunca impede criar a disciplina
   done()
 }
 export async function deleteDiscipline(fd: FormData) {

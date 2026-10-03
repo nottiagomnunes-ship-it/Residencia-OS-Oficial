@@ -5,11 +5,17 @@ import { hojeBR } from '@/lib/dates'
 import { pct } from '@/lib/engine/desempenho'
 import { Bar } from '@/components/ui'
 import Graficos from '@/components/Graficos'
+import { ResumoPorArea } from '@/components/ResumoPorArea'
+import { carregarAreas } from '@/lib/areas-data'
+import { areaDeMenorAcerto, resumoPorArea, SIGLA_AREA } from '@/lib/engine/areas'
 
 const corAcerto = (p: number | null) => (p == null ? '#8A9A93' : p >= 75 ? '#22C55E' : p >= 65 ? '#F59E0B' : '#EF4444')
 
 export default async function Desempenho() {
-  const d = await carregarDesempenho(await supabaseServer(), hojeBR())
+  const sb = await supabaseServer()
+  const [d, areas] = await Promise.all([carregarDesempenho(sb, hojeBR()), carregarAreas(sb)])
+  const porArea = areas.disponivel ? resumoPorArea(d.disciplinas.map(x => ({ area: areas.mapa[x.id] ?? null, total: x.total, acertos: x.acertos }))) : null
+  const nenhumaOrganizada = d.disciplinas.length > 0 && d.disciplinas.every(x => !areas.mapa[x.id])
   const geral = pct(d.acertos, d.total)
   const card = (l: string, v: string) => <div className="rounded-2xl border border-line bg-surface p-4"><p className="text-sm text-muted">{l}</p><p className="mt-1 text-2xl font-semibold">{v}</p></div>
   const fracos = d.assuntos.filter(a => a.pct != null && a.total >= 10).sort((x, y) => x.pct! - y.pct!).slice(0, 8).map(a => ({ nome: a.nome, pct: a.pct! }))
@@ -24,12 +30,13 @@ export default async function Desempenho() {
           <h2 className="font-medium text-warn">Recomendações</h2>
           {d.recomendacoes.map(r => <p key={r.disciplina} className="text-sm">{r.texto}</p>)}
         </section>)}
+      {porArea && <ResumoPorArea resumos={porArea} menor={areaDeMenorAcerto(porArea)} nenhumaOrganizada={nenhumaOrganizada} />}
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="space-y-3 rounded-2xl border border-line bg-surface p-5">
           <h2 className="font-medium">Por disciplina</h2>
           {d.disciplinas.map(x => (
             <Link key={x.id} href={`/disciplinas/${x.id}`} className="block space-y-1.5">
-              <div className="flex justify-between text-sm"><span>{x.nome}</span><span style={{ color: corAcerto(x.pct) }}>{x.pct == null ? 'sem questões' : `${x.pct}%`}</span></div>
+              <div className="flex justify-between text-sm"><span>{x.nome}{areas.mapa[x.id] && <span className="ml-2 text-xs text-muted">{SIGLA_AREA[areas.mapa[x.id]!]}</span>}</span><span style={{ color: corAcerto(x.pct) }}>{x.pct == null ? 'sem questões' : `${x.pct}%`}</span></div>
               <Bar pct={x.pct ?? 0} cor={corAcerto(x.pct)} />
             </Link>))}
         </section>

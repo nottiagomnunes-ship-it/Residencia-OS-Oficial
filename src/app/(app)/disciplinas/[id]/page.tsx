@@ -3,10 +3,13 @@ import { notFound } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
 import { Badge, Bar, STATUS, fmtData } from '@/components/ui'
 
+import { carregarAreas } from '@/lib/areas-data'
+import AreaDaDisciplina from '@/components/AreaDaDisciplina'
 export default async function Disciplina({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const sb = await supabaseServer()
   const { data: d } = await sb.from('disciplines').select('id,nome,cor').eq('id', id).maybeSingle()
+  const areas = await carregarAreas(sb)
   if (!d) notFound()
   const [{ data: ts }, { data: qs }, { data: rs }] = await Promise.all([
     sb.from('topics').select('id,nome,subcategoria,status').eq('discipline_id', id).order('subcategoria').order('nome'),
@@ -20,7 +23,7 @@ export default async function Disciplina({ params }: { params: Promise<{ id: str
   const stat = (l: string, v: string) => <div className="rounded-2xl border border-line bg-surface p-4"><p className="text-sm text-muted">{l}</p><p className="mt-1 text-2xl font-semibold">{v}</p></div>
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold" style={{ color: d.cor }}>{d.nome}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-semibold" style={{ color: d.cor }}>{d.nome}</h1>{areas.disponivel && <AreaDaDisciplina id={d.id} area={areas.mapa[d.id] ?? null} />}</div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <div className="rounded-2xl border border-line bg-surface p-4"><p className="text-sm text-muted">Progresso</p><p className="mb-2 mt-1 text-2xl font-semibold">{pct}%</p><Bar pct={pct} cor={d.cor} /></div>
         {stat('Conteúdos', `${ok}/${topics.length}`)}{stat('Questões', String(tot))}

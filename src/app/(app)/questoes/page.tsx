@@ -6,12 +6,14 @@ import { aproveitamento } from '@/lib/engine/questoes'
 import { fmtData, inputCls } from '@/components/ui'
 import QuestoesForm from '@/components/QuestoesForm'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
+import { carregarAreas, comArea } from '@/lib/areas-data'
 
 const corAcerto = (p: number | null) => (p == null ? '' : p >= 75 ? 'text-brand' : p >= 60 ? 'text-warn' : 'text-danger')
 
 export default async function Questoes({ searchParams }: { searchParams: Promise<{ ok?: string; erro?: string; alvo?: string; total?: string; xp?: string; etapas?: string; tempo?: string }> }) {
   const { ok, erro, alvo, total: totalSugerido, xp, etapas, tempo } = await searchParams, hoje = hojeBR()
   const sb = await supabaseServer()
+  const areas = await carregarAreas(sb)
   const [{ data: ds }, { data: ts }, { data: todas }, { data: hist }] = await Promise.all([
     sb.from('disciplines').select('id,nome').order('ordem'), sb.from('topics').select('id,nome,discipline_id').order('nome'),
     sb.from('question_sets').select('total,acertos').limit(10000),
@@ -30,7 +32,7 @@ export default async function Questoes({ searchParams }: { searchParams: Promise
         {card('Questões realizadas', String(total))}{card('Aproveitamento', total ? `${aproveitamento(acertos, total)}%` : '—', corAcerto(aproveitamento(acertos, total)))}
         {card('Acertos', String(acertos))}{card('Erros', String(total - acertos))}
       </div>
-      <QuestoesForm ds={ds ?? []} ts={ts ?? []} alvo={alvo} totalInicial={totalSugerido} tempoInicial={tempo} hoje={hoje} className="lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:sticky lg:top-6 lg:self-start" />
+      <QuestoesForm ds={comArea(ds ?? [], areas.mapa)} ts={ts ?? []} alvo={alvo} totalInicial={totalSugerido} tempoInicial={tempo} hoje={hoje} className="lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:sticky lg:top-6 lg:self-start" />
       <div className="overflow-x-auto rounded-2xl border border-line bg-surface lg:hidden">
         <table className="w-full text-left text-sm max-md:block">
           <thead className="text-muted max-md:hidden"><tr className="border-b border-line">{['Data', 'Assunto', 'Prova', 'Questões', 'Acertos', 'Aproveitamento', 'Tempo', ''].map(h => <th key={h} className="px-4 py-3 font-normal">{h}</th>)}</tr></thead>

@@ -1,5 +1,6 @@
 'use server'
 import { revalidatePath } from 'next/cache'
+import { atribuirAreasPorNome } from '@/lib/areas-data'
 import { redirect } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
 import { hojeBR } from '@/lib/dates'
@@ -77,6 +78,7 @@ export async function importarCronograma(texto: string, substituir: boolean): Pr
 
   const { data: res, error } = await sb.rpc('importar_plano', { p_apagar: sem.ids, p_disciplinas: disciplinas, p_novos: novos, p_reordenar: reordenar, p_limpar_disciplinas: substituir })
   if (error) return { ok: false, erro: 'Não foi possível importar o plano. Nada foi alterado; tente de novo.' }
+  await atribuirAreasPorNome(sb, disciplinas.map(d => d.nome)) // só as disciplinas criadas agora recebem a área sugerida; as que já existiam ficam como estão
   refresh()
   const r = res as { apagados: number; disciplinas_removidas: number }, comData = novos.filter(i => i.data).length
   return { ok: true, resumo: [

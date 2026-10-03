@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { atribuirAreasPorNome } from '@/lib/areas-data'
 import { supabaseServer } from '@/lib/supabase/server'
 
 const DISCIPLINAS = ['Clínica Médica', 'Cirurgia', 'Pediatria', 'Ginecologia e Obstetrícia', 'Preventiva', 'Psiquiatria']
@@ -21,6 +22,7 @@ async function salvar(fd: FormData) {
     for (const d of ja) { const v = Number(fd.get(`peso_${d.id}`)); if (v >= 1 && v <= 5) await sb.from('disciplines').update({ peso: v }).eq('id', d.id) }
   } else {
     await sb.from('disciplines').insert(DISCIPLINAS.map((nome, i) => ({ user_id: user.id, nome, cor: CORES[i], ordem: i, peso: Number(fd.get(`peso_${i}`)) })))
+    await atribuirAreasPorNome(sb, DISCIPLINAS)
   }
   redirect('/inicio')
 }
