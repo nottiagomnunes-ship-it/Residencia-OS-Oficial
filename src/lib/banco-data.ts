@@ -102,6 +102,8 @@ export async function carregarFilaRefazer(sb: SupabaseClient, hoje: string, em7d
 
 /** A lista geral de temas (vazia sem a 0040). */
 export async function carregarTemas(sb: SupabaseClient): Promise<Tema[]> {
-  const { data, error } = await sb.from('temas').select('id,area,especialidade,nome').limit(5000)
-  return error ? [] : ((data ?? []) as Tema[])
+  const { data, error } = await sb.from('temas').select('id,area,especialidade,nome,palavras').limit(5000)
+  if (!error) return (data ?? []) as Tema[]
+  const { data: d2, error: e2 } = await sb.from('temas').select('id,area,especialidade,nome').limit(5000) // sem a 0041 (sem palavras-chave)
+  return e2 ? [] : ((d2 ?? []) as Tema[])
 }

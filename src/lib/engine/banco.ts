@@ -190,9 +190,9 @@ export function escolherProxima<T extends { id: string; vezes: number; ultimo_ce
 
 const PALAVRAS_VAZIAS = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'em', 'no', 'na', 'nos', 'nas', 'a', 'o', 'as', 'os', 'com', 'para', 'por', 'sem', 'ao', 'aos', 'um', 'uma', 'ou', 'pelo', 'pela'])
 /** As palavras que importam num nome de assunto ("Anestésicos locais" → ["anestesicos", "locais"]). */
-const palavras = (s: string) => normalizar(s).split(' ').filter(w => w.length >= 3 && !PALAVRAS_VAZIAS.has(w))
+export const palavras = (s: string) => normalizar(s).split(' ').filter(w => w.length >= 3 && !PALAVRAS_VAZIAS.has(w))
 /** A palavra aparece no texto, aceitando singular/plural e pequenas variações no fim ("anestesico" acha "anestesicos"). */
-const temPalavra = (texto: string, w: string) => (' ' + texto).includes(' ' + (w.length >= 6 ? w.slice(0, w.length - 2) : w))
+export const temPalavra = (texto: string, w: string) => (' ' + texto).includes(' ' + (w.length >= 6 ? w.slice(0, w.length - 2) : w))
 
 /**
  * O assunto (de Matérias → Assuntos) mais provável para uma questão: o que tem TODAS as palavras do nome no enunciado ou nas alternativas.

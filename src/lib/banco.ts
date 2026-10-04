@@ -7,7 +7,7 @@ import { validarLote, textoParaHash, lerFiltros, sortear, nomeDaLista, sugerirAs
 import { textoDosBlocos, type Bloco } from '@/lib/engine/provas'
 import { sugerirArea, normalizar, lerArea } from '@/lib/engine/areas'
 import { aplicarFiltros, assuntoDoFiltro, podeOrganizar, SO_ADMIN, ehAdmin, carregarTemas } from '@/lib/banco-data'
-import { lerListaDeTemas, type Tema } from '@/lib/engine/temas'
+import { lerListaDeTemas, sugerirTemas, type Tema } from '@/lib/engine/temas'
 
 async function ctx() {
   const sb = await supabaseServer()
@@ -320,13 +320,27 @@ export async function adicionarTemas(fd: FormData) {
   if (!(await ehAdmin(sb))) redirect(comAviso(volta, 'erro', 'Só a conta administradora mexe na lista de temas.'))
   const { temas, avisos } = lerListaDeTemas(String(fd.get('lista') || ''))
   if (!temas.length) redirect(comAviso(volta, 'erro', avisos[0] ?? 'Cole pelo menos um tema (ex.: "Anestesiologia > Via aérea difícil").'))
-  const { data: ja, error } = await sb.from('temas').select('especialidade,nome').limit(5000)
-  if (error) redirect(comAviso(volta, 'erro', SEM_TEMAS))
+  const ja = await carregarTemas(sb)
   const chave = (t: { especialidade: string; nome: string }) => normalizar(t.especialidade) + '|' + normalizar(t.nome)
-  const existentes = new Set((ja ?? []).map(chave)), novos = temas.filter(t => !existentes.has(chave(t)))
-  if (novos.length) { const { error: e } = await sb.from('temas').insert(novos); if (e) redirect(comAviso(volta, 'erro', 'Não foi possível salvar os temas.')) }
+  const porChave = new Map(ja.map(t => [chave(t), t])), novos = temas.filter(t => !porChave.has(chave(t)))
+  const semPalavras = (t: (typeof temas)[number]) => { const { palavras: _, ...r } = t; return r }
+  if (novos.length) {
+    let { error: e } = await sb.from('temas').insert(novos)
+    if (e && /palavras/.test(e.message)) ({ error: e } = await sb.from('temas').insert(novos.map(semPalavras))) // sem a 0041
+    if (e) redirect(comAviso(volta, 'erro', /relation|does not exist|schema cache/.test(e.message) ? SEM_TEMAS : 'Não foi possível salvar os temas.'))
+  }
+  // temas que já existiam e vieram com palavras-chave: junta as novas às que já tinham
+  let comPalavras = 0
+  for (const t of temas) {
+    const velho = porChave.get(chave(t))
+    if (!velho || !t.palavras) continue
+    const antes = (velho.palavras ?? '').split(',').map(x => x.trim()).filter(Boolean), juntas = [...antes]
+    for (const k of t.palavras.split(',').map(x => x.trim()).filter(Boolean)) if (!juntas.some(j => normalizar(j) === normalizar(k))) juntas.push(k)
+    if (juntas.length > antes.length && !(await sb.from('temas').update({ palavras: juntas.join(', ').slice(0, 500) }).eq('id', velho.id)).error) comPalavras++
+  }
   refresh()
   redirect(comAviso(volta, 'ok', `${novos.length} ${novos.length === 1 ? 'tema novo' : 'temas novos'}` + (temas.length > novos.length ? `; ${temas.length - novos.length} já ${temas.length - novos.length === 1 ? 'existia' : 'existiam'}` : '') +
+    (comPalavras ? ` (${comPalavras} ${comPalavras === 1 ? 'ganhou' : 'ganharam'} palavras-chave novas)` : '') +
     (avisos.length ? `. ${avisos.length} ${avisos.length === 1 ? 'linha ficou' : 'linhas ficaram'} de fora: ${avisos[0]}` : '.')))
 }
 
@@ -336,7 +350,8 @@ export async function editarTema(fd: FormData) {
   const volta = voltaDosTemas(fd), id = String(fd.get('id') || '')
   const nome = String(fd.get('nome') || '').trim().slice(0, 120), especialidade = String(fd.get('especialidade') || '').trim().slice(0, 80)
   if (!nome || !especialidade) redirect(comAviso(volta, 'erro', 'O tema precisa de nome e especialidade.'))
-  const { error } = await sb.from('temas').update({ nome, especialidade, area: lerArea(fd.get('area')) }).eq('id', id)
+  const palavrasChave = fd.has('palavras') ? String(fd.get('palavras') || '').split(',').map(x => x.trim()).filter(Boolean).join(', ').slice(0, 500) || null : undefined
+  const { error } = await sb.from('temas').update({ nome, especialidade, area: lerArea(fd.get('area')), ...(palavrasChave !== undefined ? { palavras: palavrasChave } : {}) }).eq('id', id)
   if (error) redirect(comAviso(volta, 'erro', /duplicate|unique/.test(error.message) ? 'Já existe um tema com esse nome nessa especialidade.' : 'Não foi possível salvar.'))
   await sb.from('banco_questoes').update({ assunto: nome }).eq('tema_id', id) // nas suas questões; nas outras contas, ao publicar de novo
   refresh()
@@ -401,18 +416,24 @@ export async function sugerirTemasPeloTexto(fd: FormData) {
   if (marcadas) q = q.in('id', marcadas.slice(0, 2000))
   const { data: qs, error } = await q.limit(5000)
   if (error) redirect(comAviso(volta, 'erro', SEM_TEMAS))
-  const porTema = new Map<string, string[]>()
+  // por especialidade: cada questão concorre só com os temas da especialidade dela (pela disciplina ou pelo assunto atual, como "Anestesiologia")
+  const lotes = new Map<string, { id: string; texto: string }[]>()
   for (const x of (qs ?? []) as any[]) {
     const texto = textoDosBlocos((x.blocos ?? []) as Bloco[]) + ' ' + ((x.alternativas ?? []) as { texto: string }[]).map(a => a.texto).join(' ')
-    const esp = [x.disciplines?.nome, x.assunto].filter(Boolean).map((s: string) => normalizar(s))
-    const daEsp = temas.filter(t => esp.includes(normalizar(t.especialidade)))
-    const t = sugerirAssunto(texto, daEsp.length ? daEsp : temas)
-    if (t) porTema.set(t.id, [...(porTema.get(t.id) ?? []), x.id])
+    const esps = [x.disciplines?.nome, x.assunto].filter(Boolean).map((v: string) => normalizar(v))
+    const esp = [...new Set(temas.map(t => normalizar(t.especialidade)))].find(e => esps.includes(e)) ?? '*'
+    lotes.set(esp, [...(lotes.get(esp) ?? []), { id: x.id, texto }])
+  }
+  const porTema = new Map<string, string[]>()
+  for (const [esp, questoes] of lotes) {
+    const cands = esp === '*' ? temas : temas.filter(t => normalizar(t.especialidade) === esp)
+    for (const [qid, t] of sugerirTemas(questoes, cands)) porTema.set(t.id, [...(porTema.get(t.id) ?? []), qid])
   }
   let n = 0
   for (const [id, ids] of porTema) n += (await gravarTema(sb, ids, temas.find(t => t.id === id)!)).n
   refresh()
   const sem = (qs ?? []).length - n
   redirect(comAviso(volta, n ? 'ok' : 'erro', n ? `Tema encontrado para ${n} ${n === 1 ? 'questão' : 'questões'}${sem ? `; ${sem} ${sem === 1 ? 'ficou' : 'ficaram'} sem tema (escolha à mão)` : ''}. Confira e publique de novo.`
-    : 'Não achei nenhum tema pelo texto. Confira se a lista tem os temas dessas questões, ou escolha à mão.'))
+    : (qs ?? []).length ? `Não achei o tema de nenhuma das ${(qs ?? []).length} questões sem tema. Dê palavras-chave aos temas (Lista de temas: remédios, exames, achados típicos) e tente de novo, ou escolha à mão.`
+      : 'Nenhuma questão sem tema para sugerir (nas marcadas ou nos filtros).'))
 }

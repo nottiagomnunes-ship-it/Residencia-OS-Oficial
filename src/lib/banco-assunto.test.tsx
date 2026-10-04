@@ -234,8 +234,21 @@ describe('temas (lista geral)', () => {
   it('acrescentar: só os que ainda não existem (sem ligar para acento e maiúscula)', async () => {
     h.dados.temas = [{ especialidade: 'ANESTESIOLOGIA', nome: 'via aerea dificil' }]
     await expect(adicionarTemas(fd({ lista: 'Anestesiologia > Via aérea difícil\nAnestesiologia > Anestésicos locais' }))).rejects.toThrow('REDIRECT')
-    expect(h.ops.find(o => o.tipo === 'insert')!.dados).toEqual([{ area: expect.anything(), especialidade: 'Anestesiologia', nome: 'Anestésicos locais' }])
+    expect(h.ops.find(o => o.tipo === 'insert')!.dados).toEqual([{ area: expect.anything(), especialidade: 'Anestesiologia', nome: 'Anestésicos locais', palavras: null }])
     expect(decodeURIComponent(h.redirects[0])).toContain('1 tema novo; 1 já existia')
+  })
+  it('tema que já existe ganha as palavras-chave novas (sem repetir as que já tinha)', async () => {
+    h.dados.temas = [{ id: 'h1', especialidade: 'Anestesiologia', nome: 'Hipertermia maligna', palavras: 'Dantrolene' }]
+    await expect(adicionarTemas(fd({ lista: 'Anestesiologia > Hipertermia maligna: dantrolene, rigidez de masseter' }))).rejects.toThrow('REDIRECT')
+    expect(h.ops.filter(o => o.tipo === 'insert')).toEqual([])
+    expect(h.ops.find(o => o.tipo === 'update' && o.t === 'temas')!.dados).toEqual({ palavras: 'Dantrolene, rigidez de masseter' })
+    expect(decodeURIComponent(h.redirects[0])).toContain('1 ganhou palavras-chave novas')
+  })
+  it('sugerir pelo texto acha pela palavra-chave', async () => {
+    h.dados.temas = [{ id: 'hm', area: 'cirurgia', especialidade: 'Anestesiologia', nome: 'Hipertermia maligna', palavras: 'dantrolene' }, { id: 'bnm', area: 'cirurgia', especialidade: 'Anestesiologia', nome: 'Bloqueadores neuromusculares', palavras: 'rocurônio, sugamadex' }]
+    h.dados.banco_questoes = [{ id: Q1, assunto: 'Anestesiologia', blocos: [{ tipo: 'texto', texto: 'Reversão do bloqueio com sugamadex após rocurônio' }], alternativas: [] }]
+    await expect(sugerirTemasPeloTexto(fd({}))).rejects.toThrow('REDIRECT')
+    expect(updates()[0].dados.tema_id).toBe('bnm')
   })
   it('dar o tema às marcadas: etiqueta, nome do assunto e, no seu banco, a disciplina e o assunto de Matérias de mesmo nome', async () => {
     h.dados.temas = temas

@@ -34,8 +34,8 @@ export default async function Temas({ searchParams }: { searchParams: Promise<{ 
       <form action={adicionarTemas} className="space-y-3 rounded-2xl border border-line bg-surface p-5">
         <input type="hidden" name="volta" value="/banco/temas" />
         <h2 className="font-medium">Acrescentar temas</h2>
-        <p className="text-sm text-muted">Cole um tema por linha. Pode ser "Especialidade &gt; Tema", "Área &gt; Especialidade &gt; Tema" ou um título com a lista embaixo. Os que já existem não entram de novo.</p>
-        <textarea name="lista" rows={8} required className={inputCls + ' w-full font-mono text-sm'} placeholder={'Anestesiologia > Via aérea difícil\nAnestesiologia > Anestésicos locais\n\nPediatria > Neonatologia > Icterícia neonatal\n\nAnestesiologia\n- Bloqueios periféricos\n- Hipertermia maligna'} />
+        <p className="text-sm text-muted">Cole um tema por linha. Pode ser "Especialidade &gt; Tema", "Área &gt; Especialidade &gt; Tema" ou um título com a lista embaixo. Depois de ":" vão as <b>palavras-chave</b>, separadas por vírgula: remédios, exames e achados que denunciam o tema no enunciado. São elas que fazem o "Sugerir tema pelo texto" funcionar. Os temas que já existem não se repetem, mas ganham as palavras-chave novas.</p>
+        <textarea name="lista" rows={8} required className={inputCls + ' w-full font-mono text-sm'} placeholder={'Anestesiologia\n- Bloqueadores neuromusculares: rocurônio, succinilcolina, sugamadex, neostigmina\n- Hipertermia maligna: dantrolene, rigidez de masseter\n\nPediatria > Neonatologia > Icterícia neonatal: bilirrubina, fototerapia, kernicterus'} />
         <button className="rounded-xl bg-brand px-5 py-2 font-medium text-black">Acrescentar</button>
       </form>
 
@@ -48,12 +48,13 @@ export default async function Temas({ searchParams }: { searchParams: Promise<{ 
             <ul className="mt-3 divide-y divide-line text-sm">{ts.map(t => (
               <li key={t.id} className="py-2">
                 <details>
-                  <summary className="flex cursor-pointer flex-wrap justify-between gap-2"><span>{t.nome}</span><span className="text-muted">{n.get(t.id) ?? 0} {(n.get(t.id) ?? 0) === 1 ? 'questão' : 'questões'}</span></summary>
+                  <summary className="flex cursor-pointer flex-wrap justify-between gap-2"><span>{t.nome}{t.palavras ? <span className="block text-xs text-muted">{t.palavras}</span> : <span className="block text-xs text-warn">sem palavras-chave</span>}</span><span className="text-muted">{n.get(t.id) ?? 0} {(n.get(t.id) ?? 0) === 1 ? 'questão' : 'questões'}</span></summary>
                   <div className="mt-2 flex flex-wrap items-end gap-2">
                     <form action={editarTema} className="flex flex-1 flex-wrap items-end gap-2">
                       <input type="hidden" name="id" value={t.id} /><input type="hidden" name="volta" value="/banco/temas" />
                       <label className="min-w-40 flex-1 text-muted">Tema<input name="nome" defaultValue={t.nome} maxLength={120} required className={inputCls + ' w-full'} /></label>
                       <label className="min-w-40 flex-1 text-muted">Especialidade<input name="especialidade" defaultValue={t.especialidade} maxLength={80} required className={inputCls + ' w-full'} /></label>
+                      <label className="w-full text-muted">Palavras-chave (separadas por vírgula)<input name="palavras" defaultValue={t.palavras ?? ''} maxLength={500} placeholder="Ex.: rocurônio, succinilcolina, sugamadex" className={inputCls + ' w-full'} /></label>
                       <label className="text-muted">Área<select name="area" defaultValue={t.area ?? ''} className={inputCls + ' w-full'}><option value="">—</option>{AREAS.map(a => <option key={a} value={a}>{ROTULO_AREA[a]}</option>)}</select></label>
                       <button className={btn}>Salvar</button>
                     </form>
