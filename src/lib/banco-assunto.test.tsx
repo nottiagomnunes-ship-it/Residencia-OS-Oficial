@@ -29,7 +29,7 @@ vi.mock('next/navigation', () => ({ redirect: (u: string) => { h.redirects.push(
 import { definirAssuntoDoBanco, definirAssuntoEmLote, sugerirAssuntosDoBanco, ligarAssunto, importarNoBanco, salvarExplicacao, reportarExplicacao, adicionarTemas, definirTemaEmLote, sugerirTemasPeloTexto, editarTema } from './banco'
 import OpcoesDeAssunto from '@/components/banco/OpcoesDeAssunto'
 import ExplicacaoDaQuestao from '@/components/banco/ExplicacaoDaQuestao'
-import { GET as exportar } from '@/app/(app)/banco/exportar/route'
+import { GET as exportar } from '@/app/(app)/admin/exportar/route'
 import AssuntoDaQuestao from '@/components/banco/AssuntoDaQuestao'
 import MarcarTodas from '@/components/banco/MarcarTodas'
 import Banco from '@/app/(app)/banco/questoes/page'
@@ -317,13 +317,13 @@ describe('importar pacote classificado (com tema)', () => {
   it('exportar: pacote .json com as questões dos filtros; estudante não exporta', async () => {
     h.dados.banco_questoes = [{ id: Q1, blocos: [{ tipo: 'texto', texto: 'Enunciado' }], alternativas: [{ letra: 'A', texto: 'a' }, { letra: 'B', texto: 'b' }], gabarito: 'B', anulada: false, banca: 'UFMA', ano: 2020, assunto: 'Anestesiologia', discipline_id: DISC }]
     h.dados.disciplines = [{ id: DISC, nome: 'Anestesiologia' }]
-    const res = await exportar(new Request('http://x/banco/exportar?banca=UFMA'))
+    const res = await exportar(new Request('http://x/admin/exportar?banca=UFMA'))
     expect(res.headers.get('content-disposition')).toContain('attachment')
     const p = await res.json()
     expect(p.formato).toBe('residencia-os/banco'); expect(p.questoes[0]).toMatchObject({ enunciado: ['Enunciado'], alternativas: ['a', 'b'], gabarito: 'B', banca: 'UFMA', disciplina: 'Anestesiologia' })
     expect(h.filtros).toContain('banco_questoes.eq(banca,UFMA)')
     h.admin = false
-    expect((await exportar(new Request('http://x/banco/exportar'))).status).toBe(403)
+    expect((await exportar(new Request('http://x/admin/exportar'))).status).toBe(403)
   })
 })
 

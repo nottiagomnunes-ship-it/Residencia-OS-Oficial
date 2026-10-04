@@ -190,3 +190,13 @@ describe('Banco (tela de busca)', () => {
     expect(html).not.toContain('[figura'); expect(html).toContain('<span class="block">Paciente com palpitações.</span>')
   })
 })
+
+describe('só a administradora (regra única)', () => {
+  it('conta comum ou banco sem a função eh_admin: não lê PDF nem importa', async () => {
+    h.admin = false
+    const f = new FormData(); f.set('pdf', new File([readFileSync('src/lib/__fixtures__/prova-com-figuras.pdf')], 'p.pdf'))
+    expect((await lerPdfDeQuestoes(f)).erro).toMatch(/Só a conta administradora/)
+    expect(await importarNoBanco({ questoes: [] })).toMatchObject({ ok: false, erro: expect.stringMatching(/Só a conta administradora/) })
+    expect(h.uploads).toEqual([])
+  })
+})

@@ -78,6 +78,7 @@ describe('publicar no banco geral (administrador)', () => {
 })
 
 describe('importar já publicando (administrador)', () => {
+  beforeEach(() => { h.rpcRes.eh_admin = { data: true, error: null } }) // só a administradora importa (sem a 0037, ninguém importa)
   const q = (t: string) => ({ blocos: [{ tipo: 'texto', texto: t }], alternativas: [{ letra: 'A', texto: 'a' }, { letra: 'B', texto: 'b' }], gabarito: 'A' })
   it('grava no banco e publica as questões do arquivo (achadas pela impressão digital), com a coleção', async () => {
     h.rpcRes.importar_banco = { data: 2, error: null }

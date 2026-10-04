@@ -8,7 +8,7 @@ import { textoDosBlocos, ehLetra, type Alternativa, type Bloco } from '@/lib/eng
 import { sugerirArea, normalizar, lerArea } from '@/lib/engine/areas'
 import { lerPdfComFiguras } from '@/lib/pdf-figuras'
 import { MARCA_FIGURA } from '@/lib/engine/provas-pdf'
-import { aplicarFiltros, assuntoDoFiltro, podeOrganizar, SO_ADMIN, ehAdmin, carregarTemas, aplicarFiltroAdmin, lerFiltroAdmin, hashesReportados } from '@/lib/banco-data'
+import { aplicarFiltros, assuntoDoFiltro, SO_ADMIN, ehAdmin, carregarTemas, aplicarFiltroAdmin, lerFiltroAdmin, hashesReportados } from '@/lib/banco-data'
 import { lerListaDeTemas, sugerirTemas, type Tema } from '@/lib/engine/temas'
 
 async function ctx() {
@@ -31,7 +31,7 @@ const refresh = () => ['/banco', '/questoes', '/desempenho', '/caderno-de-erros'
 const MAX_PDF = 30 * 1024 * 1024 // PDF de questões grande (vai pelo armazenamento "importacao", 0044)
 export async function lerPdfDeQuestoes(fd: FormData): Promise<{ paginas?: string[]; figuras?: Record<string, { caminho: string; url: string | null }>; avisoFiguras?: string; erro?: string }> {
   const { sb, uid } = await ctx()
-  if (!(await podeOrganizar(sb))) return { erro: SO_ADMIN }
+  if (!(await ehAdmin(sb))) return { erro: SO_ADMIN }
   // PDF pequeno vem no próprio formulário; o grande (o envio direto tem limite de ~4 MB) o navegador põe antes na pasta temporária da conta
   const f = fd.get('pdf'), temp = String(fd.get('caminho') || '')
   let dados: Uint8Array
@@ -79,7 +79,7 @@ export async function lerPdfDeQuestoes(fd: FormData): Promise<{ paginas?: string
 /** Cria a disciplina do lote quando ela ainda não existe (com a área sugerida pelo nome). Devolve o id. */
 export async function criarDisciplinaDoBanco(nome: string): Promise<{ id?: string; erro?: string }> {
   const { sb, uid } = await ctx()
-  if (!(await podeOrganizar(sb))) return { erro: SO_ADMIN }
+  if (!(await ehAdmin(sb))) return { erro: SO_ADMIN }
   const n = nome.trim().slice(0, 80)
   if (!n) return { erro: 'Dê um nome à disciplina.' }
   const { data: ex } = await sb.from('disciplines').select('id,nome')
@@ -97,7 +97,7 @@ export async function criarDisciplinaDoBanco(nome: string): Promise<{ id?: strin
 export async function importarNoBanco(dados: unknown, publicar: { colecao: string | null } | null = null, opcoes: { criarTemas?: boolean } = {}):
   Promise<{ ok: true; novas: number; repetidas: number; publicacao?: string; erroPublicacao?: string; temas?: string; explicacoes?: string; figuras?: string } | { ok: false; erro: string }> {
   const { sb, uid } = await ctx()
-  if (!(await podeOrganizar(sb))) return { ok: false, erro: SO_ADMIN }
+  if (!(await ehAdmin(sb))) return { ok: false, erro: SO_ADMIN }
   const v = validarLote(dados, uid)
   if (!v.ok) return v
   const itens = v.questoes.map(q => ({ ...q, hash: createHash('sha256').update(textoParaHash(q.blocos, q.alternativas)).digest('hex') }))
@@ -180,7 +180,7 @@ export async function excluirDoBanco(fd: FormData) {
  */
 export async function definirAssuntoDoBanco(ids: string[], escolha: { topic_id?: string | null; assunto?: string | null; criar_em?: string | null }): Promise<{ ok: boolean; n?: number; erro?: string; topic?: { id: string; nome: string; discipline_id: string } }> {
   const { sb, uid } = await ctx()
-  if (!(await podeOrganizar(sb))) return { ok: false, erro: SO_ADMIN }
+  if (!(await ehAdmin(sb))) return { ok: false, erro: SO_ADMIN }
   const alvo = ids.filter(x => /^[0-9a-f-]{36}$/i.test(x)).slice(0, 2000)
   if (!alvo.length) return { ok: false, erro: 'Nenhuma questão escolhida.' }
   let muda: Record<string, unknown>, criado: { id: string; nome: string; discipline_id: string } | undefined
@@ -234,7 +234,7 @@ export async function definirAssuntoEmLote(fd: FormData) {
 export async function sugerirAssuntosDoBanco(fd: FormData) {
   const { sb } = await ctx()
   const volta = voltaDoBanco(fd)
-  if (!(await podeOrganizar(sb))) redirect(comAviso(volta, 'erro', SO_ADMIN))
+  if (!(await ehAdmin(sb))) redirect(comAviso(volta, 'erro', SO_ADMIN))
   const [{ data: qs }, { data: ts }] = await Promise.all([
     sb.from('banco_questoes').select('id,blocos,alternativas,discipline_id').is('assunto', null).limit(5000),
     sb.from('topics').select('id,nome,discipline_id').limit(5000),
@@ -364,7 +364,7 @@ export async function restaurarDoBancoGeral(fd: FormData) {
 export async function ligarAssunto(fd: FormData) {
   const { sb } = await ctx()
   const volta = voltaDoBanco(fd), rotulo = String(fd.get('rotulo') || '').trim(), alvo = String(fd.get('alvo') || '')
-  if (!(await podeOrganizar(sb))) redirect(comAviso(volta, 'erro', SO_ADMIN))
+  if (!(await ehAdmin(sb))) redirect(comAviso(volta, 'erro', SO_ADMIN))
   if (!rotulo || !alvo) redirect(comAviso(volta, 'erro', 'Escolha o assunto de Matérias para ligar.'))
   const { data } = await sb.from('banco_questoes').select('id').eq('assunto', rotulo).is('topic_id', null).limit(2000)
   const ids = (data ?? []).map((q: { id: string }) => q.id)
@@ -554,7 +554,7 @@ async function aplicarExplicacoesDoLote(sb: Awaited<ReturnType<typeof supabaseSe
 /** Administradora: escreve, corrige ou apaga a explicação de uma questão do próprio banco (fica "revisada"). Publique de novo para chegar às outras contas. */
 export async function salvarExplicacao(id: string, texto: string): Promise<{ ok: boolean; erro?: string }> {
   const { sb } = await ctx()
-  if (!(await podeOrganizar(sb))) return { ok: false, erro: SO_ADMIN }
+  if (!(await ehAdmin(sb))) return { ok: false, erro: SO_ADMIN }
   const t = texto.trim().slice(0, 8000)
   const { error } = await sb.from('banco_questoes').update({ explicacao: t || null, explicacao_origem: t ? 'revisada' : null }).eq('id', id)
   if (error) return { ok: false, erro: /explicacao/.test(error.message) ? SEM_EXPLICACOES : 'Não foi possível salvar.' }

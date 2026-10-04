@@ -6,14 +6,14 @@ import { AREAS, ROTULO_AREA } from '@/lib/engine/areas'
 import { pct } from '@/lib/engine/desempenho'
 import { fmtData, inputCls } from '@/components/ui'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
-import { sincronizarBancoGeral, avisoDoBancoGeral, podeOrganizar, carregarTemas } from '@/lib/banco-data'
+import { sincronizarBancoGeral, avisoDoBancoGeral, carregarTemas, ehAdmin } from '@/lib/banco-data'
 import OpcoesDeAssunto from '@/components/banco/OpcoesDeAssunto'
 
 /** Praticar: escolher o que estudar e começar (uma por vez ou lista como prova). Editar e publicar as questões fica na Administração (/admin). */
 export default async function PraticarInicio({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams, f = lerFiltros(sp)
   const sb = await supabaseServer()
-  const [sync, gestor] = await Promise.all([sincronizarBancoGeral(sb), podeOrganizar(sb)])
+  const [sync, gestor] = await Promise.all([sincronizarBancoGeral(sb), ehAdmin(sb)])
   const aviso = avisoDoBancoGeral(sync) // questões novas e correções do banco geral, antes de contar
   const [{ data: todas, error }, { data: ds }, { data: listas }, temas, { data: comTema }] = await Promise.all([
     sb.from('banco_questoes').select('id,discipline_id,assunto,banca,ano,vezes,acertos,gabarito,anulada').limit(20000),

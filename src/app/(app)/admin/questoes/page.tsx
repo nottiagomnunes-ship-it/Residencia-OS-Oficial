@@ -140,7 +140,7 @@ export default async function AdminQuestoes({ searchParams }: { searchParams: Pr
         <section className="space-y-3">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <h2 className="mr-auto text-lg font-medium">{total} {total === 1 ? 'questão' : 'questões'}</h2>
-            {total > 0 && <a href={`/banco/exportar${filtrosLote ? `?${filtrosLote}` : ''}`} className="text-sm text-muted hover:text-brand">Exportar estas (.json)</a>}
+            {total > 0 && <a href={`/admin/exportar${filtrosLote ? `?${filtrosLote}` : ''}`} className="text-sm text-muted hover:text-brand">Exportar estas (.json)</a>}
           </div>
           {linhas.length > 0 && <MarcarTodas form="lote" total={total} naPagina={linhas.length} />}
           {!total && <p className="rounded-2xl border border-dashed border-line p-6 text-center text-muted">{adm ? 'Nada pendente aqui.' : 'Nenhuma questão com esses filtros.'}</p>}
