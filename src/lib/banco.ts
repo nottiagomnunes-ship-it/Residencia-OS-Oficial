@@ -258,16 +258,23 @@ export async function publicarNoBancoGeral(fd: FormData) {
   redirect(comAviso(volta, 'ok', resumoDaPublicacao(r)))
 }
 
-/** Administrador: tira questões do banco geral. As cópias que as contas já receberam continuam no banco delas. */
+/**
+ * Administrador: tira questões do banco geral e do banco das outras contas que as receberam (com a 0038; o histórico delas fica).
+ * Quem já tinha a questão por conta própria continua com ela. Sem a 0038, só sai do banco geral (as cópias ficam).
+ */
 export async function retirarDoBancoGeral(fd: FormData) {
   const { sb } = await ctx()
   const volta = voltaDoBanco(fd)
   const ids = await idsDoFormulario(sb, fd)
   if (!ids.length) redirect(comAviso(volta, 'erro', 'Marque as questões que quer tirar do banco geral.'))
-  const { data: n, error } = await sb.rpc('retirar_do_banco_geral', { p_ids: ids })
+  const { data, error } = await sb.rpc('retirar_do_banco_geral', { p_ids: ids })
   if (error) redirect(comAviso(volta, 'erro', error.code === 'PGRST202' ? SEM_GERAL : 'Não foi possível tirar do banco geral.'))
   refresh()
-  redirect(comAviso(volta, 'ok', `${n ?? 0} ${n === 1 ? 'questão saiu' : 'questões saíram'} do banco geral. Quem já tinha recebido continua com a cópia.`))
+  if (typeof data === 'number') // antes da 0038
+    redirect(comAviso(volta, 'ok', `${data} ${data === 1 ? 'questão saiu' : 'questões saíram'} do banco geral, mas quem já tinha recebido continua com a cópia. Rode supabase/migrations/0038_retirar_das_contas.sql para tirar também das outras contas.`))
+  const g = Number(data?.geral) || 0, c = Number(data?.copias) || 0
+  redirect(comAviso(volta, 'ok', `${g} ${g === 1 ? 'questão saiu' : 'questões saíram'} do banco geral` +
+    (c ? ` e ${c} ${c === 1 ? 'cópia foi tirada' : 'cópias foram tiradas'} das outras contas` : '') + '. O seu banco e o histórico de quem já respondeu não mudam.'))
 }
 
 /** Traz de volta as questões do banco geral que a pessoa excluiu do próprio banco. */

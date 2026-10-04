@@ -110,9 +110,14 @@ describe('importar já publicando (administrador)', () => {
 
 describe('tirar e trazer de volta', () => {
   it('tirar do banco geral (administrador)', async () => {
-    h.rpcRes.retirar_do_banco_geral = { data: 2, error: null }
+    h.rpcRes.retirar_do_banco_geral = { data: { geral: 2, copias: 5 }, error: null }
     await expect(retirarDoBancoGeral(fd({ sel: [Q1, Q2] }))).rejects.toThrow('REDIRECT')
-    expect(h.rpcs[0].args).toEqual({ p_ids: [Q1, Q2] }); expect(msg()).toContain('2 questões saíram do banco geral')
+    expect(h.rpcs[0].args).toEqual({ p_ids: [Q1, Q2] }); expect(msg()).toContain('2 questões saíram do banco geral e 5 cópias foram tiradas das outras contas')
+  })
+  it('tirar, antes da 0038: avisa que as cópias ficaram e o que rodar', async () => {
+    h.rpcRes.retirar_do_banco_geral = { data: 1, error: null }
+    await expect(retirarDoBancoGeral(fd({ sel: Q1 }))).rejects.toThrow('REDIRECT')
+    expect(msg()).toContain('0038_retirar_das_contas.sql')
   })
   it('trazer de volta as que a pessoa excluiu: esquece as excluídas e sincroniza de novo', async () => {
     h.rpcRes.sincronizar_banco_geral = { data: { novas: 3, corrigidas: 0 }, error: null }

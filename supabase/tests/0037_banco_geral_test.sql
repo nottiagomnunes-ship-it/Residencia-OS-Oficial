@@ -103,17 +103,47 @@ do $$ begin
 end $$;
 reset role;
 
--- administradora tira a G3 do banco geral: as cópias das contas ficam (como questões próprias)
-select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', false);
+-- conta comum não consegue tirar (a função apaga em outras contas, então confere a administradora)
+select set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', false);
 set role authenticated;
 do $$ begin
-  assert retirar_do_banco_geral(array(select id from banco_questoes where hash = 'g3')) = 1;
+  begin perform retirar_do_banco_geral(array(select id from banco_questoes where hash = 'g1')); assert false; exception when raise_exception then null; end;
+  assert (select count(*) from banco_geral) = 3;
+end $$;
+reset role;
+
+-- (0038) administradora tira a G3 do banco geral: sai também do banco das outras contas; o dela fica
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', false);
+set role authenticated;
+do $$ declare r jsonb; begin
+  r := retirar_do_banco_geral(array(select id from banco_questoes where hash = 'g3'));
+  assert r = '{"geral": 1, "copias": 2}'::jsonb, r::text;
   assert (select count(*) from banco_geral) = 2;
 end $$;
 reset role;
 do $$ begin
-  assert (select count(*) from banco_questoes where hash = 'g3') = 3, 'as cópias continuam';
-  assert (select count(*) from banco_questoes where hash = 'g3' and origem_geral is not null) = 0, 'mas sem ligação';
+  assert (select count(*) from banco_questoes where hash = 'g3') = 1, 'só a da administradora fica';
+  assert (select user_id from banco_questoes where hash = 'g3') = '11111111-1111-1111-1111-111111111111';
+  assert (select count(*) from banco_geral_removidas where geral_id is not null) = (select count(*) from banco_geral_removidas), 'nada solto';
   assert (select count(*) from admins) = 1, 'o Apagar tudo da conta 4444 não mexeu nos administradores';
 end $$;
-select 'OK 0037';
+
+-- (0038) cópia antiga, de uma questão tirada antes da 0038 (sem ligação, fonte "Banco geral"): tirar de novo limpa.
+-- A G2 da 2222 ela mesma tinha importado (não veio do banco geral): continua com ela.
+update banco_questoes set origem_geral = null where hash = 'g1' and user_id = '22222222-2222-2222-2222-222222222222';
+insert into banco_questoes (user_id, hash, blocos, alternativas, fonte)
+  values ('44444444-4444-4444-4444-444444444444', 'propria', '[]', '[]', 'minha'); -- questão própria de outra conta: não pode sumir
+select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', false);
+set role authenticated;
+do $$ declare r jsonb; begin
+  r := retirar_do_banco_geral(array(select id from banco_questoes where hash in ('g1', 'g2')));
+  assert r = '{"geral": 2, "copias": 3}'::jsonb, 'G1: a antiga sem ligação (2222) e a ligada (4444); G2: só a da 4444. ' || r::text;
+end $$;
+reset role;
+do $$ begin
+  assert (select count(*) from banco_questoes where hash = 'g1' and user_id <> '11111111-1111-1111-1111-111111111111') = 0;
+  assert (select count(*) from banco_questoes where hash = 'g2' and user_id = '22222222-2222-2222-2222-222222222222') = 1, 'a que ela importou fica';
+  assert (select count(*) from banco_questoes where hash = 'propria') = 1;
+  assert (select count(*) from banco_geral) = 0;
+end $$;
+select 'OK 0037 + 0038';
