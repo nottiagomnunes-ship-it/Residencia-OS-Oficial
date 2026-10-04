@@ -25,7 +25,8 @@ export default async function Prova({ params, searchParams }: { params: Promise<
       <div className="space-y-1">
         <Link href="/provas" className="text-sm text-muted hover:text-brand">← Provas</Link>
         <h1 className="text-2xl font-semibold">{prova.nome}</h1>
-        <p className="text-sm text-muted">{questoes.length} questões{prova.banca ? ` · ${prova.banca}` : ''}{prova.ano ? ` · ${prova.ano}` : ''}</p>
+        <p className="text-sm text-muted">{questoes.length} questões{prova.banca ? ` · ${prova.banca}` : ''}{prova.ano ? ` · ${prova.ano}` : ''}
+          {prova.tipo === 'prova' && <> · <Link href={`/contato?${new URLSearchParams({ pedir: 'prova', ...(prova.banca ? { banca: prova.banca } : {}), ...(prova.ano ? { ano: String(prova.ano) } : {}) })}#pedir-prova`} className="text-brand underline">Pedir esta prova para o banco de questões</Link></>}</p>
       </div>
       {ok && <AvisoDaUrl tipo="ok" chaves={['ok']}>{ok}</AvisoDaUrl>}
       {erro && <AvisoDaUrl tipo="erro" chaves={['erro']}>{erro}</AvisoDaUrl>}

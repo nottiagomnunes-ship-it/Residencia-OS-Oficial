@@ -25,7 +25,7 @@ export default async function Provas({ searchParams }: { searchParams: Promise<{
       </div>
       {ok && <AvisoDaUrl tipo="ok" chaves={['ok']}>{ok}</AvisoDaUrl>}
       {erro && <AvisoDaUrl tipo="erro" chaves={['erro']}>{erro}</AvisoDaUrl>}
-      <p className="text-sm text-muted">Faça a prova inteira aqui, com cronômetro. Ao entregar, ela é corrigida pelo gabarito, o resultado entra em Simulados e no Desempenho, e o que você errou vai para o Caderno de Erros.</p>
+      <p className="text-sm text-muted">Faça a prova inteira aqui, com cronômetro. Ao entregar, ela é corrigida pelo gabarito, o resultado entra em Simulados e no Desempenho, e o que você errou vai para o Caderno de Erros. A prova que você importa fica só na sua conta; para ela entrar no banco de questões de todo mundo, <Link href="/contato?pedir=prova#pedir-prova" className="text-brand underline">peça a prova</Link>.</p>
       {error && <p className="rounded-2xl border border-warn/40 bg-warn/10 p-4 text-sm text-warn">Para usar as provas, rode <code>supabase/migrations/0028_provas.sql</code> no SQL Editor do Supabase e recarregue a página.</p>}
       <ul className="grid gap-3 lg:grid-cols-2">{(provas ?? []).map(p => {
         const questoes = (qs ?? []).filter(q => q.prova_id === p.id), semGab = questoes.filter(q => !q.anulada && !q.gabarito).length

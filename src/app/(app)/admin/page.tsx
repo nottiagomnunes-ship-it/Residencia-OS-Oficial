@@ -19,9 +19,10 @@ export default async function Pendencias() {
   await sincronizarBancoGeral(sb)
   const contar = (adm: FiltroAdmin) => aplicarFiltroAdmin(sb.from('banco_questoes').select('id', { count: 'exact', head: true }), adm)
   const desde = new Date(Date.now() - 24 * 3600e3).toISOString()
-  const [{ count: total }, { count: nMsgs, error: eMsgs }, { count: nErros }, { data: reportes, error: eRep }, ...cs] = await Promise.all([
+  const [{ count: total }, { count: nMsgs, error: eMsgs }, { count: nPedidos }, { count: nErros }, { data: reportes, error: eRep }, ...cs] = await Promise.all([
     sb.from('banco_questoes').select('id', { count: 'exact', head: true }),
     sb.from('mensagens').select('id', { count: 'exact', head: true }).is('resolvida_em', null),
+    sb.from('mensagens').select('id', { count: 'exact', head: true }).is('resolvida_em', null).eq('tipo', 'prova'),
     sb.from('erros_app').select('id', { count: 'exact', head: true }).gte('criado_em', desde),
     sb.from('explicacao_reportes').select('id,hash,motivo,criado_em').is('resolvido_em', null).order('criado_em').limit(50),
     ...PENDENCIAS.map(p => contar(p.adm)),
@@ -42,7 +43,7 @@ export default async function Pendencias() {
 
       {!eMsgs && (!!nMsgs || !!nErros) && <Link href="/admin/mensagens" className="flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-2xl border border-brand/40 bg-surface p-4 text-sm hover:border-brand">
         <span className="font-medium">Mensagens</span>
-        {!!nMsgs && <span><b className="text-lg text-warn">{nMsgs}</b> em aberto</span>}
+        {!!nMsgs && <span><b className="text-lg text-warn">{nMsgs}</b> em aberto{nPedidos ? ` (${nPedidos} pedido${nPedidos > 1 ? 's' : ''} de prova)` : ''}</span>}
         {!!nErros && <span><b className="text-lg text-danger">{nErros}</b> erro{nErros > 1 ? 's' : ''} do site nas últimas 24 h</span>}
         <span className="ml-auto text-muted">Abrir →</span></Link>}
 

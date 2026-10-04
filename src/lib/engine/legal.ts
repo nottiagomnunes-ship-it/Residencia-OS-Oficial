@@ -7,5 +7,7 @@ export function responsavel(env: Record<string, string | undefined> = process.en
 /** Data da versão atual dos textos (mude quando o conteúdo mudar). */
 export const VERSAO_TERMOS = '04/10/2026'
 
-export const TIPOS_MENSAGEM = { sugestao: 'Sugestão', problema: 'Problema', outro: 'Outro assunto' } as const
+export const TIPOS_MENSAGEM = { sugestao: 'Sugestão', problema: 'Problema', outro: 'Outro assunto', prova: 'Pedido de prova' } as const
+/** Os tipos do formulário geral (o pedido de prova tem formulário próprio). */
+export const TIPOS_DO_FORMULARIO = ['sugestao', 'problema', 'outro'] as const
 export type TipoMensagem = keyof typeof TIPOS_MENSAGEM

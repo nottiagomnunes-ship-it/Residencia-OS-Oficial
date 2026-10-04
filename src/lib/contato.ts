@@ -23,7 +23,37 @@ export async function enviarMensagem(fd: FormData) {
   redirect(aviso('/contato', 'ok', 'Mensagem enviada. Obrigado! A resposta aparece aqui embaixo.'))
 }
 
-/** Administradora: responde (opcional) e marca como resolvida, ou reabre. */
+export type ResultadoPedido = { ok: true } | { ok: false; erro: string } | { ok: false; jaTem: number }
+
+/**
+ * Quem usa: pede que uma prova entre no banco geral (banca, ano e, se tiver, o PDF já enviado ao armazenamento "importacao").
+ * Se o banco já tem questões dessa banca e ano, devolve `jaTem` sem gravar, para a pessoa conferir antes (`confirmado` envia mesmo assim).
+ */
+export async function pedirProva(d: { banca: string; ano?: string | number | null; texto?: string; anexo?: string | null; confirmado?: boolean }): Promise<ResultadoPedido> {
+  const sb = await supabaseServer()
+  const { data: { user } } = await sb.auth.getUser()
+  if (!user) return { ok: false, erro: 'Sua sessão expirou. Entre de novo.' }
+  const banca = String(d.banca ?? '').replace(/\s+/g, ' ').trim().slice(0, 80)
+  const anoTxt = String(d.ano ?? '').trim(), ano = anoTxt ? Number(anoTxt) : null
+  const anexo = d.anexo ? String(d.anexo) : null
+  if (banca.length < 2) return { ok: false, erro: 'Diga a banca (por exemplo, USP-SP, UNIFESP, ENARE).' }
+  if (ano !== null && !(Number.isInteger(ano) && ano >= 1990 && ano <= new Date().getFullYear() + 1)) return { ok: false, erro: 'Confira o ano da prova.' }
+  if (anexo && !new RegExp(`^${user.id}/pedidos/[0-9a-f-]{36}\\.pdf$`).test(anexo)) return { ok: false, erro: 'Não consegui ligar o PDF ao pedido. Envie de novo.' }
+  if (!d.confirmado) {
+    let q = sb.from('banco_questoes').select('id', { count: 'exact', head: true }).ilike('banca', banca.replace(/[%_\\]/g, '\\$&'))
+    if (ano) q = q.eq('ano', ano)
+    const { count } = await q
+    if (count) return { ok: false, jaTem: count }
+  }
+  const texto = String(d.texto ?? '').trim().slice(0, 4000) || `Pedido de prova: ${banca}${ano ? ` ${ano}` : ''}`
+  const { error } = await sb.from('mensagens').insert({ tipo: 'prova', texto: texto.length < 3 ? `Pedido: ${texto}` : texto, banca, ano, anexo })
+  if (error) return { ok: false, erro: /tipo_check|banca|anexo|column/.test(error.message) ? 'Falta atualizar o banco: rode supabase/migrations/0047_pedidos_prova.sql no SQL Editor do Supabase.'
+    : /Muitas mensagens/.test(error.message) ? 'Muitas mensagens em pouco tempo. Tente de novo mais tarde.' : 'Não foi possível enviar. Tente de novo.' }
+  revalidatePath('/contato'); revalidatePath('/admin', 'layout')
+  return { ok: true }
+}
+
+/** Administradora: responde (opcional) e marca como resolvida, ou reabre. Ao resolver um pedido de prova, o PDF anexado é apagado. */
 export async function responderMensagem(fd: FormData) {
   const sb = await supabaseServer()
   const volta = '/admin/mensagens'
@@ -32,8 +62,14 @@ export async function responderMensagem(fd: FormData) {
   const agora = new Date().toISOString()
   const muda = acao === 'reabrir' ? { resolvida_em: null }
     : { resolvida_em: agora, ...(resposta ? { resposta, respondida_em: agora } : {}) }
-  const { error } = await sb.from('mensagens').update(muda).eq('id', id)
+  let anexo: string | null = null
+  if (acao !== 'reabrir') {
+    const { data: m } = await sb.from('mensagens').select('anexo').eq('id', id).maybeSingle()
+    anexo = (m as { anexo?: string | null } | null)?.anexo ?? null
+  }
+  const { error } = await sb.from('mensagens').update(anexo ? { ...muda, anexo: null } : muda).eq('id', id)
   if (error) redirect(aviso(volta, 'erro', 'Não foi possível salvar.'))
+  if (anexo) await sb.storage.from('importacao').remove([anexo]).then(() => {}, () => {})
   revalidatePath('/admin', 'layout')
   redirect(aviso(volta, 'ok', acao === 'reabrir' ? 'Mensagem reaberta.' : resposta ? 'Resposta enviada e mensagem resolvida.' : 'Mensagem marcada como resolvida.'))
 }

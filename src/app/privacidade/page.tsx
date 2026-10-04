@@ -15,8 +15,8 @@ export default function Privacidade() {
       <ul>
         <li><b>Conta:</b> e-mail e senha (a senha é guardada cifrada pelo serviço de autenticação; ninguém consegue lê-la).</li>
         <li><b>Seu estudo:</b> o que você cria e registra no app — data da prova, tempo de estudo por dia, disciplinas, assuntos, cronograma, revisões, compromissos, respostas a questões e provas, caderno de erros, simulados, metas, XP e configurações.</li>
-        <li><b>Arquivos que você envia:</b> PDFs e documentos importados e as figuras das questões.</li>
-        <li><b>Mensagens:</b> o que você envia em Sugestões, com a página de onde veio e o tipo de navegador.</li>
+        <li><b>Arquivos que você envia:</b> PDFs e documentos importados, as figuras das questões e o PDF de um pedido de prova (apagado quando o pedido é atendido).</li>
+        <li><b>Mensagens:</b> o que você envia em Sugestões (inclusive pedidos de prova), com a página de onde veio e o tipo de navegador.</li>
         <li><b>Erros do site:</b> quando uma tela falha, o app registra a mensagem do erro, a página, o navegador e a conta, para a falha poder ser corrigida.</li>
       </ul>
       <p>Não pedimos nome, CPF, telefone nem dados de saúde, e você não deve enviar dados de pacientes.</p>

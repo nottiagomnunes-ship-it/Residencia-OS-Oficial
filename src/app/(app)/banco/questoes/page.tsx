@@ -99,7 +99,7 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
 
 
         <section className="space-y-3">
-          {!total && <p className="rounded-2xl border border-dashed border-line p-6 text-center text-muted">Nenhuma questão com esses filtros.</p>}
+          {!total && <p className="rounded-2xl border border-dashed border-line p-6 text-center text-muted">Nenhuma questão com esses filtros.{f.banca && <> Faltou uma prova? <Link href={`/contato?${new URLSearchParams({ pedir: 'prova', banca: f.banca, ...(f.anoDe && f.anoDe === f.anoAte ? { ano: String(f.anoDe) } : {}) })}#pedir-prova`} className="text-brand underline">Peça a prova</Link>.</>}</p>}
           <ul className="space-y-2">{linhas.map(q => (
               <li key={q.id} className="flex gap-3 rounded-xl border border-line bg-surface p-3 text-sm">
                 <details className="min-w-0 flex-1">
