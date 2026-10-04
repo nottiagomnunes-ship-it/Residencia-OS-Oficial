@@ -47,7 +47,7 @@ export default async function Tentativa({ params, searchParams }: { params: Prom
     return (
       <div className="space-y-6">
         {avisos}
-        <div className="space-y-1"><Link href={prova.tipo === 'lista' ? '/banco' : '/provas'} className="text-sm text-muted hover:text-brand">{prova.tipo === 'lista' ? '← Banco de questões' : '← Provas'}</Link><h1 className="text-2xl font-semibold">{prova.nome}: prova entregue</h1></div>
+        <div className="space-y-1"><Link href={prova.tipo === 'lista' ? '/banco' : '/provas'} className="text-sm text-muted hover:text-brand">{prova.tipo === 'lista' ? '← Praticar' : '← Provas'}</Link><h1 className="text-2xl font-semibold">{prova.nome}: prova entregue</h1></div>
         <form action={salvarGabarito} className="space-y-3 rounded-2xl border border-line bg-surface p-5">
           <input type="hidden" name="prova" value={prova.id} /><input type="hidden" name="tentativa" value={id} />
           <p>Para corrigir, falta o gabarito {falta.length === questoes.length ? 'da prova' : <>das questões <b>{faixas(falta)}</b></>}. Cole abaixo (o que já existe aparece no campo).</p>
@@ -84,7 +84,7 @@ export default async function Tentativa({ params, searchParams }: { params: Prom
     <div className="space-y-6">
       {avisos}
       {ok === 'corrigida' && <AvisoDaUrl tipo="ok" chaves={['ok']}>Prova corrigida: {acertos}/{total} ({p}%). {itens.length} {itens.length === 1 ? 'questão foi' : 'questões foram'} para o Caderno de Erros.</AvisoDaUrl>}
-      <div className="space-y-1"><Link href={prova.tipo === 'lista' ? '/banco' : '/provas'} className="text-sm text-muted hover:text-brand">{prova.tipo === 'lista' ? '← Banco de questões' : '← Provas'}</Link><h1 className="text-2xl font-semibold">{prova.nome}: resultado</h1></div>
+      <div className="space-y-1"><Link href={prova.tipo === 'lista' ? '/banco' : '/provas'} className="text-sm text-muted hover:text-brand">{prova.tipo === 'lista' ? '← Praticar' : '← Provas'}</Link><h1 className="text-2xl font-semibold">{prova.nome}: resultado</h1></div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {card('Acertos', `${acertos}/${total}`, `${p}%`)}{card('Tempo', relogio(t.tempo_seg), total ? `${Math.round(t.tempo_seg / total / 6) / 10} min por questão` : undefined)}
         {card('Em branco', String(c.brancos))}{card('Acertos no chute', String(c.chutesCertos), c.anuladas ? `${c.anuladas} anulada(s) fora da conta` : undefined)}

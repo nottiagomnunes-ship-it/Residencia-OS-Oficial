@@ -2,12 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 type Op = { t: string; tipo: string; dados?: any; filtros: string[] }
-const h = vi.hoisted(() => ({ dados: {} as Record<string, any>, ops: [] as Op[], redirects: [] as string[] }))
+const h = vi.hoisted(() => ({ dados: {} as Record<string, any>, ops: [] as Op[], redirects: [] as string[], filtros: [] as string[] }))
 const cadeia = (t: string) => {
   const op: Op = { t, tipo: 'select', filtros: [] }
   const r: any = {}
   for (const m of ['select', 'order', 'limit', 'range', 'not', 'neq', 'or']) r[m] = () => r
-  for (const m of ['eq', 'in', 'is']) r[m] = (...a: any[]) => { op.filtros.push(`${m}(${a.map(x => (Array.isArray(x) ? x.join('|') : String(x))).join(',')})`); return r }
+  for (const m of ['eq', 'in', 'is']) r[m] = (...a: any[]) => { op.filtros.push(`${m}(${a.map(x => (Array.isArray(x) ? x.join('|') : String(x))).join(',')})`); h.filtros.push(`${t}.${op.filtros.at(-1)}`); return r }
   r.update = (d: any) => { op.tipo = 'update'; op.dados = d; h.ops.push(op); return r }
   r.insert = (d: any) => { op.tipo = 'insert'; op.dados = d; h.ops.push(op); return r }
   r.delete = () => { op.tipo = 'delete'; h.ops.push(op); return r }
@@ -28,13 +28,14 @@ vi.mock('next/navigation', () => ({ redirect: (u: string) => { h.redirects.push(
 
 import { definirAssuntoDoBanco, definirAssuntoEmLote, sugerirAssuntosDoBanco } from './banco'
 import AssuntoDaQuestao from '@/components/banco/AssuntoDaQuestao'
-import Banco from '@/app/(app)/banco/page'
+import Banco from '@/app/(app)/banco/questoes/page'
+import PraticarInicio from '@/app/(app)/banco/page'
 
 const Q1 = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', Q2 = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
 const DISC = 'dddddddd-dddd-dddd-dddd-dddddddddddd', TOP = 'tttttttt-tttt-tttt-tttt-tttttttttttt'.replace(/t/g, 'e')
 const fd = (o: Record<string, string | string[]>) => { const f = new FormData(); for (const [k, v] of Object.entries(o)) for (const x of [v].flat()) f.append(k, x); return f }
 const updates = () => h.ops.filter(o => o.t === 'banco_questoes' && o.tipo === 'update')
-beforeEach(() => { h.dados = {}; h.ops = []; h.redirects = [] })
+beforeEach(() => { h.dados = {}; h.ops = []; h.redirects = []; h.filtros = [] })
 
 describe('definir o assunto das questões do banco', () => {
   it('com um assunto de Matérias: liga a questão a ele e à disciplina dele', async () => {
@@ -83,7 +84,7 @@ describe('em lote (lista do banco)', () => {
   })
   it('sem escolha ou sem marcar: avisa; "volta" de fora do banco é ignorada', async () => {
     await expect(definirAssuntoEmLote(fd({ sel: Q1, alvo: '', volta: 'https://outro.site' }))).rejects.toThrow('REDIRECT')
-    expect(h.redirects[0]).toMatch(/^\/banco\?erro=/)
+    expect(h.redirects[0]).toMatch(/^\/banco\/questoes\?erro=/)
     await expect(definirAssuntoEmLote(fd({ alvo: 'nenhum', volta: '/banco' }))).rejects.toThrow('REDIRECT')
     expect(decodeURIComponent(h.redirects[1])).toContain('Nenhuma questão escolhida')
     expect(updates()).toEqual([])
@@ -123,8 +124,24 @@ describe('telas', () => {
     h.dados.topics = [{ id: TOP, nome: 'Anestésicos locais', discipline_id: DISC }]
     const html = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({ ok: 'Assunto salvo em 1 questão.' }) }))
     expect(html).toMatch(new RegExp(`<input type="checkbox" form="lote"[^>]*name="sel" value="${Q1}"`))
-    expect(html).toContain('name="volta" value="/banco"')
+    expect(html).toContain('name="volta" value="/banco/questoes"')
     expect(html).toContain('id="lote"'); expect(html).toContain('Sugerir pelo texto'); expect(html).toContain('1 questão sem assunto')
     expect(html).toContain('Assunto da questão')
+  })
+  it('filtro "Sem assunto": pega só as questões sem assunto', async () => {
+    await Banco({ searchParams: Promise.resolve({ assunto: '(sem assunto)' }) })
+    expect(h.filtros).toContain('banco_questoes.is(assunto,null)'); expect(h.filtros.some(x => x.startsWith('banco_questoes.eq(assunto'))).toBe(false)
+  })
+  it('Praticar: só o começo do estudo, com o link para organizar no Banco (sem a lista de questões)', async () => {
+    h.dados.banco_questoes = [{ discipline_id: DISC, assunto: null, banca: null, vezes: 0, acertos: 0, gabarito: 'A', anulada: false }]
+    h.dados.disciplines = [{ id: DISC, nome: 'Anestesiologia' }]
+    const html = renderToStaticMarkup(await PraticarInicio({ searchParams: Promise.resolve({}) }))
+    expect(html).toContain('O que você quer praticar?'); expect(html).toContain('formAction="/banco/praticar"')
+    expect(html).toContain('href="/banco/questoes?assunto=(sem%20assunto)"'); expect(html).toContain('1 questão está sem assunto')
+    expect(html).not.toContain('name="sel"'); expect(html).not.toContain('Sugerir pelo texto')
+  })
+  it('Praticar com o banco vazio: leva a importar', async () => {
+    const html = renderToStaticMarkup(await PraticarInicio({ searchParams: Promise.resolve({}) }))
+    expect(html).toContain('href="/banco/importar"'); expect(html).not.toContain('O que você quer praticar?')
   })
 })

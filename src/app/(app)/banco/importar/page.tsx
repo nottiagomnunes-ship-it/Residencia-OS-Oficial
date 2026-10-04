@@ -11,7 +11,7 @@ export default async function Importar() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <Link href="/banco" className="text-sm text-muted hover:text-brand">← Banco de questões</Link>
+        <Link href="/banco/questoes" className="text-sm text-muted hover:text-brand">← Banco de questões</Link>
         <h1 className="text-2xl font-semibold">Importar questões</h1>
         <p className="text-muted">PDF ou .docx de questões (com o gabarito no fim, se houver) ou um pacote .json preparado para o app. Nada é gravado antes de você conferir a prévia.</p>
       </div>

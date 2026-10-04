@@ -12,7 +12,7 @@ describe('o app em 5 seções', () => {
   })
   it('as abas de cada seção', () => {
     expect(SECOES.map(s => s.abas.map(([n]) => n))).toEqual([
-      ['Hoje', 'Revisões'], ['Calendário', 'Plano', 'Meu tempo', 'Compromissos'], ['Praticar', 'Provas', 'Registrar', 'Erros'],
+      ['Hoje', 'Revisões'], ['Calendário', 'Plano', 'Meu tempo', 'Compromissos'], ['Praticar', 'Banco', 'Provas', 'Registrar', 'Erros'],
       ['Disciplinas', 'Assuntos'], ['Desempenho', 'Metas', 'Simulados']])
   })
   it('toda aba leva a uma página que existe, e nenhuma aparece duas vezes', () => {
@@ -30,7 +30,8 @@ describe('onde a pessoa está', () => {
   it('páginas internas acendem a seção e a aba certas', () => {
     expect(onde('/inicio')).toBe('Hoje › /inicio'); expect(onde('/revisoes')).toBe('Hoje › /revisoes')
     expect(onde('/importar')).toBe('Agenda › /cronograma')                         // importar o plano mora em "Plano de estudo"
-    expect(onde('/banco/praticar')).toBe('Questões › /banco'); expect(onde('/banco/importar')).toBe('Questões › /banco')
+    expect(onde('/banco/praticar')).toBe('Questões › /banco'); expect(onde('/banco/importar')).toBe('Questões › /banco/questoes')
+    expect(onde('/banco/questoes')).toBe('Questões › /banco/questoes'); expect(onde('/banco')).toBe('Questões › /banco')
     expect(onde('/provas/tentativa/abc')).toBe('Questões › /provas')
     expect(onde('/conteudos/abc')).toBe('Matérias › /conteudos'); expect(onde('/disciplinas/x')).toBe('Matérias › /disciplinas')
     expect(onde('/simulados')).toBe('Progresso › /simulados')

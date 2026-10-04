@@ -135,6 +135,8 @@ export function validarLote(v: unknown, uid: string): { ok: true; questoes: Ques
 
 export type Situacao = 'todas' | 'nunca' | 'errei' | 'acertei'
 export type Filtros = { area: Area | null; disciplina: string | null; assunto: string | null; topico: string | null; banca: string | null; situacao: Situacao; busca: string }
+/** Valor do filtro de assunto que pega as questões SEM assunto. */
+export const SEM_ASSUNTO = '(sem assunto)'
 export function lerFiltros(sp: Record<string, string | undefined>): Filtros {
   const s = sp.situacao
   return {

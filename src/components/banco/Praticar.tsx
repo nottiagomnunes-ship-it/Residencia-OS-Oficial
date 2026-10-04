@@ -50,7 +50,7 @@ export default function Praticar({ filtros, titulo, inicial, total, assuntos = [
   const pct = placar.feitas ? Math.round((placar.certas / placar.feitas) * 100) : null
   const topo = (
     <header className="flex flex-wrap items-center gap-x-4 gap-y-1">
-      <div className="min-w-0 flex-1"><Link href="/banco" className="text-sm text-muted hover:text-brand">← Banco de questões</Link><h1 className="truncate text-xl font-semibold">Praticar: {titulo}</h1></div>
+      <div className="min-w-0 flex-1"><Link href="/banco" className="text-sm text-muted hover:text-brand">← Praticar</Link><h1 className="truncate text-xl font-semibold">Praticar: {titulo}</h1></div>
       <p className="text-sm" aria-live="polite">{placar.feitas ? <><b>{placar.certas} de {placar.feitas}</b> <span className={pct! >= 70 ? 'text-brand' : pct! >= 50 ? 'text-warn' : 'text-danger'}>· {pct}%</span></> : <span className="text-muted">Nenhuma respondida ainda</span>}</p>
     </header>)
 

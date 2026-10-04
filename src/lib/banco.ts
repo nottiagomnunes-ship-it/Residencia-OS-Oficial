@@ -15,7 +15,7 @@ async function ctx() {
   return { sb, uid: user.id }
 }
 /** Para onde voltar depois de um formulário da lista do banco: só para a própria página (com os filtros), nunca para fora do app. */
-const voltaDoBanco = (fd: FormData) => { const v = String(fd.get('volta') || ''); return /^\/banco(\?[^\s]*)?$/.test(v) ? v : '/banco' }
+const voltaDoBanco = (fd: FormData) => { const v = String(fd.get('volta') || ''); return /^\/banco(\/questoes)?(\?[^\s]*)?$/.test(v) ? v : '/banco/questoes' }
 const SEM_TABELA = 'Falta atualizar o banco: rode supabase/migrations/0034_banco_questoes.sql no SQL Editor do Supabase.'
 const semTabela = (e: { code?: string; message?: string } | null) => !!e && (e.code === '42P01' || e.code === 'PGRST205' || e.code === 'PGRST202' || /does not exist|schema cache/i.test(e.message ?? ''))
 const refresh = () => ['/banco', '/questoes', '/desempenho', '/caderno-de-erros', '/inicio'].forEach(p => revalidatePath(p, 'layout'))

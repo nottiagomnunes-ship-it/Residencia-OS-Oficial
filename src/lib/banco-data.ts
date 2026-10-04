@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Filtros } from './engine/banco'
+import { SEM_ASSUNTO, type Filtros } from './engine/banco'
 import { ehLetra, type Alternativa, type Bloco } from './engine/provas'
 import { BUCKET } from './provas-data'
 
@@ -15,7 +15,8 @@ export function aplicarFiltros<Q>(q: Q, f: Filtros, topico: { id: string; nome: 
   let x = q as any
   if (f.area) x = x.eq('area', f.area)
   if (f.disciplina) x = x.eq('discipline_id', f.disciplina)
-  if (f.assunto) x = x.eq('assunto', f.assunto)
+  if (f.assunto === SEM_ASSUNTO) x = x.is('assunto', null)
+  else if (f.assunto) x = x.eq('assunto', f.assunto)
   if (topico) x = x.or(`topic_id.eq.${topico.id},and(discipline_id.eq.${topico.discipline_id},assunto.eq."${topico.nome.replace(/["\\]/g, '')}")`)
   if (f.banca) x = x.eq('banca', f.banca)
   if (f.situacao === 'nunca') x = x.eq('vezes', 0)
