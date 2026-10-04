@@ -46,6 +46,7 @@ export default async function Revisoes({ searchParams }: { searchParams: Promise
             : 'Nada para refazer hoje.'}{refazer.semana ? ` Nos próximos 7 dias: ${refazer.semana}.` : ''} Cada questão que você erra volta em 1 dia; acertando, em 7 e depois em 30 dias.</p>
         </div>
         {refazer.hoje > 0 && <Link href="/banco/praticar?revisao=1" className="rounded-xl bg-brand px-5 py-2.5 font-medium text-black">Refazer agora ({refazer.hoje}) →</Link>}
+        <Link href="/caderno-de-erros" className="text-sm text-muted hover:text-brand">Ver os erros no Caderno</Link>
       </section>}
       {!itens.length && <p className="rounded-2xl border border-dashed border-line p-8 text-center text-muted">Nenhuma revisão pendente. Conclua um conteúdo em Matérias → Assuntos para gerar as primeiras.</p>}
       {grupos.filter(g => g.lista.length).map(g => (

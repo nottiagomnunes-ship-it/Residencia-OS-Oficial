@@ -43,6 +43,7 @@ import EditarQuestao from '@/app/(app)/admin/questoes/[id]/page'
 import BarraDoLote from '@/components/admin/BarraDoLote'
 import Banco from '@/app/(app)/banco/questoes/page'
 import Desempenho from '@/app/(app)/desempenho/page'
+import Caderno from '@/app/(app)/caderno-de-erros/page'
 
 const Q1 = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', Q0 = '00000000-aaaa-aaaa-aaaa-aaaaaaaaaaaa', Q2 = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
 const fd = (o: Record<string, string | string[]>) => { const f = new FormData(); for (const [k, v] of Object.entries(o)) for (const x of [v].flat()) f.append(k, x); return f }
@@ -214,5 +215,35 @@ describe('Desempenho por tema', () => {
     expect(html).toContain('Banco de questões por tema')
     expect(html.indexOf('Hipertermia maligna')).toBeLessThan(html.indexOf('Via aérea difícil'))
     expect(html).toMatch(/33%.*\(2\/6\)/); expect(html).toContain(`href="/banco/praticar?assunto=${encodeURIComponent(`tema:${T2}`)}"`)
+  })
+})
+
+describe('Caderno de Erros ligado ao banco', () => {
+  const T1 = '7e000000-0000-0000-0000-000000000001', E1 = 'e1000000-0000-0000-0000-000000000001', E2 = 'e2000000-0000-0000-0000-000000000002'
+  const montar = () => {
+    h.resp = (t, f, c) => {
+      if (t === 'error_notebook' && c === 'id,banco_questao_id') return { data: [{ id: E1, banco_questao_id: Q1 }], error: null }
+      if (t === 'error_notebook') return { data: [{ id: E1, motivo: 'falta_conteudo', enunciado: 'UFMA 2024 · ECG com QRS largo', revisado: false, revisar_em: null },
+        { id: E2, motivo: 'falta_atencao', enunciado: 'Anotado à mão', revisado: false, revisar_em: '2026-12-01', disciplines: { nome: 'Pediatria' } }], error: null }
+      if (t === 'temas') return { data: [{ id: T1, area: 'clinica', especialidade: 'Cardiologia', nome: 'Taquicardia ventricular', palavras: null }], error: null }
+      if (t === 'banco_questoes') return { data: [{ id: Q1, blocos: [{ tipo: 'imagem', caminho: 'geral/ecg.webp' }, { tipo: 'texto', texto: 'ECG' }], tema_id: T1 }], error: null }
+      if (t === 'revisao_questoes' && c === 'questao_id,etapa,proxima') return { data: [{ questao_id: Q1, etapa: 1, proxima: '2099-01-10' }], error: null }
+      if (t === 'revisao_questoes') return { data: null, count: 2, error: null }
+      return { data: [], error: null }
+    }
+  }
+  it('erro do banco: tema, figura, onde está na fila e "Refazer esta questão"; bloco "Refazer as erradas" no topo', async () => {
+    montar()
+    const html = renderToStaticMarkup(await Caderno({ searchParams: Promise.resolve({}) }))
+    expect(html).toContain('Taquicardia ventricular'); expect(html).toContain('src="https://x/geral/ecg.webp"')
+    expect(html).toContain('Volta para refazer em 10/01'); expect(html).toContain(`href="/banco/praticar?questao=${Q1}"`)
+    expect(html).toContain('Refazer as erradas'); expect(html).toContain('Refazer agora (')
+    expect(html).toContain('Anotado à mão'); expect(html).toContain('Revisar em 01/12') // o anotado à mão continua igual
+  })
+  it('filtrar por tema mostra só os erros das questões daquele tema', async () => {
+    montar()
+    const html = renderToStaticMarkup(await Caderno({ searchParams: Promise.resolve({ t: T1 }) }))
+    expect(html).toContain('UFMA 2024 · ECG com QRS largo'); expect(html).not.toContain('Anotado à mão')
+    expect(html).toContain(`<option value="${T1}" selected="">Taquicardia ventricular · Cardiologia (1)</option>`)
   })
 })

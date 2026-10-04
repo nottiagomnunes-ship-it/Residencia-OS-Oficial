@@ -106,7 +106,7 @@ describe('conferência no servidor', () => {
 describe('filtros e listas', () => {
   it('filtros vindos da URL são conferidos; a URL leva só o que está preenchido', () => {
     const f = lerFiltros({ area: 'cirurgia', disciplina: 'nao-e-uuid', situacao: 'errei', banca: ' UFMA ' })
-    expect(f).toEqual({ area: 'cirurgia', disciplina: null, assunto: null, topico: null, banca: 'UFMA', situacao: 'errei', busca: '', anoDe: null, anoAte: null, revisao: false, tema: null })
+    expect(f).toEqual({ area: 'cirurgia', disciplina: null, assunto: null, topico: null, banca: 'UFMA', situacao: 'errei', busca: '', anoDe: null, anoAte: null, revisao: false, tema: null, questao: null })
     expect(filtrosParaUrl(f)).toBe('area=cirurgia&banca=UFMA&situacao=errei')
     expect(lerFiltros({ area: 'x', situacao: 'y' })).toMatchObject({ area: null, situacao: 'todas' })
   })
@@ -162,5 +162,13 @@ describe('tema escrito e exportar/importar de volta', () => {
     expect(lido.itens[0]).toMatchObject({ gabarito: 'A', banca: 'UFMA', ano: 2020, comentario: 'meu', tema: { especialidade: 'Anestesiologia', nome: 'Hipertermia maligna' } })
     const p2 = pacoteDoBanco([{ blocos, alternativas, gabarito: 'A', anulada: false, banca: null, ano: null, explicacao: 'Dantrolene é o tratamento.', explicacao_origem: 'revisada' }], 't')
     expect(lerPacote2(JSON.parse(JSON.stringify(p2))).itens[0].explicacao).toEqual({ texto: 'Dantrolene é o tratamento.', origem: 'revisada' })
+  })
+})
+
+describe('uma questão só ("Refazer esta questão", do Caderno)', () => {
+  it('o filtro "questao" só aceita id válido e volta igual na URL', () => {
+    const id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+    expect(lerFiltros({ questao: id }).questao).toBe(id); expect(lerFiltros({ questao: 'x; drop' }).questao).toBeNull()
+    expect(filtrosParaUrl(lerFiltros({ questao: id }))).toBe(`questao=${id}`)
   })
 })

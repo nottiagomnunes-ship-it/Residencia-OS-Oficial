@@ -14,7 +14,7 @@ export default async function PraticarPage({ searchParams }: { searchParams: Pro
     f.disciplina ? sb.from('disciplines').select('nome').eq('id', f.disciplina).maybeSingle().then(r => r.data?.nome as string | undefined) : Promise.resolve(undefined),
     f.tema ? sb.from('temas').select('nome').eq('id', f.tema).maybeSingle().then(r => r.data?.nome as string | undefined) : Promise.resolve(undefined),
   ])
-  const titulo = f.revisao ? 'refazer as erradas' : [f.area ? ROTULO_AREA[f.area] : null, disc, tema ?? topico?.nome ?? (f.assunto === SEM_ASSUNTO ? 'sem assunto' : f.assunto), f.banca, rotuloDosAnos(f),
+  const titulo = f.questao ? 'refazer esta questão' : f.revisao ? 'refazer as erradas' : [f.area ? ROTULO_AREA[f.area] : null, disc, tema ?? topico?.nome ?? (f.assunto === SEM_ASSUNTO ? 'sem assunto' : f.assunto), f.banca, rotuloDosAnos(f),
     f.situacao === 'nunca' ? 'nunca feitas' : f.situacao === 'errei' ? 'que errei' : f.situacao === 'acertei' ? 'que acertei' : null].filter(Boolean).join(' · ') || 'todas as questões'
   return (
     <>

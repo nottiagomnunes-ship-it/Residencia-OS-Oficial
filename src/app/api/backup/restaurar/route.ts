@@ -49,6 +49,13 @@ export async function POST(req: Request) {
 
   if (String(form.get('confirmacao') ?? '').trim().toUpperCase() !== PALAVRA_DE_CONFIRMACAO) return resposta({ erro: `Digite ${PALAVRA_DE_CONFIRMACAO} para confirmar.` }, 400)
   const preparado = prepararRestauracao(v.backup)
+  // erros ligados a uma questão do banco (0045): o banco de questões não faz parte do backup; se a questão não existe mais, o erro volta sem a ligação
+  const erros = (preparado.dados as Record<string, Record<string, unknown>[] | undefined>).error_notebook
+  if (erros?.some(e => e.banco_questao_id)) {
+    const { data: qs } = await sb.from('banco_questoes').select('id').limit(50000)
+    const existe = new Set(((qs ?? []) as { id: string }[]).map(q => q.id))
+    for (const e of erros) if (e.banco_questao_id && !existe.has(String(e.banco_questao_id))) e.banco_questao_id = null
+  }
   const copia = await montarCopiaDeSeguranca(sb, user)
   const { data, error } = await sb.rpc('restaurar_backup', { p_dados: preparado.dados, p_perfil: preparado.perfil, p_snapshot: copia })
   if (error) return resposta({ erro: 'Não foi possível restaurar. Nada foi alterado.', detalhe: String(error.message).slice(0, 240) }, 500)
