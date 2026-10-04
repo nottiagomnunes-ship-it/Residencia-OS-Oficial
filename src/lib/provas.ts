@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
 import { hojeBR } from '@/lib/dates'
 import { xpSimulado } from '@/lib/engine/simulados'
+import { xpQuestoes } from '@/lib/engine/questoes'
 import { ehArea } from '@/lib/engine/areas'
 import { MOTIVOS } from '@/lib/engine/questoes'
 import {
@@ -138,7 +139,9 @@ async function corrigirTentativa(tentativa: string): Promise<string> {
     const q = porId.get(i.id)!
     return [i.id, textoParaCaderno(dados.prova.nome, { numero: q.numero, alternativas: q.alternativas, blocos: q.blocos.map(b => (b.tipo === 'imagem' ? { tipo: 'imagem' as const, caminho: b.caminho } : b)) }, i.alternativa, i.gabarito)]
   }))
-  const { error } = await sb.rpc('corrigir_tentativa', { p_tentativa: tentativa, p_dia: hojeBR(), p_xp: xpSimulado(c.total, c.acertos), p_total: c.total, p_acertos: c.acertos, p_textos: textos })
+  // lista do banco: o resultado vai para as questões (Desempenho por assunto) com o XP de "Registrar questões"; prova: para Simulados
+  const lista = dados.prova.tipo === 'lista'
+  const { error } = await sb.rpc(lista ? 'corrigir_lista' : 'corrigir_tentativa', { p_tentativa: tentativa, p_dia: hojeBR(), p_xp: lista ? xpQuestoes(c.total, c.acertos) : xpSimulado(c.total, c.acertos), p_total: c.total, p_acertos: c.acertos, p_textos: textos })
   if (error) return /mudou/.test(error.message) ? 'O gabarito mudou durante a correção. Recarregue a página e tente de novo.' : 'Não foi possível corrigir. Nada foi gravado; tente de novo.'
   await carregarGamificacao(sb, hojeBR()).catch(() => {})
   return 'ok'
@@ -179,7 +182,9 @@ export async function excluirProva(fd: FormData) {
   const id = String(fd.get('prova'))
   if (!ehUuid(id)) redirect('/provas')
   const { data: qs } = await sb.from('prova_questoes').select('blocos').eq('prova_id', id)
-  const figuras = caminhosDasFiguras(qs ?? [])
+  // só as figuras desta prova (numa lista do banco, as figuras são do banco e continuam lá)
+  const { data: { user } } = await sb.auth.getUser()
+  const figuras = caminhosDasFiguras(qs ?? []).filter(c => c.startsWith(`${user?.id}/${id}/`))
   const { error } = await sb.from('provas').delete().eq('id', id)
   if (error) redirect(com(`/provas/${id}`, 'erro', 'Não foi possível excluir a prova.'))
   if (figuras.length) await sb.storage.from(BUCKET).remove(figuras)

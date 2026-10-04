@@ -9,7 +9,9 @@ import AvisoDaUrl from '@/components/AvisoDaUrl'
 export default async function Provas({ searchParams }: { searchParams: Promise<{ ok?: string; erro?: string }> }) {
   const { ok, erro } = await searchParams
   const sb = await supabaseServer()
-  const { data: provas, error } = await sb.from('provas').select('id,nome,banca,ano,criada_em').order('criada_em', { ascending: false })
+  // só as provas (as listas do banco de questões ficam na página do banco); sem a 0034, o campo "tipo" não existe e vêm todas
+  let { data: provas, error } = await sb.from('provas').select('id,nome,banca,ano,criada_em').eq('tipo', 'prova').order('criada_em', { ascending: false })
+  if (error) ({ data: provas, error } = await sb.from('provas').select('id,nome,banca,ano,criada_em').order('criada_em', { ascending: false }))
   const [{ data: qs }, { data: ts }] = await Promise.all([
     sb.from('prova_questoes').select('prova_id,gabarito,anulada').limit(20000),
     sb.from('prova_tentativas').select('id,prova_id,status,tempo_seg,atual,total,acertos,corrigida_em,iniciada_em').order('iniciada_em', { ascending: false }),

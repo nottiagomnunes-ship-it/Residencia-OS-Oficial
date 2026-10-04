@@ -10,6 +10,7 @@ import { Enunciado } from './Enunciado'
 export type ItemCorrecao = {
   erroId: string; numero: number; situacao: Situacao; chute: boolean; alternativa: Letra | null; gabarito: Letra | null
   motivo: Motivo | null; alvo: string; blocos: BlocoNaTela[]; alternativas: Alternativa[]
+  comentario?: string | null; gabaritoIA?: boolean
 }
 type Ds = { id: string; nome: string; area?: string | null }[]
 type Ts = { id: string; nome: string; discipline_id: string }[]
@@ -35,6 +36,8 @@ function Item({ i, ds, ts }: { i: ItemCorrecao; ds: Ds; ts: Ts }) {
         <Enunciado blocos={i.blocos} numero={i.numero} />
         <ul className="space-y-1">{i.alternativas.map(a => (
           <li key={a.letra} className={`rounded-lg px-2 py-1 ${a.letra === i.gabarito ? 'bg-brand/15 text-brand' : a.letra === i.alternativa ? 'bg-danger/10 text-danger' : ''}`}><b>{a.letra})</b> {a.texto}</li>))}</ul>
+        {i.gabaritoIA && <p className="text-xs text-warn">Gabarito sugerido pela IA, não oficial: confira.</p>}
+        {i.comentario && <p className="whitespace-pre-line rounded-lg bg-line/40 p-3 text-muted">{i.comentario}</p>}
       </div>}
       <fieldset>
         <legend className="mb-2 text-sm text-muted">Por que você errou?</legend>

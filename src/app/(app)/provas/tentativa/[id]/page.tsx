@@ -47,7 +47,7 @@ export default async function Tentativa({ params, searchParams }: { params: Prom
     return (
       <div className="space-y-6">
         {avisos}
-        <div className="space-y-1"><Link href="/provas" className="text-sm text-muted hover:text-brand">← Provas</Link><h1 className="text-2xl font-semibold">{prova.nome}: prova entregue</h1></div>
+        <div className="space-y-1"><Link href={prova.tipo === 'lista' ? '/banco' : '/provas'} className="text-sm text-muted hover:text-brand">{prova.tipo === 'lista' ? '← Banco de questões' : '← Provas'}</Link><h1 className="text-2xl font-semibold">{prova.nome}: prova entregue</h1></div>
         <form action={salvarGabarito} className="space-y-3 rounded-2xl border border-line bg-surface p-5">
           <input type="hidden" name="prova" value={prova.id} /><input type="hidden" name="tentativa" value={id} />
           <p>Para corrigir, falta o gabarito {falta.length === questoes.length ? 'da prova' : <>das questões <b>{faixas(falta)}</b></>}. Cole abaixo (o que já existe aparece no campo).</p>
@@ -76,7 +76,7 @@ export default async function Tentativa({ params, searchParams }: { params: Prom
     if (!e) return []
     return [{ erroId: e.id, numero: i.numero, situacao: i.situacao, chute: i.chute, alternativa: i.alternativa, gabarito: i.gabarito,
       motivo: e.motivo && e.motivo in MOTIVOS ? (e.motivo as Motivo) : null, alvo: e.topic_id ? `t:${e.topic_id}` : e.discipline_id ? `d:${e.discipline_id}` : '',
-      blocos: q.blocos, alternativas: q.alternativas }]
+      blocos: q.blocos, alternativas: q.alternativas, comentario: q.comentario ?? null, gabaritoIA: !!q.gabaritoIA }]
   })
   const semMotivo = itens.filter(i => !i.motivo).length
   const card = (l: string, v: string, s?: string) => <div className="rounded-2xl border border-line bg-surface p-4"><p className="text-sm text-muted">{l}</p><p className="mt-1 text-2xl font-semibold">{v}</p>{s && <p className="text-xs text-muted">{s}</p>}</div>
@@ -84,7 +84,7 @@ export default async function Tentativa({ params, searchParams }: { params: Prom
     <div className="space-y-6">
       {avisos}
       {ok === 'corrigida' && <AvisoDaUrl tipo="ok" chaves={['ok']}>Prova corrigida: {acertos}/{total} ({p}%). {itens.length} {itens.length === 1 ? 'questão foi' : 'questões foram'} para o Caderno de Erros.</AvisoDaUrl>}
-      <div className="space-y-1"><Link href="/provas" className="text-sm text-muted hover:text-brand">← Provas</Link><h1 className="text-2xl font-semibold">{prova.nome}: resultado</h1></div>
+      <div className="space-y-1"><Link href={prova.tipo === 'lista' ? '/banco' : '/provas'} className="text-sm text-muted hover:text-brand">{prova.tipo === 'lista' ? '← Banco de questões' : '← Provas'}</Link><h1 className="text-2xl font-semibold">{prova.nome}: resultado</h1></div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {card('Acertos', `${acertos}/${total}`, `${p}%`)}{card('Tempo', relogio(t.tempo_seg), total ? `${Math.round(t.tempo_seg / total / 6) / 10} min por questão` : undefined)}
         {card('Em branco', String(c.brancos))}{card('Acertos no chute', String(c.chutesCertos), c.anuladas ? `${c.anuladas} anulada(s) fora da conta` : undefined)}
@@ -116,10 +116,12 @@ export default async function Tentativa({ params, searchParams }: { params: Prom
             <Enunciado blocos={q.blocos} numero={q.numero} />
             <ul className="space-y-1">{q.alternativas.map(a => (
               <li key={a.letra} className={`rounded-lg px-2 py-1 ${a.letra === i.gabarito ? 'bg-brand/15 text-brand' : a.letra === i.alternativa ? 'bg-danger/10 text-danger' : ''}`}><b>{a.letra})</b> {a.texto}</li>))}</ul>
+            {q.gabaritoIA && <p className="text-xs text-warn">Gabarito sugerido pela IA, não oficial: confira.</p>}
+            {q.comentario && <p className="whitespace-pre-line rounded-lg bg-line/40 p-3 text-muted">{q.comentario}</p>}
           </li>) })}</ol>
       </details>
       <div className="flex flex-wrap gap-2">
-        <form action={iniciarTentativa}><input type="hidden" name="prova" value={prova.id} /><button className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">Refazer a prova</button></form>
+        <form action={iniciarTentativa}><input type="hidden" name="prova" value={prova.id} /><button className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">{prova.tipo === 'lista' ? 'Refazer a lista' : 'Refazer a prova'}</button></form>
         <Link href="/caderno-de-erros" className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">Abrir o Caderno de Erros</Link>
         {t.mock_exam_id && <Link href="/simulados" className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">Ver em Simulados</Link>}
       </div>

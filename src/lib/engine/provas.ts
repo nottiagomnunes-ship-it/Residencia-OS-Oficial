@@ -7,7 +7,7 @@ export const ehLetra = (v: unknown): v is Letra => typeof v === 'string' && (LET
 
 export type Bloco = { tipo: 'texto'; texto: string } | { tipo: 'imagem'; caminho: string }
 export type Alternativa = { letra: Letra; texto: string }
-export type QuestaoLida = { numero: number; blocos: Bloco[]; alternativas: Alternativa[] }
+export type QuestaoLida = { numero: number; blocos: Bloco[]; alternativas: Alternativa[]; anulada?: boolean }
 export type ProvaLida = { titulo: string | null; questoes: QuestaoLida[]; gabaritoTexto: string | null; avisos: string[] }
 
 // "QUESTÃO 01", "Questão 1 -", "QUESTAO Nº 12:" (o que vier depois do número na mesma linha já é o enunciado)
@@ -48,7 +48,9 @@ export function montarQuestoes(paragrafos: Paragrafo[]): ProvaLida {
     if (c) {
       atual = { numero: Number(c[1]), blocos: [], alternativas: [] }
       questoes.push(atual)
-      dentroDaQuestao(atual, c[2].trim(), imagens)
+      const resto = c[2].trim()
+      if (/^\(?anulad[ao]\)?$/i.test(resto)) atual.anulada = true // "Questão 17 Anulada"
+      else dentroDaQuestao(atual, resto, imagens)
       continue
     }
     if (!atual) { if (texto) preambulo.push(texto); figurasSoltas += imagens.length; continue }
@@ -65,10 +67,13 @@ export function montarQuestoes(paragrafos: Paragrafo[]): ProvaLida {
     if (i > 0 && !repetida && q.numero !== questoes[i - 1].numero + 1 && !vistos.has(questoes[i - 1].numero + 1)) avisos.push(`Depois da questão ${questoes[i - 1].numero} vem a ${q.numero}: confira se faltou alguma.`)
     if (!q.blocos.length) avisos.push(`Questão ${q.numero}: sem enunciado.`)
     if (q.alternativas.length < 2) avisos.push(`Questão ${q.numero}: nenhuma alternativa reconhecida (elas precisam começar com "A)", "B)"...).`)
-    else if (q.alternativas.length < 4) avisos.push(`Questão ${q.numero}: só ${q.alternativas.length} alternativas (A a ${LETRAS[q.alternativas.length - 1]}).`)
+    else if (q.alternativas.length < 4 && !ehCertoErrado(q.alternativas)) avisos.push(`Questão ${q.numero}: só ${q.alternativas.length} alternativas (A a ${LETRAS[q.alternativas.length - 1]}).`)
   })
   return { titulo: preambulo[0] ?? null, questoes, gabaritoTexto: gab.length ? gab.join('\n') : null, avisos }
 }
+
+/** Questão de "julgue o item": as alternativas são só Certo e Errado. */
+export const ehCertoErrado = (as: Alternativa[]) => as.length === 2 && /^certo\.?$/i.test(as[0].texto) && /^errado\.?$/i.test(as[1].texto)
 
 /** Texto corrido da questão (para o caderno de erros e para sugerir a área). Figuras viram "[figura]". */
 export const textoDosBlocos = (blocos: Bloco[]) => blocos.map(b => (b.tipo === 'texto' ? b.texto : '[figura]')).join('\n\n')
@@ -94,7 +99,26 @@ export function lerGabarito(texto: string, numeros: number[]) {
   const t = texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase()
   // só letras (separadas ou coladas: "B A C" ou "BACDE"), sem nenhum número: em sequência, a partir da primeira questão
   const so = t.replace(/[\s,;.\-–—/|]+/g, '')
-  if (!/\d/.test(t) && so && /^[A-EX*]+$/.test(so)) [...so].slice(0, numeros.length).forEach((c, i) => respostas.set(numeros[i], c === '*' ? 'X' : (c as RespostaGabarito)))
+  const semResposta: number[] = []
+  // tabela (como nos PDFs de bancos de questões): uma linha só de números ("1 2 3 ... 15") e, embaixo, uma linha só de respostas ("C D - A ...").
+  // Aqui um "-" sozinho quer dizer "sem resposta" e ocupa o lugar da questão; linhas de outro tipo (título, data) são ignoradas.
+  const linhas = t.split('\n').map(l => l.trim()).filter(Boolean)
+  const LINHA_NUMEROS = /^\d{1,3}(\s+\d{1,3})+$/, LINHA_RESPOSTAS = /^(?:[A-EX*\-–—]|ANULADA)(?:\s+(?:[A-EX*\-–—]|ANULADA))*$/
+  const tabela = linhas.some((l, i) => LINHA_NUMEROS.test(l) && linhas.slice(i + 1).some(x => LINHA_RESPOSTAS.test(x)))
+  if (tabela) {
+    const fila: number[] = []
+    for (const l of linhas) {
+      if (LINHA_NUMEROS.test(l)) { fila.push(...l.split(/\s+/).map(Number)); continue }
+      if (!LINHA_RESPOSTAS.test(l)) continue
+      for (const tok of l.split(/\s+/)) {
+        const n = fila.shift()
+        if (n === undefined) break
+        if (/^[\-–—]$/.test(tok)) { if (existe.has(n)) semResposta.push(n); continue }
+        const r: RespostaGabarito = tok === '*' || tok === 'ANULADA' ? 'X' : (tok as RespostaGabarito)
+        if (existe.has(n)) respostas.set(n, r); else fora.push(n)
+      }
+    }
+  } else if (!/\d/.test(t) && so && /^[A-EX*]+$/.test(so)) [...so].slice(0, numeros.length).forEach((c, i) => respostas.set(numeros[i], c === '*' ? 'X' : (c as RespostaGabarito)))
   else {
     const fila: number[] = []
     let ultimo = -1 // posição em `numeros` da última questão preenchida (uma letra sem número vai para a seguinte)
@@ -108,7 +132,7 @@ export function lerGabarito(texto: string, numeros: number[]) {
   }
   const faltando = numeros.filter(n => !respostas.has(n))
   const anuladas = numeros.filter(n => respostas.get(n) === 'X')
-  return { respostas, faltando, anuladas, fora: [...new Set(fora)] }
+  return { respostas, faltando, anuladas, fora: [...new Set(fora)], semResposta }
 }
 
 /** Uma faixa de números para mostrar ao usuário: [1,2,3,7,9,10] → "1–3, 7, 9–10". */
