@@ -145,7 +145,7 @@ export default async function AdminQuestoes({ searchParams }: { searchParams: Pr
           {linhas.length > 0 && <MarcarTodas form="lote" total={total} naPagina={linhas.length} />}
           {!total && <p className="rounded-2xl border border-dashed border-line p-6 text-center text-muted">{adm ? 'Nada pendente aqui.' : 'Nenhuma questão com esses filtros.'}</p>}
           <ul className="space-y-2">{linhas.map(q => {
-            const texto = textoDosBlocos(q.blocos ?? [])
+            const texto = textoDosBlocos((q.blocos ?? []).filter(b => b.tipo === 'texto')), comFigura = (q.blocos ?? []).some(b => b.tipo === 'imagem')
             const editar = `/admin/questoes/${q.id}${volta !== '/admin/questoes' ? `?lista=${encodeURIComponent(volta)}` : ''}`
             return (
               <li key={q.id} className="flex items-start gap-3 rounded-xl border border-line bg-surface p-3 text-sm">
@@ -160,6 +160,7 @@ export default async function AdminQuestoes({ searchParams }: { searchParams: Pr
                       {!q.explicacao && !q.anulada && q.gabarito && marca('border-line', 'sem explicação')}
                     </>}
                     {q.anulada ? marca('border-warn/50 text-warn', 'anulada') : !q.gabarito && marca('border-warn/50 text-warn', 'sem gabarito')}
+                    {comFigura && marca('border-line', 'com figura')}
                   </span>
                   <span className="block text-inherit">{texto.slice(0, 200)}{texto.length > 200 ? '…' : ''}</span>
                 </Link>

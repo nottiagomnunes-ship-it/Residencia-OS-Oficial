@@ -5,6 +5,7 @@ import { aplicarFiltros, assuntoDoFiltro, sincronizarBancoGeral, ehAdmin, avisoD
 import OpcoesDeAssunto from '@/components/banco/OpcoesDeAssunto'
 import { lerFiltros, filtrosParaUrl, type Filtros } from '@/lib/engine/banco'
 import { textoDosBlocos, ehLetra, type Bloco } from '@/lib/engine/provas'
+import { BUCKET } from '@/lib/provas-data'
 import { AREAS, ROTULO_AREA } from '@/lib/engine/areas'
 import { inputCls } from '@/components/ui'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
@@ -45,6 +46,14 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
   const anos = [...new Set(T.map(q => q.ano).filter((a): a is number => !!a))].sort((a, b) => b - a)
   const expl = new Map(((explDaPagina ?? []) as { id: string; explicacao: string | null; explicacao_origem: string | null }[]).map(q => [q.id, q]))
   const linhas = (lista ?? []) as Linha[], total = count ?? 0, paginas = Math.max(1, Math.ceil(total / POR_PAGINA))
+  // as figuras das questões desta página (links temporários; as do banco geral ficam na pasta "geral/")
+  const caminhos = [...new Set(linhas.flatMap(q => (q.blocos ?? []).flatMap(b => (b.tipo === 'imagem' ? [b.caminho] : []))))]
+  const urlDe = new Map<string, string>()
+  if (caminhos.length) {
+    const { data: urls } = await sb.storage.from(BUCKET).createSignedUrls(caminhos, 60 * 60 * 6)
+    for (const u of urls ?? []) if (u.path && u.signedUrl) urlDe.set(u.path, u.signedUrl)
+  }
+  const soTexto = (bs: Bloco[]) => textoDosBlocos(bs.filter(b => b.tipo === 'texto'))
   const url = (o: Partial<Filtros> & { p?: number }) => {
     const qs = [filtrosParaUrl({ ...f, ...o }), o.p && o.p > 1 ? `p=${o.p}` : ''].filter(Boolean).join('&')
     return qs ? `/banco/questoes?${qs}` : '/banco/questoes'
@@ -110,11 +119,15 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
                       <span>· {q.assunto ?? 'sem assunto'}</span>
                       <span className={q.vezes === 0 ? '' : q.ultimo_certo ? 'text-brand' : 'text-danger'}>· {q.vezes === 0 ? 'nunca feita' : q.ultimo_certo ? `acertou (${q.acertos}/${q.vezes})` : `errou na última (${q.acertos}/${q.vezes})`}</span>
                       {q.anulada ? <span className="text-warn">· anulada</span> : !q.gabarito && <span className="text-warn">· sem gabarito</span>}
+                      {q.blocos.some(b => b.tipo === 'imagem') && <span>· com figura</span>}
                     </span>
-                    <span className="block">{textoDosBlocos(q.blocos).slice(0, 220)}{textoDosBlocos(q.blocos).length > 220 ? '…' : ''}</span>
+                    <span className="block">{soTexto(q.blocos).slice(0, 220)}{soTexto(q.blocos).length > 220 ? '…' : ''}</span>
                   </summary>
                   <div className="mt-3 space-y-2 border-t border-line pt-3">
-                    {q.blocos.map((b, k) => b.tipo === 'texto' ? <p key={k} className="whitespace-pre-line">{b.texto}</p> : <p key={k} className="text-xs text-muted">[figura: aparece ao fazer a questão]</p>)}
+                    {q.blocos.map((b, k) => b.tipo === 'texto' ? <p key={k} className="whitespace-pre-line">{b.texto}</p> : (urlDe.get(b.caminho)
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <a key={k} href={urlDe.get(b.caminho)} target="_blank" rel="noreferrer" className="block"><img src={urlDe.get(b.caminho)} alt={`Figura da questão`} loading="lazy" className="max-h-[28rem] max-w-full rounded-lg border border-line bg-white" /></a>
+                      : <p key={k} className="text-xs text-muted">[figura indisponível]</p>))}
                     <ul className="space-y-1">{q.alternativas.map(a => <li key={a.letra}><b>{a.letra})</b> {a.texto}</li>)}</ul>
                     <details className="text-muted"><summary className="cursor-pointer">Ver gabarito</summary>
                       <p className="mt-1">{ehLetra(q.gabarito) ? <>Gabarito: <b className="text-brand">{q.gabarito}</b>{q.gabarito_origem === 'ia' && <span className="text-warn"> (sugerido pela IA, conferir)</span>}</> : 'Sem gabarito.'}</p>

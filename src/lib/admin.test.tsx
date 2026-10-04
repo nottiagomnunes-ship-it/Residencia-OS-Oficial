@@ -39,6 +39,7 @@ import { textoParaHash } from './engine/banco'
 import Pendencias from '@/app/(app)/admin/page'
 import EditarQuestao from '@/app/(app)/admin/questoes/[id]/page'
 import BarraDoLote from '@/components/admin/BarraDoLote'
+import Banco from '@/app/(app)/banco/questoes/page'
 
 const Q1 = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', Q0 = '00000000-aaaa-aaaa-aaaa-aaaaaaaaaaaa', Q2 = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
 const fd = (o: Record<string, string | string[]>) => { const f = new FormData(); for (const [k, v] of Object.entries(o)) for (const x of [v].flat()) f.append(k, x); return f }
@@ -176,5 +177,16 @@ describe('ler o PDF com as figuras', () => {
     expect(r.erro).toBeUndefined(); expect(r.paginas).toHaveLength(3); expect(h.baixados).toEqual([c]); expect(h.removidos).toContain(c)
     const g = new FormData(); g.set('caminho', `outra-conta/cccccccc-cccc-cccc-cccc-cccccccccccc.pdf`)
     expect(await lerPdfDeQuestoes(g)).toEqual({ erro: 'Arquivo inválido.' }); expect(h.baixados).toHaveLength(1)
+  })
+})
+
+describe('Banco (tela de busca)', () => {
+  it('ao abrir a questão, a figura aparece (link temporário), e o resumo não começa com "[figura]"', async () => {
+    h.resp = (t, f, c) => (t === 'banco_questoes' && !c.includes('tema_id') && !c.includes('explicacao')
+      ? { data: [{ id: Q1, blocos: [{ tipo: 'imagem', caminho: 'geral/ecg.webp' }, { tipo: 'texto', texto: 'Paciente com palpitações.' }], alternativas: [], gabarito: 'A', anulada: false, assunto: 'X', vezes: 0, acertos: 0 }], count: 1, error: null }
+      : { data: [], count: 0, error: null })
+    const html = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({}) }))
+    expect(html).toContain('src="https://x/geral/ecg.webp"'); expect(html).toContain('· com figura')
+    expect(html).not.toContain('[figura'); expect(html).toContain('<span class="block">Paciente com palpitações.</span>')
   })
 })
