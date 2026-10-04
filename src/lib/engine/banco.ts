@@ -135,7 +135,9 @@ export function validarLote(v: unknown, uid: string): { ok: true; questoes: Ques
 
 export type Situacao = 'todas' | 'nunca' | 'errei' | 'acertei'
 export type Filtros = { area: Area | null; disciplina: string | null; assunto: string | null; topico: string | null; banca: string | null; situacao: Situacao; busca: string
-  anoDe: number | null; anoAte: number | null } // ano da prova (de/até, inclusive)
+  anoDe: number | null; anoAte: number | null // ano da prova (de/até, inclusive)
+  tema?: string | null // tema da lista geral (vem no campo assunto como "tema:<id>")
+  revisao?: boolean } // só as questões erradas que estão para refazer hoje (ou atrasadas)
 /** Valor do filtro de assunto que pega as questões SEM assunto. */
 export const SEM_ASSUNTO = '(sem assunto)'
 const lerAno = (v: string | undefined) => { const n = Number(v); return Number.isInteger(n) && n >= 1980 && n <= 2100 ? n : null }
@@ -150,15 +152,15 @@ export const rotuloDosAnos = (f: Pick<Filtros, 'anoDe' | 'anoAte'>) =>
 export function lerFiltros(sp: Record<string, string | undefined>): Filtros {
   const s = sp.situacao
   return {
-    area: lerArea(sp.area), disciplina: ehUuid(sp.disciplina) ? sp.disciplina : null, assunto: str(sp.assunto, 120), topico: ehUuid(sp.topico) ? sp.topico : null, banca: str(sp.banca, 60),
+    area: lerArea(sp.area), disciplina: ehUuid(sp.disciplina) ? sp.disciplina : null, assunto: sp.assunto?.startsWith('tema:') ? null : str(sp.assunto, 120), tema: sp.assunto?.startsWith('tema:') && ehUuid(sp.assunto.slice(5)) ? sp.assunto.slice(5) : null, topico: ehUuid(sp.topico) ? sp.topico : null, banca: str(sp.banca, 60),
     situacao: s === 'nunca' || s === 'errei' || s === 'acertei' ? s : 'todas', busca: str(sp.busca, 80) ?? '',
-    ...anos(sp.de, sp.ate),
+    ...anos(sp.de, sp.ate), revisao: sp.revisao === '1',
   }
 }
 /** Para links e formulários: só os filtros preenchidos. */
 export const filtrosParaUrl = (f: Filtros) =>
-  new URLSearchParams(Object.entries({ area: f.area, disciplina: f.disciplina, assunto: f.assunto, topico: f.topico, banca: f.banca, situacao: f.situacao === 'todas' ? null : f.situacao, busca: f.busca || null,
-    de: f.anoDe ? String(f.anoDe) : null, ate: f.anoAte ? String(f.anoAte) : null })
+  new URLSearchParams(Object.entries({ area: f.area, disciplina: f.disciplina, assunto: f.tema ? `tema:${f.tema}` : f.assunto, topico: f.topico, banca: f.banca, situacao: f.situacao === 'todas' ? null : f.situacao, busca: f.busca || null,
+    de: f.anoDe ? String(f.anoDe) : null, ate: f.anoAte ? String(f.anoAte) : null, revisao: f.revisao ? '1' : null })
     .filter(([, v]) => v) as [string, string][]).toString()
 
 /** Embaralha (Fisher–Yates) e pega n. `aleatorio` pode ser trocado nos testes. */

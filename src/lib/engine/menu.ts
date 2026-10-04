@@ -11,7 +11,7 @@ export const SECOES: readonly Secao[] = [
   { nome: 'Agenda', href: '/calendario', icone: 'agenda', abas: [['Calendário', '/calendario'], ['Plano', '/cronograma'], ['Meu tempo', '/semana'], ['Compromissos', '/agenda']],
     filhas: { '/importar': '/cronograma' } },
   { nome: 'Questões', href: '/banco', icone: 'questoes', abas: [['Praticar', '/banco'], ['Banco', '/banco/questoes'], ['Provas', '/provas'], ['Registrar', '/questoes'], ['Erros', '/caderno-de-erros']],
-    filhas: { '/banco/importar': '/banco/questoes' } },
+    filhas: { '/banco/importar': '/banco/questoes', '/banco/temas': '/banco/questoes' } },
   { nome: 'Matérias', href: '/disciplinas', icone: 'materias', abas: [['Disciplinas', '/disciplinas'], ['Assuntos', '/conteudos']] },
   { nome: 'Progresso', href: '/desempenho', icone: 'progresso', abas: [['Desempenho', '/desempenho'], ['Metas', '/metas'], ['Simulados', '/simulados']] },
 ]

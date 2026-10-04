@@ -5,8 +5,9 @@ import { redirect } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
 import { validarLote, textoParaHash, lerFiltros, sortear, nomeDaLista, sugerirAssunto, rotuloDosAnos, SEM_ASSUNTO } from '@/lib/engine/banco'
 import { textoDosBlocos, type Bloco } from '@/lib/engine/provas'
-import { sugerirArea, normalizar } from '@/lib/engine/areas'
-import { aplicarFiltros, assuntoDoFiltro, podeOrganizar, SO_ADMIN } from '@/lib/banco-data'
+import { sugerirArea, normalizar, lerArea } from '@/lib/engine/areas'
+import { aplicarFiltros, assuntoDoFiltro, podeOrganizar, SO_ADMIN, ehAdmin, carregarTemas } from '@/lib/banco-data'
+import { lerListaDeTemas, type Tema } from '@/lib/engine/temas'
 
 async function ctx() {
   const sb = await supabaseServer()
@@ -94,9 +95,10 @@ export async function montarLista(fd: FormData) {
   if (error) redirect(volta + encodeURIComponent(semTabela(error) ? SEM_TABELA : 'Não foi possível buscar as questões.'))
   if (!data?.length) redirect(volta + encodeURIComponent('Nenhuma questão com gabarito bate com esses filtros.'))
   const escolhidas = sortear(data, qtd)
-  let nomeDisc: string | null = null
+  let nomeDisc: string | null = null, nomeTema: string | null = null
+  if (f.tema) { const { data: t } = await sb.from('temas').select('nome').eq('id', f.tema).maybeSingle(); nomeTema = t?.nome ?? null }
   if (f.disciplina) { const { data: d } = await sb.from('disciplines').select('nome').eq('id', f.disciplina).maybeSingle(); nomeDisc = d?.nome ?? null }
-  const { data: tent, error: e2 } = await sb.rpc('montar_lista', { p_nome: nomeDaLista([nomeDisc, f.assunto === SEM_ASSUNTO ? 'Sem assunto' : f.assunto ?? topico?.nome, f.banca, rotuloDosAnos(f)], escolhidas.length), p_ids: escolhidas.map(x => x.id) })
+  const { data: tent, error: e2 } = await sb.rpc('montar_lista', { p_nome: nomeDaLista([nomeDisc, nomeTema ?? (f.assunto === SEM_ASSUNTO ? 'Sem assunto' : f.assunto ?? topico?.nome), f.banca, rotuloDosAnos(f)], escolhidas.length), p_ids: escolhidas.map(x => x.id) })
   if (e2 || !tent) redirect(volta + encodeURIComponent('Não foi possível montar a lista. Tente de novo.'))
   redirect(`/provas/tentativa/${tent}`)
 }
@@ -304,4 +306,113 @@ export async function ligarAssunto(fd: FormData) {
   const r = await definirAssuntoDoBanco(ids, alvo.startsWith('t:') ? { topic_id: alvo.slice(2) } : alvo.startsWith('criar:') ? { assunto: rotulo, criar_em: alvo.slice(6) } : { assunto: rotulo })
   if (!r.ok) redirect(comAviso(volta, 'erro', r.erro ?? 'Não foi possível ligar.'))
   redirect(comAviso(volta, 'ok', `${r.n} ${r.n === 1 ? 'questão de' : 'questões de'} "${rotulo}" ${r.n === 1 ? 'ligada' : 'ligadas'} ao assunto de Matérias. Agora ${r.n === 1 ? 'conta' : 'contam'} no Desempenho dele.`))
+}
+
+// ---------- Temas (lista geral: só etiqueta das questões, não mexe em Matérias nem no plano de ninguém) ----------
+
+const SEM_TEMAS = 'Falta atualizar o banco: rode supabase/migrations/0040_temas.sql no SQL Editor do Supabase.'
+const voltaDosTemas = (fd: FormData) => { const v = String(fd.get('volta') || ''); return /^\/banco\/(temas|questoes)(\?[^\s]*)?$/.test(v) ? v : '/banco/temas' }
+
+/** Administradora: acrescenta temas à lista (texto colado; os repetidos não entram de novo). */
+export async function adicionarTemas(fd: FormData) {
+  const { sb } = await ctx()
+  const volta = voltaDosTemas(fd)
+  if (!(await ehAdmin(sb))) redirect(comAviso(volta, 'erro', 'Só a conta administradora mexe na lista de temas.'))
+  const { temas, avisos } = lerListaDeTemas(String(fd.get('lista') || ''))
+  if (!temas.length) redirect(comAviso(volta, 'erro', avisos[0] ?? 'Cole pelo menos um tema (ex.: "Anestesiologia > Via aérea difícil").'))
+  const { data: ja, error } = await sb.from('temas').select('especialidade,nome').limit(5000)
+  if (error) redirect(comAviso(volta, 'erro', SEM_TEMAS))
+  const chave = (t: { especialidade: string; nome: string }) => normalizar(t.especialidade) + '|' + normalizar(t.nome)
+  const existentes = new Set((ja ?? []).map(chave)), novos = temas.filter(t => !existentes.has(chave(t)))
+  if (novos.length) { const { error: e } = await sb.from('temas').insert(novos); if (e) redirect(comAviso(volta, 'erro', 'Não foi possível salvar os temas.')) }
+  refresh()
+  redirect(comAviso(volta, 'ok', `${novos.length} ${novos.length === 1 ? 'tema novo' : 'temas novos'}` + (temas.length > novos.length ? `; ${temas.length - novos.length} já ${temas.length - novos.length === 1 ? 'existia' : 'existiam'}` : '') +
+    (avisos.length ? `. ${avisos.length} ${avisos.length === 1 ? 'linha ficou' : 'linhas ficaram'} de fora: ${avisos[0]}` : '.')))
+}
+
+/** Administradora: muda o nome, a especialidade ou a área de um tema. As questões com ele passam a mostrar o nome novo quando forem publicadas de novo. */
+export async function editarTema(fd: FormData) {
+  const { sb } = await ctx()
+  const volta = voltaDosTemas(fd), id = String(fd.get('id') || '')
+  const nome = String(fd.get('nome') || '').trim().slice(0, 120), especialidade = String(fd.get('especialidade') || '').trim().slice(0, 80)
+  if (!nome || !especialidade) redirect(comAviso(volta, 'erro', 'O tema precisa de nome e especialidade.'))
+  const { error } = await sb.from('temas').update({ nome, especialidade, area: lerArea(fd.get('area')) }).eq('id', id)
+  if (error) redirect(comAviso(volta, 'erro', /duplicate|unique/.test(error.message) ? 'Já existe um tema com esse nome nessa especialidade.' : 'Não foi possível salvar.'))
+  await sb.from('banco_questoes').update({ assunto: nome }).eq('tema_id', id) // nas suas questões; nas outras contas, ao publicar de novo
+  refresh()
+  redirect(comAviso(volta, 'ok', 'Tema salvo. Publique de novo as questões dele para o nome novo chegar às outras contas.'))
+}
+
+/** Administradora: apaga um tema. As questões com ele perdem só a etiqueta. */
+export async function excluirTema(fd: FormData) {
+  const { sb } = await ctx()
+  const volta = voltaDosTemas(fd)
+  await sb.from('temas').delete().eq('id', String(fd.get('id') || ''))
+  refresh()
+  redirect(comAviso(volta, 'ok', 'Tema apagado. As questões que tinham esse tema ficaram sem tema.'))
+}
+
+/** Grava o tema nas questões: etiqueta, nome do assunto e (no seu banco) a disciplina e o assunto de Matérias com o mesmo nome, se você tiver. */
+async function gravarTema(sb: Awaited<ReturnType<typeof supabaseServer>>, ids: string[], tema: Tema | null) {
+  let muda: Record<string, unknown> = { tema_id: null }
+  if (tema) {
+    const [{ data: ds }, { data: ts }] = await Promise.all([sb.from('disciplines').select('id,nome').limit(500), sb.from('topics').select('id,nome,discipline_id').limit(5000)])
+    const d = (ds ?? []).find(x => normalizar(x.nome) === normalizar(tema.especialidade)) ?? null
+    const t = d ? (ts ?? []).find(x => x.discipline_id === d.id && normalizar(x.nome) === normalizar(tema.nome)) ?? null : null
+    muda = { tema_id: tema.id, assunto: tema.nome, ...(tema.area ? { area: tema.area } : {}), ...(d ? { discipline_id: d.id } : {}), topic_id: t?.id ?? null }
+  }
+  let n = 0
+  for (let i = 0; i < ids.length; i += 300) {
+    const { error, count } = await sb.from('banco_questoes').update(muda, { count: 'exact' }).in('id', ids.slice(i, i + 300))
+    if (error) return { ok: false as const, n }
+    n += count ?? 0
+  }
+  return { ok: true as const, n }
+}
+
+/** Organizar (administradora): dá o tema escolhido às questões marcadas (ou a todas as dos filtros). "nenhum" tira o tema. */
+export async function definirTemaEmLote(fd: FormData) {
+  const { sb } = await ctx()
+  const volta = voltaDoBanco(fd), alvo = String(fd.get('tema') || '')
+  if (!(await ehAdmin(sb))) redirect(comAviso(volta, 'erro', 'Só a conta administradora dá tema às questões.'))
+  if (!alvo) redirect(comAviso(volta, 'erro', 'Escolha o tema.'))
+  const ids = await idsDoFormulario(sb, fd)
+  if (!ids.length) redirect(comAviso(volta, 'erro', 'Marque as questões.'))
+  const tema = alvo === 'nenhum' ? null : (await carregarTemas(sb)).find(t => t.id === alvo) ?? null
+  if (alvo !== 'nenhum' && !tema) redirect(comAviso(volta, 'erro', 'Tema não encontrado.'))
+  const r = await gravarTema(sb, ids, tema)
+  if (!r.ok) redirect(comAviso(volta, 'erro', SEM_TEMAS))
+  refresh()
+  redirect(comAviso(volta, 'ok', `${tema ? `Tema "${tema.nome}"` : 'Tema tirado'} em ${r.n} ${r.n === 1 ? 'questão' : 'questões'}.` + (tema ? ' Publique de novo as que já estão no banco geral para o tema chegar às outras contas.' : '')))
+}
+
+/**
+ * Organizar (administradora): procura no texto das questões SEM tema (as marcadas, ou todas as dos filtros) o nome de um tema da lista,
+ * de preferência da mesma especialidade (pela disciplina ou pelo assunto atual, como "Anestesiologia"). Só grava quando todas as palavras do tema aparecem.
+ */
+export async function sugerirTemasPeloTexto(fd: FormData) {
+  const { sb } = await ctx()
+  const volta = voltaDoBanco(fd)
+  if (!(await ehAdmin(sb))) redirect(comAviso(volta, 'erro', 'Só a conta administradora dá tema às questões.'))
+  const temas = await carregarTemas(sb)
+  if (!temas.length) redirect(comAviso(volta, 'erro', 'A lista de temas está vazia. Cadastre os temas primeiro (Organizar → Lista de temas).'))
+  const marcadas = fd.get('todas') === '1' || fd.getAll('sel').length ? await idsDoFormulario(sb, fd) : null
+  let q = sb.from('banco_questoes').select('id,blocos,alternativas,assunto,discipline_id,disciplines(nome)').is('tema_id', null)
+  if (marcadas) q = q.in('id', marcadas.slice(0, 2000))
+  const { data: qs, error } = await q.limit(5000)
+  if (error) redirect(comAviso(volta, 'erro', SEM_TEMAS))
+  const porTema = new Map<string, string[]>()
+  for (const x of (qs ?? []) as any[]) {
+    const texto = textoDosBlocos((x.blocos ?? []) as Bloco[]) + ' ' + ((x.alternativas ?? []) as { texto: string }[]).map(a => a.texto).join(' ')
+    const esp = [x.disciplines?.nome, x.assunto].filter(Boolean).map((s: string) => normalizar(s))
+    const daEsp = temas.filter(t => esp.includes(normalizar(t.especialidade)))
+    const t = sugerirAssunto(texto, daEsp.length ? daEsp : temas)
+    if (t) porTema.set(t.id, [...(porTema.get(t.id) ?? []), x.id])
+  }
+  let n = 0
+  for (const [id, ids] of porTema) n += (await gravarTema(sb, ids, temas.find(t => t.id === id)!)).n
+  refresh()
+  const sem = (qs ?? []).length - n
+  redirect(comAviso(volta, n ? 'ok' : 'erro', n ? `Tema encontrado para ${n} ${n === 1 ? 'questão' : 'questões'}${sem ? `; ${sem} ${sem === 1 ? 'ficou' : 'ficaram'} sem tema (escolha à mão)` : ''}. Confira e publique de novo.`
+    : 'Não achei nenhum tema pelo texto. Confira se a lista tem os temas dessas questões, ou escolha à mão.'))
 }

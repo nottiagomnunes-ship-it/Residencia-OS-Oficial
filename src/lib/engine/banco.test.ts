@@ -119,7 +119,7 @@ describe('conferência no servidor', () => {
 describe('filtros e listas', () => {
   it('filtros vindos da URL são conferidos; a URL leva só o que está preenchido', () => {
     const f = lerFiltros({ area: 'cirurgia', disciplina: 'nao-e-uuid', situacao: 'errei', banca: ' UFMA ' })
-    expect(f).toEqual({ area: 'cirurgia', disciplina: null, assunto: null, topico: null, banca: 'UFMA', situacao: 'errei', busca: '', anoDe: null, anoAte: null })
+    expect(f).toEqual({ area: 'cirurgia', disciplina: null, assunto: null, topico: null, banca: 'UFMA', situacao: 'errei', busca: '', anoDe: null, anoAte: null, revisao: false, tema: null })
     expect(filtrosParaUrl(f)).toBe('area=cirurgia&banca=UFMA&situacao=errei')
     expect(lerFiltros({ area: 'x', situacao: 'y' })).toMatchObject({ area: null, situacao: 'todas' })
   })
@@ -130,6 +130,12 @@ describe('filtros e listas', () => {
     expect(rotuloDosAnos({ anoDe: 2020, anoAte: 2024 })).toBe('2020–2024'); expect(rotuloDosAnos({ anoDe: 2022, anoAte: 2022 })).toBe('2022')
     expect(rotuloDosAnos({ anoDe: 2020, anoAte: null })).toBe('desde 2020'); expect(rotuloDosAnos({ anoDe: null, anoAte: 2018 })).toBe('até 2018')
     expect(rotuloDosAnos({ anoDe: null, anoAte: null })).toBeNull()
+  })
+  it('tema da lista geral vem no campo assunto como "tema:<id>" e volta igual na URL', () => {
+    const id = '7e000000-0000-0000-0000-000000000001'
+    expect(lerFiltros({ assunto: `tema:${id}` })).toMatchObject({ tema: id, assunto: null })
+    expect(filtrosParaUrl(lerFiltros({ assunto: `tema:${id}` }))).toBe(`assunto=tema%3A${id}`)
+    expect(lerFiltros({ assunto: 'tema:lixo' })).toMatchObject({ tema: null, assunto: null })
   })
   it('sorteio sem repetir e no tamanho pedido; nome da lista', () => {
     let s = 1; const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647)

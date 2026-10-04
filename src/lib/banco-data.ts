@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { SEM_ASSUNTO, type Filtros } from './engine/banco'
 import { ehLetra, type Alternativa, type Bloco } from './engine/provas'
 import { BUCKET } from './provas-data'
+import type { Tema } from './engine/temas'
 
 /** O assunto de Conteúdos usado no filtro "topico": as questões ligadas a ele ou, sem ligação, com o mesmo nome na mesma disciplina. */
 export async function assuntoDoFiltro(sb: SupabaseClient, f: Filtros) {
@@ -18,6 +19,7 @@ export function aplicarFiltros<Q>(q: Q, f: Filtros, topico: { id: string; nome: 
   if (f.assunto === SEM_ASSUNTO) x = x.is('assunto', null)
   else if (f.assunto) x = x.eq('assunto', f.assunto)
   if (topico) x = x.or(`topic_id.eq.${topico.id},and(discipline_id.eq.${topico.discipline_id},assunto.eq."${topico.nome.replace(/["\\]/g, '')}")`)
+  if (f.tema) x = x.eq('tema_id', f.tema)
   if (f.banca) x = x.eq('banca', f.banca)
   if (f.anoDe) x = x.gte('ano', f.anoDe)
   if (f.anoAte) x = x.lte('ano', f.anoAte)
@@ -86,3 +88,20 @@ export async function podeOrganizar(sb: SupabaseClient) {
   return error ? true : data === true
 }
 export const SO_ADMIN = 'Só a conta administradora importa e organiza o banco de questões.'
+
+/**
+ * A fila de "refazer as erradas": quantas questões estão para refazer hoje (incluindo as atrasadas), quantas atrasadas e quantas vêm
+ * nos próximos 7 dias. null sem a 0039.
+ */
+export async function carregarFilaRefazer(sb: SupabaseClient, hoje: string, em7dias: string) {
+  const base = () => sb.from('revisao_questoes').select('questao_id', { count: 'exact', head: true }).not('proxima', 'is', null)
+  const [a, b, c] = await Promise.all([base().lte('proxima', hoje), base().lt('proxima', hoje), base().gt('proxima', hoje).lte('proxima', em7dias)])
+  if (a.error) return null
+  return { hoje: a.count ?? 0, atrasadas: b.count ?? 0, semana: c.count ?? 0 }
+}
+
+/** A lista geral de temas (vazia sem a 0040). */
+export async function carregarTemas(sb: SupabaseClient): Promise<Tema[]> {
+  const { data, error } = await sb.from('temas').select('id,area,especialidade,nome').limit(5000)
+  return error ? [] : ((data ?? []) as Tema[])
+}

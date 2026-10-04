@@ -6,7 +6,8 @@ import { AREAS, ROTULO_AREA } from '@/lib/engine/areas'
 import { pct } from '@/lib/engine/desempenho'
 import { fmtData, inputCls } from '@/components/ui'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
-import { sincronizarBancoGeral, avisoDoBancoGeral, podeOrganizar } from '@/lib/banco-data'
+import { sincronizarBancoGeral, avisoDoBancoGeral, podeOrganizar, carregarTemas } from '@/lib/banco-data'
+import OpcoesDeAssunto from '@/components/banco/OpcoesDeAssunto'
 
 /** Praticar: escolher o que estudar e começar (uma por vez ou lista como prova). Organizar as questões fica na aba Banco (/banco/questoes). */
 export default async function PraticarInicio({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
@@ -14,19 +15,20 @@ export default async function PraticarInicio({ searchParams }: { searchParams: P
   const sb = await supabaseServer()
   const [sync, gestor] = await Promise.all([sincronizarBancoGeral(sb), podeOrganizar(sb)])
   const aviso = avisoDoBancoGeral(sync) // questões novas e correções do banco geral, antes de contar
-  const [{ data: todas, error }, { data: ds }, { data: listas }] = await Promise.all([
-    sb.from('banco_questoes').select('discipline_id,assunto,banca,ano,vezes,acertos,gabarito,anulada').limit(20000),
+  const [{ data: todas, error }, { data: ds }, { data: listas }, temas, { data: comTema }] = await Promise.all([
+    sb.from('banco_questoes').select('id,discipline_id,assunto,banca,ano,vezes,acertos,gabarito,anulada').limit(20000),
     sb.from('disciplines').select('id,nome').order('ordem'),
     sb.from('provas').select('id,nome,criada_em,prova_tentativas(id,status,total,acertos)').eq('tipo', 'lista').order('criada_em', { ascending: false }).limit(8),
+    carregarTemas(sb), sb.from('banco_questoes').select('id,tema_id').not('tema_id', 'is', null).limit(20000), // sem a 0040: vazias
   ])
   if (error) return (
     <div className="space-y-4"><h1 className="text-2xl font-semibold">Praticar</h1>
       <p className="rounded-2xl border border-warn/40 bg-warn/10 p-4 text-sm text-warn">Para usar o banco de questões, rode <code>supabase/migrations/0034_banco_questoes.sql</code> no SQL Editor do Supabase (depois da 0028) e recarregue a página.</p></div>)
-  const T = todas ?? [], nomeDisc = new Map((ds ?? []).map(d => [d.id as string, d.nome as string]))
+  const temaDe = new Map(((comTema ?? []) as { id: string; tema_id: string }[]).map(q => [q.id, q.tema_id]))
+  const T = (todas ?? []).map(q => ({ ...q, tema_id: temaDe.get(q.id) ?? null })), nomeDisc = new Map((ds ?? []).map(d => [d.id as string, d.nome as string]))
   const feitas = T.filter(q => q.vezes > 0), acertosTot = T.reduce((s, q) => s + q.acertos, 0), vezesTot = T.reduce((s, q) => s + q.vezes, 0)
   const disponiveis = T.filter(q => q.gabarito && !q.anulada).length, semAssunto = T.filter(q => !q.assunto).length
   const discsComQuestao = [...new Set(T.map(q => q.discipline_id).filter(Boolean))] as string[]
-  const assuntos = [...new Set(T.filter(q => !f.disciplina || q.discipline_id === f.disciplina).map(q => q.assunto).filter(Boolean))].sort() as string[]
   const bancas = [...new Set(T.map(q => q.banca).filter(Boolean))].sort() as string[]
   const anos = [...new Set(T.map(q => q.ano).filter((a): a is number => !!a))].sort((a, b) => b - a)
   const card = (l: string, v: string) => <div className="rounded-2xl border border-line bg-surface p-4"><p className="text-sm text-muted">{l}</p><p className="mt-1 text-2xl font-semibold">{v}</p></div>
@@ -55,8 +57,8 @@ export default async function PraticarInicio({ searchParams }: { searchParams: P
           <h2 className="font-medium sm:col-span-2 lg:col-span-7">O que você quer praticar?</h2>
           <label className="text-sm text-muted">Área<select name="area" defaultValue={f.area ?? ''} className={sel}><option value="">Todas</option>{AREAS.map(a => <option key={a} value={a}>{ROTULO_AREA[a]}</option>)}</select></label>
           <label className="text-sm text-muted">Disciplina<select name="disciplina" defaultValue={f.disciplina ?? ''} className={sel}><option value="">Todas</option>{discsComQuestao.map(d => <option key={d} value={d}>{nomeDisc.get(d) ?? 'Disciplina'}</option>)}</select></label>
-          <label className="text-sm text-muted">Assunto<select name="assunto" defaultValue={f.assunto ?? ''} className={sel}><option value="">Todos</option>
-            {semAssunto > 0 && <option value={SEM_ASSUNTO}>Sem assunto</option>}{assuntos.map(a => <option key={a} value={a}>{a}</option>)}</select></label>
+          <label className="text-sm text-muted">Assunto<select name="assunto" defaultValue={f.tema ? `tema:${f.tema}` : f.assunto ?? ''} className={sel}><option value="">Todos</option>
+            <OpcoesDeAssunto questoes={T} temas={temas} disciplina={f.disciplina} /></select></label>
           <label className="text-sm text-muted">Banca<select name="banca" defaultValue={f.banca ?? ''} className={sel}><option value="">Todas</option>{bancas.map(b => <option key={b} value={b}>{b}</option>)}</select></label>
           <fieldset className="text-sm text-muted"><legend>Ano da prova</legend><div className="flex items-center gap-1">
             <select name="de" defaultValue={f.anoDe ?? ''} aria-label="Ano: de" className={inputCls + ' min-w-0 flex-1'}><option value="">desde</option>{anos.map(a => <option key={a} value={a}>{a}</option>)}</select>–

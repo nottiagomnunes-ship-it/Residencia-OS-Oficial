@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useTransition } from 'react'
 import Link from 'next/link'
-import { proximaQuestao, responderPratica, type Correcao } from '@/lib/pratica'
+import { proximaQuestao, responderPratica, type Correcao, type Refazer } from '@/lib/pratica'
 import { classificarErro } from '@/lib/provas'
 import { MOTIVOS, type Motivo } from '@/lib/engine/questoes'
 import type { Letra } from '@/lib/engine/provas'
@@ -12,6 +12,15 @@ import { Enunciado } from '@/components/provas/Enunciado'
  * Praticar: uma questão por vez, com a correção na hora. Sem lista e sem entregar: cada resposta já conta (Desempenho, XP, Caderno de Erros).
  * Primeiro vêm as questões que você nunca fez, depois as que errou; as desta sessão não repetem.
  */
+/** A frase da fila de refazer depois de responder: quando a questão volta (ou que ela saiu da fila). */
+export function fraseRefazer(r: Refazer) {
+  const dia = r.proxima ? new Date(r.proxima + 'T12:00:00Z').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' }) : ''
+  return r.etapa === 0 ? `Esta questão volta amanhã (${dia}) para você refazer.`
+    : r.etapa === 1 ? `Acertou na revisão: ela volta em 7 dias (${dia}).`
+    : r.etapa === 2 ? `Acertou de novo: a próxima é em 30 dias (${dia}).`
+    : 'Acertou pela terceira vez: fixada, saiu da fila de refazer.'
+}
+
 export default function Praticar({ filtros, titulo, inicial, total }: { filtros: Record<string, string>; titulo: string; inicial: QuestaoPratica | null; total: number }) {
   const [q, setQ] = useState(inicial), [restantes, setRestantes] = useState(total)
   const [escolha, setEscolha] = useState<Letra | null>(null), [chute, setChute] = useState(false), [riscadas, setRiscadas] = useState('')
@@ -47,16 +56,16 @@ export default function Praticar({ filtros, titulo, inicial, total }: { filtros:
   const pct = placar.feitas ? Math.round((placar.certas / placar.feitas) * 100) : null
   const topo = (
     <header className="flex flex-wrap items-center gap-x-4 gap-y-1">
-      <div className="min-w-0 flex-1"><Link href="/banco" className="text-sm text-muted hover:text-brand">← Praticar</Link><h1 className="truncate text-xl font-semibold">Praticar: {titulo}</h1></div>
+      <div className="min-w-0 flex-1"><Link href={filtros.revisao === '1' ? '/revisoes' : '/banco'} className="text-sm text-muted hover:text-brand">{filtros.revisao === '1' ? '← Revisões' : '← Praticar'}</Link><h1 className="truncate text-xl font-semibold">{filtros.revisao === '1' ? 'Refazer as erradas' : `Praticar: ${titulo}`}</h1></div>
       <p className="text-sm" aria-live="polite">{placar.feitas ? <><b>{placar.certas} de {placar.feitas}</b> <span className={pct! >= 70 ? 'text-brand' : pct! >= 50 ? 'text-warn' : 'text-danger'}>· {pct}%</span></> : <span className="text-muted">Nenhuma respondida ainda</span>}</p>
     </header>)
 
   if (!q) return (
     <div className="space-y-6">{topo}
       <section className="space-y-3 rounded-2xl border border-line bg-surface p-6 text-center">
-        <p className="text-lg font-medium">{placar.feitas ? 'Acabaram as questões desses filtros.' : 'Nenhuma questão com gabarito bate com esses filtros.'}</p>
+        <p className="text-lg font-medium">{filtros.revisao === '1' ? (placar.feitas ? 'Pronto: você refez todas as questões de hoje.' : 'Nenhuma questão para refazer hoje.') : placar.feitas ? 'Acabaram as questões desses filtros.' : 'Nenhuma questão com gabarito bate com esses filtros.'}</p>
         {placar.feitas > 0 && <p className="text-muted">Você fez {placar.feitas} {placar.feitas === 1 ? 'questão' : 'questões'} e acertou {placar.certas} ({pct}%). Os erros já estão no Caderno de Erros.</p>}
-        <div className="flex flex-wrap justify-center gap-2"><Link href="/banco" className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">Mudar os filtros</Link>
+        <div className="flex flex-wrap justify-center gap-2"><Link href={filtros.revisao === '1' ? '/revisoes' : '/banco'} className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">{filtros.revisao === '1' ? 'Voltar às Revisões' : 'Mudar os filtros'}</Link>
           <Link href="/caderno-de-erros" className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">Abrir o Caderno de Erros</Link></div>
       </section>
     </div>)
@@ -93,6 +102,7 @@ export default function Praticar({ filtros, titulo, inicial, total }: { filtros:
           : <div className="space-y-3 border-t border-line pt-4" role="status">
             <p className={`text-lg font-semibold ${correcao.correta ? 'text-brand' : 'text-danger'}`}>{correcao.correta ? (chute ? 'Certo (no chute: foi para o Caderno de Erros)' : 'Certo!') : `Errou. A correta é a ${correcao.gabarito}.`}
               {correcao.xp > 0 && <span className="ml-2 text-sm font-normal text-brand">+{correcao.xp} XP</span>}</p>
+            {correcao.refazer && <p className="text-sm text-info">🔁 {fraseRefazer(correcao.refazer)}</p>}
             {correcao.gabaritoIA && <p className="text-xs text-warn">Gabarito sugerido pela IA, não oficial: confira.</p>}
             {correcao.comentario && <p className="whitespace-pre-line rounded-lg bg-line/40 p-3 text-sm text-muted">{correcao.comentario}</p>}
             {!correcao.correta && correcao.erroId && (

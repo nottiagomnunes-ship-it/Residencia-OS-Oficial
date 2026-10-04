@@ -13,6 +13,7 @@ import { carregarRitmo, carregarModoRitmo } from '@/lib/ritmo-data'
 import { addDays } from '@/lib/engine/review'
 import { weekStart } from '@/lib/engine/calendar'
 import { supabaseServer } from '@/lib/supabase/server'
+import { carregarFilaRefazer } from '@/lib/banco-data'
 
 function Card({ titulo, valor, detalhe, cor = 'text-brand' }: { titulo: string; valor: string; detalhe?: string; cor?: string }) {
   return (
@@ -29,7 +30,7 @@ export default async function Inicio() {
   const hoje = hojeBR(), segProx = addDays(weekStart(hoje), 7)
   // tudo ao mesmo tempo: antes eram ~12 idas ao banco em fila
   const [{ data: p }, hojeQ, atrasQ, des, metas, gam, { data: itensHoje }, { count: concluidasHoje }, { data: capHoje }, { data: perfilTempo }, agenda,
-    { data: capsSemana }, { data: perfilPlano }, { data: adi }, { data: feitosHoje }, modoRitmo, ritmoCalc] = await Promise.all([
+    { data: capsSemana }, { data: perfilPlano }, { data: adi }, { data: feitosHoje }, modoRitmo, ritmoCalc, refazer] = await Promise.all([
     sb.from('profiles').select('nome').single(),
     sb.from('reviews').select('id', { count: 'exact', head: true }).eq('status', 'pendente').eq('due_date', hoje),
     sb.from('reviews').select('id', { count: 'exact', head: true }).eq('status', 'pendente').lt('due_date', hoje),
@@ -42,7 +43,7 @@ export default async function Inicio() {
     sb.from('profiles').select('plano_gerado_em,capacidade_alterada_em,semana_aviso').single(),
     sb.from('schedule_items').select('id,titulo,data,duracao_min').gt('data', hoje).lte('data', addDays(hoje, 14)).neq('status', 'concluido').in('tipo', ['estudo', 'questoes', 'flashcards']).order('data').order('ordem_dia', { nullsFirst: false }).limit(12),
     sb.from('schedule_items').select('duracao_min').eq('data', hoje).eq('status', 'concluido'),
-    carregarModoRitmo(sb), carregarRitmo(sb, hoje),
+    carregarModoRitmo(sb), carregarRitmo(sb, hoje), carregarFilaRefazer(sb, hoje, addDays(hoje, 7)),
   ])
   const totQ = des.total, acQ = des.acertos
   const metasSem = metas.filter(m => m.periodo === 'semana')
@@ -67,6 +68,10 @@ export default async function Inicio() {
       </header>
       <AvisosPlano desatualizado={desatualizado} semana={semanaAviso} semanaAtual={!!semanaAviso && semanaAviso <= hoje} />
       <TarefasHoje itens={itensHoje ?? []} hoje={hoje} concluidasHoje={concluidasHoje ?? 0} minutosHoje={tempoHoje.minutos} informado={tempoHoje.informado} minutosFeitos={minutosFeitos} adiantaveis={adi ?? []} recursos={recursos} agenda={agendaHoje} />
+      {refazer && refazer.hoje > 0 && <Link href="/banco/praticar?revisao=1" className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-info/40 bg-info/10 p-4">
+        <span><b className="font-medium">🔁 {refazer.hoje} {refazer.hoje === 1 ? 'questão errada para refazer hoje' : 'questões erradas para refazer hoje'}</b>
+          <span className="block text-sm text-muted">As que você errou voltam em 1, 7 e 30 dias até você fixar.</span></span>
+        <span className="font-medium text-info">Refazer →</span></Link>}
       {alerta && <Link href="/desempenho" className="block rounded-2xl border border-warn/40 bg-warn/10 p-4"><p className="font-medium">{alerta.titulo}</p><p className="text-sm">{alerta.texto}</p></Link>}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         <Card titulo="Revisões de hoje" valor={String(rev)} cor="text-info" />

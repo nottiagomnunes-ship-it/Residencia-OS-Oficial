@@ -1,7 +1,9 @@
 import Link from 'next/link'
 import { supabaseServer } from '@/lib/supabase/server'
-import { excluirDoBanco, definirAssuntoEmLote, ligarAssunto, sugerirAssuntosDoBanco, publicarNoBancoGeral, retirarDoBancoGeral, restaurarDoBancoGeral } from '@/lib/banco'
-import { aplicarFiltros, assuntoDoFiltro, sincronizarBancoGeral, ehAdmin, avisoDoBancoGeral, podeOrganizar } from '@/lib/banco-data'
+import { excluirDoBanco, definirAssuntoEmLote, definirTemaEmLote, sugerirTemasPeloTexto, ligarAssunto, sugerirAssuntosDoBanco, publicarNoBancoGeral, retirarDoBancoGeral, restaurarDoBancoGeral } from '@/lib/banco'
+import { aplicarFiltros, assuntoDoFiltro, sincronizarBancoGeral, ehAdmin, avisoDoBancoGeral, podeOrganizar, carregarTemas } from '@/lib/banco-data'
+import { porEspecialidade } from '@/lib/engine/temas'
+import OpcoesDeAssunto from '@/components/banco/OpcoesDeAssunto'
 import { lerFiltros, filtrosParaUrl, SEM_ASSUNTO, assuntoParecido, type Filtros } from '@/lib/engine/banco'
 import { textoDosBlocos, ehLetra, type Bloco } from '@/lib/engine/provas'
 import { AREAS, ROTULO_AREA, SIGLA_AREA, lerArea } from '@/lib/engine/areas'
@@ -25,8 +27,8 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
   const org = gestor && sp.org === '1' // modo Organizar (assuntos, lote, banco geral)
   const aviso = avisoDoBancoGeral(sync), daPagina = <T,>(q: T) => (aplicarFiltros(q, f, topico) as any).order('ano', { ascending: false, nullsFirst: false }).order('criada_em', { ascending: false }).range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1)
   // separadas: sem a 0037, estas falham e a página segue sem as marcas do banco geral
-  const [{ data: todas, error }, { data: lista, count }, { data: ds }, { data: ts }, { data: geralDaPagina }, { count: removidas }, { data: colecoes }] = await Promise.all([
-    sb.from('banco_questoes').select('discipline_id,topic_id,assunto,banca,ano').limit(20000),
+  const [{ data: todas, error }, { data: lista, count }, { data: ds }, { data: ts }, { data: geralDaPagina }, { count: removidas }, { data: colecoes }, temas, { data: comTema }] = await Promise.all([
+    sb.from('banco_questoes').select('id,discipline_id,topic_id,assunto,banca,ano').limit(20000),
     aplicarFiltros(sb.from('banco_questoes').select('id,blocos,alternativas,gabarito,gabarito_origem,anulada,comentario,area,discipline_id,topic_id,assunto,banca,ano,vezes,acertos,ultimo_certo', { count: 'exact' }), f, topico)
       .order('ano', { ascending: false, nullsFirst: false }).order('criada_em', { ascending: false }).range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1),
     sb.from('disciplines').select('id,nome').order('ordem'),
@@ -34,11 +36,14 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
     daPagina(sb.from('banco_questoes').select('id,origem_geral')),
     sync ? sb.from('banco_geral_removidas').select('geral_id', { count: 'exact', head: true }) : Promise.resolve({ count: 0 }),
     admin ? sb.from('banco_geral').select('colecao').not('colecao', 'is', null).limit(5000) : Promise.resolve({ data: [] }),
+    carregarTemas(sb), // separada: sem a 0040, a lista vem vazia e a página segue com os assuntos
+    sb.from('banco_questoes').select('id,tema_id').not('tema_id', 'is', null).limit(20000),
   ])
   if (error) return (
     <div className="space-y-4"><h1 className="text-2xl font-semibold">Banco de questões</h1>
       <p className="rounded-2xl border border-warn/40 bg-warn/10 p-4 text-sm text-warn">Para usar o banco de questões, rode <code>supabase/migrations/0034_banco_questoes.sql</code> no SQL Editor do Supabase (depois da 0028) e recarregue a página.</p></div>)
-  const T = todas ?? [], discs = (ds ?? []) as { id: string; nome: string }[], topicos = (ts ?? []) as TopicoSimples[]
+  const temaDe = new Map(((comTema ?? []) as { id: string; tema_id: string }[]).map(q => [q.id, q.tema_id]))
+  const T = (todas ?? []).map(q => ({ ...q, tema_id: temaDe.get(q.id) ?? null })), discs = (ds ?? []) as { id: string; nome: string }[], topicos = (ts ?? []) as TopicoSimples[]
   const nomeDisc = new Map(discs.map(d => [d.id, d.nome]))
   const discsComQuestao = [...new Set(T.map(q => q.discipline_id).filter(Boolean))] as string[]
   /** Valores de um campo com quantas questões têm cada um (para os seletores: "UFMA (120)"). */
@@ -86,8 +91,8 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
         <form action="/banco/questoes" method="get" className="space-y-3 rounded-2xl border border-line bg-surface p-4 md:p-5">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1.4fr_auto]">
             <label className="text-sm text-muted">Banca<select name="banca" defaultValue={f.banca ?? ''} className={sel}><option value="">Todas as bancas</option>{bancas.map(([b, n]) => <option key={b} value={b}>{b} ({n})</option>)}</select></label>
-            <label className="text-sm text-muted">Assunto<select name="assunto" defaultValue={f.assunto ?? ''} className={sel}><option value="">Todos os assuntos</option>
-              {semAssunto > 0 && <option value={SEM_ASSUNTO}>Sem assunto ({semAssunto})</option>}{assuntos.map(([a, n]) => <option key={a} value={a}>{a} ({n})</option>)}</select></label>
+            <label className="text-sm text-muted">Assunto<select name="assunto" defaultValue={f.tema ? `tema:${f.tema}` : f.assunto ?? ''} className={sel}><option value="">Todos os assuntos</option>
+              <OpcoesDeAssunto questoes={T} temas={temas} disciplina={f.disciplina} /></select></label>
             <fieldset className="text-sm text-muted sm:col-span-2 lg:col-span-1"><legend>Ano da prova</legend>
               <div className="flex items-center gap-2">
                 <select name="de" defaultValue={f.anoDe ?? ''} aria-label="Ano: de" className={inputCls}><option value="">desde sempre</option>{anos.map(a => <option key={a} value={a}>{a}</option>)}</select>
@@ -139,29 +144,47 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
 
         <section className="space-y-3 rounded-2xl border border-line bg-surface p-5 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-medium">Assunto das questões</h2>
+            <h2 className="font-medium">{admin ? 'Tema e assunto das questões' : 'Assunto das questões'}</h2>
             {semAssunto ? <Link href={`/banco/questoes?assunto=${encodeURIComponent(SEM_ASSUNTO)}`} className="text-muted hover:text-brand">{semAssunto} {semAssunto === 1 ? 'questão' : 'questões'} sem assunto</Link>
               : <span className="text-muted">Todas têm assunto</span>}
           </div>
-          <p className="text-muted">Marque várias questões na lista abaixo e dê o mesmo assunto a todas. Para corrigir uma só, abra a questão e use "Mudar assunto". Ligado a um assunto de Matérias, o resultado entra no Desempenho daquele assunto.</p>
+          <p className="text-muted">Marque as questões na lista abaixo (ou todas as dos filtros) e escolha o que fazer com elas.</p>
           {semAssunto > 0 && <form action={sugerirAssuntosDoBanco} className="flex flex-wrap items-center gap-2">
             <input type="hidden" name="volta" value={volta} />
-            <button className="rounded-lg border border-line px-3 py-1.5 hover:border-brand">Sugerir pelo texto</button>
+            <button className="rounded-lg border border-line px-3 py-1.5 hover:border-brand">Sugerir assunto de Matérias pelo texto</button>
             <span className="text-xs text-muted">{topicos.length ? 'Procura o nome dos seus assuntos de Matérias no texto das questões sem assunto (da mesma disciplina) e liga quando acha.' : 'Cadastre os assuntos em Matérias → Assuntos para usar a sugestão.'}</span>
           </form>}
-          <form id="lote" action={definirAssuntoEmLote} className="grid gap-2 border-t border-line pt-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+          <form id="lote" action={definirAssuntoEmLote} className="space-y-3 border-t border-line pt-3">
             <input type="hidden" name="filtros" value={filtrosParaUrl(f)} />
             <input type="hidden" name="volta" value={volta} />
-            <label className="text-muted">Dar às marcadas o assunto<select name="alvo" defaultValue="" className={sel}>
-              <option value="">Escolha… (ou escreva ao lado)</option>
-              {gruposTopicos.map(d => <optgroup key={d.id} label={d.nome}>{topicos.filter(t => t.discipline_id === d.id).sort((a, b) => a.nome.localeCompare(b.nome)).map(t => <option key={t.id} value={`t:${t.id}`}>{t.nome}</option>)}</optgroup>)}
-              <option value="nenhum">Sem assunto (tirar)</option>
-            </select></label>
-            <label className="text-muted">ou um nome novo<input name="texto" maxLength={120} placeholder="Ex.: Bloqueio de neuroeixo" className={sel} />
-              {discs.length > 0 && <select name="criar_em" defaultValue={f.disciplina ?? ''} aria-label="Criar em Matérias" className={sel + ' mt-1'}>
-                <option value="">Só o nome (não criar em Matérias)</option>{discs.map(d => <option key={d.id} value={d.id}>Criar em Matérias: {d.nome}</option>)}</select>}</label>
-            <button className="rounded-xl bg-brand px-4 py-2 font-medium text-black">Salvar nas marcadas</button>
-            {admin && <div className="space-y-2 border-t border-line pt-3 sm:col-span-3">
+            {admin && <div className="space-y-2">
+              <h3 className="font-medium">Tema (lista geral) <span className="font-normal text-muted">· é o que as outras contas usam para buscar e praticar</span></h3>
+              {temas.length ? <div className="flex flex-wrap items-end gap-2">
+                <label className="min-w-56 flex-1 text-muted">Tema<select name="tema" defaultValue="" className={sel}>
+                  <option value="">Escolha o tema…</option>
+                  {porEspecialidade(temas).map(([e, l]) => <optgroup key={e} label={e}>{l.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}</optgroup>)}
+                  <option value="nenhum">Sem tema (tirar)</option>
+                </select></label>
+                <button formAction={definirTemaEmLote} className="rounded-xl bg-brand px-4 py-2 font-medium text-black">Dar o tema às marcadas</button>
+                <button formAction={sugerirTemasPeloTexto} className="rounded-xl border border-line px-4 py-2 hover:border-brand">Sugerir tema pelo texto</button>
+              </div> : <p className="text-muted">A lista de temas está vazia.</p>}
+              <p className="text-xs text-muted">"Sugerir tema pelo texto" age nas marcadas (ou, sem nenhuma marcada, em todas as questões sem tema) e procura o nome dos temas no enunciado. <Link href="/banco/temas" className="text-brand hover:underline">Lista de temas ({temas.length}) →</Link></p>
+            </div>}
+            <details open={!admin} className={admin ? 'border-t border-line pt-3' : ''}>
+              <summary className="cursor-pointer font-medium">Assunto das suas Matérias{admin ? <span className="font-normal text-muted"> · só para o seu Desempenho</span> : ''}</summary>
+              <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+                <label className="text-muted">Dar às marcadas o assunto<select name="alvo" defaultValue="" className={sel}>
+                  <option value="">Escolha… (ou escreva ao lado)</option>
+                  {gruposTopicos.map(d => <optgroup key={d.id} label={d.nome}>{topicos.filter(t => t.discipline_id === d.id).sort((a, b) => a.nome.localeCompare(b.nome)).map(t => <option key={t.id} value={`t:${t.id}`}>{t.nome}</option>)}</optgroup>)}
+                  <option value="nenhum">Sem assunto (tirar)</option>
+                </select></label>
+                <label className="text-muted">ou um nome novo<input name="texto" maxLength={120} placeholder="Ex.: Bloqueio de neuroeixo" className={sel} />
+                  {discs.length > 0 && <select name="criar_em" defaultValue={f.disciplina ?? ''} aria-label="Criar em Matérias" className={sel + ' mt-1'}>
+                    <option value="">Só o nome (não criar em Matérias)</option>{discs.map(d => <option key={d.id} value={d.id}>Criar em Matérias: {d.nome}</option>)}</select>}</label>
+                <button className="rounded-xl border border-line px-4 py-2 hover:border-brand">Salvar nas marcadas</button>
+              </div>
+            </details>
+            {admin && <div className="space-y-2 border-t border-line pt-3">
               <h3 className="font-medium">Banco geral <span className="font-normal text-muted">(só a conta administradora vê isto)</span></h3>
               <p className="text-xs text-muted">Publicar manda para todas as contas o enunciado, as figuras, as alternativas, o gabarito (a letra), a disciplina e o assunto. O comentário <b>não</b> vai: fica só no seu banco. Publicar de novo uma questão atualiza a cópia das outras contas (sem mexer no histórico nem no assunto delas).</p>
               <div className="flex flex-wrap items-end gap-2">

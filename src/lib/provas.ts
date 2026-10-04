@@ -143,6 +143,14 @@ async function corrigirTentativa(tentativa: string): Promise<string> {
   const lista = dados.prova.tipo === 'lista'
   const { error } = await sb.rpc(lista ? 'corrigir_lista' : 'corrigir_tentativa', { p_tentativa: tentativa, p_dia: hojeBR(), p_xp: lista ? xpQuestoes(c.total, c.acertos) : xpSimulado(c.total, c.acertos), p_total: c.total, p_acertos: c.acertos, p_textos: textos })
   if (error) return /mudou/.test(error.message) ? 'O gabarito mudou durante a correção. Recarregue a página e tente de novo.' : 'Não foi possível corrigir. Nada foi gravado; tente de novo.'
+  if (lista) { // acertos no chute também vão para "refazer" (os erros já vão sozinhos)
+    const ids = c.itens.filter(i => i.chute && i.situacao === 'certa').map(i => i.id)
+    if (ids.length) {
+      const { data: qs } = await sb.from('prova_questoes').select('banco_questao_id').in('id', ids)
+      const chutes = (qs ?? []).map(q => q.banco_questao_id as string | null).filter((x): x is string => !!x)
+      if (chutes.length) await sb.rpc('refazer_chutes', { p_ids: chutes })
+    }
+  }
   await carregarGamificacao(sb, hojeBR()).catch(() => {})
   return 'ok'
 }

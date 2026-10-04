@@ -6,15 +6,18 @@ import { fmtData, inputCls } from '@/components/ui'
 import ChecklistRevisao from '@/components/ChecklistRevisao'
 import { etapasDasRevisoes } from '@/lib/revisao-etapas-data'
 import { progressoEtapas } from '@/lib/engine/etapas'
+import { carregarFilaRefazer } from '@/lib/banco-data'
+import Link from 'next/link'
 
 export default async function Revisoes({ searchParams }: { searchParams: Promise<{ rev?: string; tempo?: string }> }) {
   const { rev, tempo } = await searchParams
   const sb = await supabaseServer()
   const hoje = hojeBR()
   await sb.from('schedule_items').update({ status: 'atrasado' }).in('status', ['agendado', 'proximo']).lt('data', hoje)
-  const [{ data: rs }, { data: qs }] = await Promise.all([
+  const [{ data: rs }, { data: qs }, refazer] = await Promise.all([
     sb.from('reviews').select('id,numero,interval_days,due_date,topic_id,topics(nome,completed_date,disciplines(nome,peso,cor))').eq('status', 'pendente').order('due_date'),
     sb.from('question_sets').select('topic_id,total,acertos'),
+    carregarFilaRefazer(sb, hoje, addDays(hoje, 7)),
   ])
   const acerto = new Map<string, number>()
   const agg = new Map<string, [number, number]>()
@@ -35,6 +38,15 @@ export default async function Revisoes({ searchParams }: { searchParams: Promise
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-semibold">Revisões</h1>
+      {refazer && (refazer.hoje > 0 || refazer.semana > 0) && <section className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl border border-line bg-surface p-5">
+        <div className="min-w-0 flex-1">
+          <h2 className="font-medium">🔁 Refazer as questões erradas</h2>
+          <p className="text-sm text-muted">{refazer.hoje
+            ? <>{refazer.hoje} {refazer.hoje === 1 ? 'questão para refazer hoje' : 'questões para refazer hoje'}{refazer.atrasadas ? <span className="text-danger"> ({refazer.atrasadas} {refazer.atrasadas === 1 ? 'atrasada' : 'atrasadas'})</span> : ''}.</>
+            : 'Nada para refazer hoje.'}{refazer.semana ? ` Nos próximos 7 dias: ${refazer.semana}.` : ''} Cada questão que você erra volta em 1 dia; acertando, em 7 e depois em 30 dias.</p>
+        </div>
+        {refazer.hoje > 0 && <Link href="/banco/praticar?revisao=1" className="rounded-xl bg-brand px-5 py-2.5 font-medium text-black">Refazer agora ({refazer.hoje}) →</Link>}
+      </section>}
       {!itens.length && <p className="rounded-2xl border border-dashed border-line p-8 text-center text-muted">Nenhuma revisão pendente. Conclua um conteúdo em Matérias → Assuntos para gerar as primeiras.</p>}
       {grupos.filter(g => g.lista.length).map(g => (
         <section key={g.titulo} className="space-y-3">

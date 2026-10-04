@@ -9,11 +9,12 @@ export default async function PraticarPage({ searchParams }: { searchParams: Pro
   const f = lerFiltros(await searchParams)
   const sb = await supabaseServer()
   const filtros = Object.fromEntries(new URLSearchParams(filtrosParaUrl(f)))
-  const [primeira, topico, disc] = await Promise.all([
+  const [primeira, topico, disc, tema] = await Promise.all([
     proximaQuestao(filtros, []), assuntoDoFiltro(sb, f),
     f.disciplina ? sb.from('disciplines').select('nome').eq('id', f.disciplina).maybeSingle().then(r => r.data?.nome as string | undefined) : Promise.resolve(undefined),
+    f.tema ? sb.from('temas').select('nome').eq('id', f.tema).maybeSingle().then(r => r.data?.nome as string | undefined) : Promise.resolve(undefined),
   ])
-  const titulo = [f.area ? ROTULO_AREA[f.area] : null, disc, topico?.nome ?? (f.assunto === SEM_ASSUNTO ? 'sem assunto' : f.assunto), f.banca, rotuloDosAnos(f),
+  const titulo = f.revisao ? 'refazer as erradas' : [f.area ? ROTULO_AREA[f.area] : null, disc, tema ?? topico?.nome ?? (f.assunto === SEM_ASSUNTO ? 'sem assunto' : f.assunto), f.banca, rotuloDosAnos(f),
     f.situacao === 'nunca' ? 'nunca feitas' : f.situacao === 'errei' ? 'que errei' : f.situacao === 'acertei' ? 'que acertei' : null].filter(Boolean).join(' · ') || 'todas as questões'
   return (
     <>
