@@ -151,7 +151,7 @@ export default function ImportarBanco({ disciplinas, assuntos, admin = false, te
       </label>
       {erro && <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 p-3 text-sm text-danger">{erro}</p>}
       {resultado && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-3 text-sm">
-        {resultado.novas} {resultado.novas === 1 ? 'questão nova entrou' : 'questões novas entraram'} no banco.{resultado.repetidas ? ` ${resultado.repetidas} já ${resultado.repetidas === 1 ? 'estava' : 'estavam'} lá e não ${resultado.repetidas === 1 ? 'foi repetida' : 'foram repetidas'}.` : ''} <a href="/banco/questoes" className="text-brand underline">Ver no Banco</a> · <a href="/banco" className="text-brand underline">Praticar</a>
+        {resultado.novas} {resultado.novas === 1 ? 'questão nova entrou' : 'questões novas entraram'} no banco.{resultado.repetidas ? ` ${resultado.repetidas} já ${resultado.repetidas === 1 ? 'estava' : 'estavam'} lá e não ${resultado.repetidas === 1 ? 'foi repetida' : 'foram repetidas'}.` : ''} <a href="/admin/questoes" className="text-brand underline">Ver as questões</a> · <a href="/banco" className="text-brand underline">Praticar</a>
         {resultado.temas && <span className="mt-1 block">{resultado.temas}</span>}
         {resultado.explicacoes && <span className="mt-1 block">{resultado.explicacoes}</span>}
         {resultado.publicacao && <span className="mt-1 block">{resultado.publicacao}</span>}</p>}

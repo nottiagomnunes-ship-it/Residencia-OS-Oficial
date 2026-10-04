@@ -9,7 +9,7 @@ import AvisoDaUrl from '@/components/AvisoDaUrl'
 import { sincronizarBancoGeral, avisoDoBancoGeral, podeOrganizar, carregarTemas } from '@/lib/banco-data'
 import OpcoesDeAssunto from '@/components/banco/OpcoesDeAssunto'
 
-/** Praticar: escolher o que estudar e começar (uma por vez ou lista como prova). Organizar as questões fica na aba Banco (/banco/questoes). */
+/** Praticar: escolher o que estudar e começar (uma por vez ou lista como prova). Editar e publicar as questões fica na Administração (/admin). */
 export default async function PraticarInicio({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams, f = lerFiltros(sp)
   const sb = await supabaseServer()
@@ -37,7 +37,7 @@ export default async function PraticarInicio({ searchParams }: { searchParams: P
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h1 className="text-2xl font-semibold">Praticar</h1><p className="text-sm text-muted">Escolha o que estudar e responda uma por vez, com a resposta na hora.</p></div>
-        {T.length > 0 && <Link href="/banco/questoes" className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">{gestor ? 'Ver e organizar o banco' : 'Procurar questões'}</Link>}
+        {T.length > 0 && <Link href="/banco/questoes" className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">Procurar questões</Link>}
       </div>
       {sp.erro && <AvisoDaUrl tipo="erro" chaves={['erro']}>{sp.erro}</AvisoDaUrl>}
       {aviso && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-3 text-sm">{aviso}</p>}
@@ -45,7 +45,7 @@ export default async function PraticarInicio({ searchParams }: { searchParams: P
       {T.length === 0
         ? <div className="space-y-3 rounded-2xl border border-dashed border-line p-8 text-center">
           <p className="text-muted">{gestor ? 'Seu banco de questões está vazio. Importe um PDF ou .docx de questões (com o gabarito no fim) ou um pacote .json para começar a praticar.' : 'Ainda não há questões para praticar. Elas aparecem aqui assim que forem publicadas.'}</p>
-          {gestor && <Link href="/banco/importar" className="inline-block rounded-xl bg-brand px-5 py-2.5 font-medium text-black">Importar questões</Link>}
+          {gestor && <Link href="/admin/importar" className="inline-block rounded-xl bg-brand px-5 py-2.5 font-medium text-black">Importar questões</Link>}
         </div>
         : <>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -77,7 +77,7 @@ export default async function PraticarInicio({ searchParams }: { searchParams: P
 
         {gestor && semAssunto > 0 && <p className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface px-4 py-3 text-sm">
           <span className="text-muted">{semAssunto} {semAssunto === 1 ? 'questão está' : 'questões estão'} sem assunto e não {semAssunto === 1 ? 'entra' : 'entram'} no Desempenho por assunto.</span>
-          <Link href={`/banco/questoes?assunto=${encodeURIComponent(SEM_ASSUNTO)}&org=1`} className="text-brand hover:underline">Organizar no Banco →</Link></p>}
+          <Link href={`/admin/questoes?assunto=${encodeURIComponent(SEM_ASSUNTO)}`} className="text-brand hover:underline">Resolver na Administração →</Link></p>}
 
         {(listas ?? []).length > 0 && <section className="space-y-2">
           <h2 className="font-medium">Listas recentes</h2>

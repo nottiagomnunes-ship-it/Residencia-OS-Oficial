@@ -4,9 +4,9 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
 import { validarLote, textoParaHash, lerFiltros, sortear, nomeDaLista, sugerirAssunto, rotuloDosAnos, SEM_ASSUNTO } from '@/lib/engine/banco'
-import { textoDosBlocos, type Bloco } from '@/lib/engine/provas'
+import { textoDosBlocos, ehLetra, type Alternativa, type Bloco } from '@/lib/engine/provas'
 import { sugerirArea, normalizar, lerArea } from '@/lib/engine/areas'
-import { aplicarFiltros, assuntoDoFiltro, podeOrganizar, SO_ADMIN, ehAdmin, carregarTemas } from '@/lib/banco-data'
+import { aplicarFiltros, assuntoDoFiltro, podeOrganizar, SO_ADMIN, ehAdmin, carregarTemas, aplicarFiltroAdmin, lerFiltroAdmin, hashesReportados } from '@/lib/banco-data'
 import { lerListaDeTemas, sugerirTemas, type Tema } from '@/lib/engine/temas'
 
 async function ctx() {
@@ -16,7 +16,7 @@ async function ctx() {
   return { sb, uid: user.id }
 }
 /** Para onde voltar depois de um formulário da lista do banco: só para a própria página (com os filtros), nunca para fora do app. */
-const voltaDoBanco = (fd: FormData) => { const v = String(fd.get('volta') || ''); return /^\/banco(\/questoes)?(\?[^\s]*)?$/.test(v) ? v : '/banco/questoes' }
+const voltaDoBanco = (fd: FormData) => { const v = String(fd.get('volta') || ''); return /^\/(banco(\/questoes)?|admin(\/questoes(\/[0-9a-f-]{36})?)?)(\?[^\s]*)?$/.test(v) ? v : '/admin/questoes' }
 const SEM_TABELA = 'Falta atualizar o banco: rode supabase/migrations/0034_banco_questoes.sql no SQL Editor do Supabase.'
 const semTabela = (e: { code?: string; message?: string } | null) => !!e && (e.code === '42P01' || e.code === 'PGRST205' || e.code === 'PGRST202' || /does not exist|schema cache/i.test(e.message ?? ''))
 const refresh = () => ['/banco', '/questoes', '/desempenho', '/caderno-de-erros', '/inicio'].forEach(p => revalidatePath(p, 'layout'))
@@ -200,8 +200,9 @@ const SEM_GERAL = 'Falta atualizar o banco: rode supabase/migrations/0037_banco_
 /** As questões escolhidas no formulário: as marcadas, ou (com "todas") todas as dos filtros da página, até 2000. */
 async function idsDoFormulario(sb: Awaited<ReturnType<typeof supabaseServer>>, fd: FormData) {
   if (fd.get('todas') !== '1') return fd.getAll('sel').map(String).filter(x => /^[0-9a-f-]{36}$/i.test(x))
-  const f = lerFiltros(Object.fromEntries(new URLSearchParams(String(fd.get('filtros') || ''))))
-  const { data } = await aplicarFiltros(sb.from('banco_questoes').select('id'), f, await assuntoDoFiltro(sb, f)).limit(2000)
+  const ps = Object.fromEntries(new URLSearchParams(String(fd.get('filtros') || ''))), f = lerFiltros(ps), adm = lerFiltroAdmin(ps.adm)
+  const base = aplicarFiltros(sb.from('banco_questoes').select('id'), f, await assuntoDoFiltro(sb, f))
+  const { data } = await aplicarFiltroAdmin(base, adm, adm === 'reportadas' ? await hashesReportados(sb) : []).limit(2000)
   return (data ?? []).map((q: { id: string }) => q.id)
 }
 
@@ -316,7 +317,7 @@ export async function ligarAssunto(fd: FormData) {
 // ---------- Temas (lista geral: só etiqueta das questões, não mexe em Matérias nem no plano de ninguém) ----------
 
 const SEM_TEMAS = 'Falta atualizar o banco: rode supabase/migrations/0040_temas.sql no SQL Editor do Supabase.'
-const voltaDosTemas = (fd: FormData) => { const v = String(fd.get('volta') || ''); return /^\/banco\/(temas|questoes)(\?[^\s]*)?$/.test(v) ? v : '/banco/temas' }
+const voltaDosTemas = (fd: FormData) => { const v = String(fd.get('volta') || ''); return /^\/(banco\/(temas|questoes)|admin\/(temas|questoes))(\?[^\s]*)?$/.test(v) ? v : '/admin/temas' }
 
 /** Administradora: acrescenta temas à lista (texto colado; os repetidos não entram de novo). */
 export async function adicionarTemas(fd: FormData) {
@@ -519,4 +520,91 @@ export async function resolverReporte(fd: FormData) {
   await sb.from('explicacao_reportes').update({ resolvido_em: new Date().toISOString() }).eq('id', String(fd.get('id') || ''))
   refresh()
   redirect(comAviso(volta, 'ok', 'Reporte marcado como resolvido. Se corrigiu a explicação, publique a questão de novo.'))
+}
+
+// ---------- Administração: editar uma questão ----------
+
+/** Volta para a página de edição de uma questão (com os parâmetros da lista), nunca para fora do app. */
+const voltaDaEdicao = (fd: FormData, id: string) => {
+  const v = String(fd.get('volta') || '')
+  return v.startsWith(`/admin/questoes/${id}`) && /^[^\s]*$/.test(v) ? v : `/admin/questoes/${id}`
+}
+
+/**
+ * Administradora: salva tudo de uma questão numa vez só (enunciado, alternativas, gabarito, anulada, banca, ano, tema, explicação e comentário).
+ * As figuras ficam como estão. Se o texto muda, a impressão digital é refeita (não pode ficar igual à de outra questão sua).
+ * Com intencao=publicar, publica (ou atualiza) no banco geral logo depois.
+ */
+export async function salvarQuestao(fd: FormData) {
+  const { sb } = await ctx()
+  const id = String(fd.get('id') || '')
+  if (!/^[0-9a-f-]{36}$/i.test(id)) redirect('/admin/questoes')
+  const volta = voltaDaEdicao(fd, id)
+  if (!(await ehAdmin(sb))) redirect(comAviso(volta, 'erro', 'Só a conta administradora edita as questões aqui.'))
+  const { data: q, error: e0 } = await sb.from('banco_questoes').select('id,hash,blocos,alternativas,gabarito,gabarito_origem,anulada,banca,ano,tema_id,explicacao,explicacao_origem,comentario,origem_geral').eq('id', id).maybeSingle()
+  if (e0) redirect(comAviso(volta, 'erro', 'Falta atualizar o banco: rode as migrations até a 0043_admin_pendencias.sql no SQL Editor do Supabase.'))
+  if (!q) redirect(comAviso('/admin/questoes', 'erro', 'Questão não encontrada.'))
+
+  // enunciado: o texto de cada bloco de texto (bloco_0, bloco_1…); as figuras ficam; um bloco de texto apagado sai
+  const blocos: Bloco[] = []
+  ;((q.blocos ?? []) as Bloco[]).forEach((b, k) => {
+    if (b.tipo !== 'texto') { blocos.push(b); return }
+    const t = fd.has(`bloco_${k}`) ? String(fd.get(`bloco_${k}`)).replace(/\r\n/g, '\n').trim().slice(0, 20000) : b.texto
+    if (t) blocos.push({ ...b, texto: t })
+  })
+  if (!blocos.some(b => b.tipo === 'texto')) redirect(comAviso(volta, 'erro', 'O enunciado não pode ficar vazio.'))
+
+  // alternativas: as letras e os textos na ordem; uma alternativa sem texto sai
+  const letras = fd.getAll('alt_letra').map(x => String(x).trim().toUpperCase()), textos = fd.getAll('alt_texto').map(x => String(x).trim().slice(0, 4000))
+  const alternativas = letras.map((letra, k) => ({ letra, texto: textos[k] ?? '' })).filter((a): a is Alternativa => ehLetra(a.letra) && !!a.texto)
+  if (new Set(alternativas.map(a => a.letra)).size !== alternativas.length) redirect(comAviso(volta, 'erro', 'Duas alternativas com a mesma letra.'))
+  if (alternativas.length < 2) redirect(comAviso(volta, 'erro', 'A questão precisa de pelo menos duas alternativas.'))
+
+  const gab = String(fd.get('gabarito') || '').trim().toUpperCase() || null
+  if (gab && !alternativas.some(a => a.letra === gab)) redirect(comAviso(volta, 'erro', `O gabarito ${gab} não é uma das alternativas.`))
+  const anoTxt = String(fd.get('ano') || '').trim(), ano = anoTxt ? Number(anoTxt) : null
+  if (ano !== null && !(Number.isInteger(ano) && ano >= 1950 && ano <= 2100)) redirect(comAviso(volta, 'erro', 'Ano inválido.'))
+  const expl = String(fd.get('explicacao') ?? q.explicacao ?? '').replace(/\r\n/g, '\n').trim().slice(0, 8000) || null
+  const coment = String(fd.get('comentario') ?? q.comentario ?? '').replace(/\r\n/g, '\n').trim().slice(0, 20000) || null
+
+  const hash = createHash('sha256').update(textoParaHash(blocos, alternativas)).digest('hex')
+  if (hash !== q.hash) {
+    const { data: igual } = await sb.from('banco_questoes').select('id').eq('hash', hash).neq('id', id).limit(1)
+    if ((igual ?? []).length) redirect(comAviso(volta, 'erro', 'Com esse texto, ela fica igual a outra questão do seu banco. Nada foi salvo.'))
+  }
+  const muda: Record<string, unknown> = {
+    blocos, alternativas, hash, anulada: fd.get('anulada') === '1',
+    gabarito: gab, gabarito_origem: gab === q.gabarito ? q.gabarito_origem : gab ? 'oficial' : null,
+    banca: String(fd.get('banca') || '').trim().slice(0, 120) || null, ano, comentario: coment,
+  }
+  if (expl !== (q.explicacao ?? null)) Object.assign(muda, { explicacao: expl, explicacao_origem: expl ? 'revisada' : null })
+  const { error } = await sb.from('banco_questoes').update(muda).eq('id', id)
+  if (error) redirect(comAviso(volta, 'erro', /explicacao/.test(error.message) ? SEM_EXPLICACOES : 'Não foi possível salvar. Tente de novo.'))
+  // os reportes abertos seguem a questão (eles a acham pela impressão digital)
+  if (hash !== q.hash) await sb.from('explicacao_reportes').update({ hash }).eq('hash', q.hash).is('resolvido_em', null)
+
+  // tema (com o assunto e a disciplina que vêm dele)
+  const temaId = String(fd.get('tema') ?? (q.tema_id ?? ''))
+  if (temaId !== (q.tema_id ?? '')) {
+    const tema = temaId ? (await carregarTemas(sb)).find(t => t.id === temaId) ?? null : null
+    if (temaId && !tema) redirect(comAviso(volta, 'erro', 'Salvo, mas o tema escolhido não foi encontrado.'))
+    if (!(await gravarTema(sb, [id], tema)).ok) redirect(comAviso(volta, 'erro', 'Salvo, mas sem o tema: ' + SEM_TEMAS))
+  }
+  refresh(); revalidatePath('/admin', 'layout')
+
+  if (fd.get('intencao') === 'publicar') {
+    const r = await publicarIds(sb, [id], null)
+    if (!r.ok) redirect(comAviso(volta, 'erro', `Salvo no seu banco, mas não publicado: ${r.erro}`))
+    redirect(comAviso(volta, 'ok', r.novas ? 'Salvo e publicado no banco geral.' : 'Salvo e atualizado no banco geral. As outras contas recebem ao abrir Praticar ou Banco.'))
+  }
+  redirect(comAviso(volta, 'ok', q.origem_geral ? 'Salvo. Para chegar às outras contas, use "Salvar e publicar".' : 'Salvo.'))
+}
+
+/** Administradora: exclui uma questão do próprio banco pela página de edição e volta para a lista. */
+export async function excluirQuestaoDaAdmin(fd: FormData) {
+  const { sb } = await ctx()
+  const id = String(fd.get('id') || ''), lista = String(fd.get('lista') || '')
+  await sb.from('banco_questoes').delete().eq('id', id)
+  refresh(); revalidatePath('/admin', 'layout')
+  redirect(comAviso(/^\/admin\/questoes(\?[^\s]*)?$/.test(lista) ? lista : '/admin/questoes', 'ok', 'Questão excluída do seu banco. Se ela estava no banco geral, continua lá até você tirá-la.'))
 }

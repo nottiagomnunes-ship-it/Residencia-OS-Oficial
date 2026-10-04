@@ -33,6 +33,7 @@ import { GET as exportar } from '@/app/(app)/banco/exportar/route'
 import AssuntoDaQuestao from '@/components/banco/AssuntoDaQuestao'
 import MarcarTodas from '@/components/banco/MarcarTodas'
 import Banco from '@/app/(app)/banco/questoes/page'
+import AdminQuestoes from '@/app/(app)/admin/questoes/page'
 import PraticarInicio from '@/app/(app)/banco/page'
 
 const Q1 = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', Q2 = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
@@ -96,7 +97,7 @@ describe('em lote (lista do banco)', () => {
   })
   it('sem escolha ou sem marcar: avisa; "volta" de fora do banco é ignorada', async () => {
     await expect(definirAssuntoEmLote(fd({ sel: Q1, alvo: '', volta: 'https://outro.site' }))).rejects.toThrow('REDIRECT')
-    expect(h.redirects[0]).toMatch(/^\/banco\/questoes\?erro=/)
+    expect(h.redirects[0]).toMatch(/^\/admin\/questoes\?erro=/)
     await expect(definirAssuntoEmLote(fd({ alvo: 'nenhum', volta: '/banco' }))).rejects.toThrow('REDIRECT')
     expect(decodeURIComponent(h.redirects[1])).toContain('Nenhuma questão escolhida')
     expect(updates()).toEqual([])
@@ -129,8 +130,8 @@ describe('ligar assuntos', () => {
       { id: Q2, blocos: [], alternativas: [], discipline_id: DISC, topic_id: null, assunto: 'Via aerea', vezes: 0, acertos: 0 }]
     h.dados.disciplines = [{ id: DISC, nome: 'Anestesiologia' }]
     h.dados.topics = [{ id: TOP, nome: 'Via aérea difícil', discipline_id: DISC }]
-    const html = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({ org: '1' }) }))
-    expect(html).toContain('Ligar assuntos'); expect(html).toMatch(/<b class="font-medium">Via aerea<\/b> <span class="text-muted">· (<!-- -->)?2(<!-- -->)? (<!-- -->)?questões/)
+    const html = renderToStaticMarkup(await AdminQuestoes({ searchParams: Promise.resolve({}) }))
+    expect(html).toContain('Ligar assuntos'); expect(html).toMatch(/<b class="font-medium">Via aerea<\/b> <span class="text-muted">· (<!-- -->)?2<\/span>/)
     expect(html).toContain(`<option value="t:${TOP}" selected="">Via aérea difícil</option>`)
   })
 })
@@ -165,16 +166,16 @@ describe('telas', () => {
     const html = renderToStaticMarkup(<AssuntoDaQuestao id={Q1} topicId={null} assunto="Bloqueios" disciplinaId={null} assuntos={[]} disciplinas={[]} abertoInicial />)
     expect(html).toMatch(/<option value="rotulo" selected="">Bloqueios \(só nome\)<\/option>/)
   })
-  it('lista do banco: caixinha em cada questão, seletor de assunto e "Sugerir pelo texto"', async () => {
+  it('Administração → Questões: caixinha em cada questão, "Editar", ações em lote e "Sugerir pelo texto"', async () => {
     h.dados.banco_questoes = [{ id: Q1, blocos: [{ tipo: 'texto', texto: 'Enunciado' }], alternativas: [{ letra: 'A', texto: 'a' }], gabarito: 'A', anulada: false,
       discipline_id: DISC, topic_id: null, assunto: null, vezes: 0, acertos: 0, ultimo_certo: null }]
     h.dados.disciplines = [{ id: DISC, nome: 'Anestesiologia' }]
     h.dados.topics = [{ id: TOP, nome: 'Anestésicos locais', discipline_id: DISC }]
-    const html = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({ ok: 'Assunto salvo em 1 questão.', org: '1' }) }))
+    const html = renderToStaticMarkup(await AdminQuestoes({ searchParams: Promise.resolve({ ok: 'Assunto salvo em 1 questão.' }) }))
     expect(html).toMatch(new RegExp(`<input type="checkbox" form="lote"[^>]*name="sel" value="${Q1}"`))
-    expect(html).toContain('name="volta" value="/banco/questoes?org=1"')
-    expect(html).toContain('id="lote"'); expect(html).toContain('pelo texto'); expect(html).toContain('1 questão sem assunto')
-    expect(html).toContain('Mudar assunto')
+    expect(html).toContain('name="volta" value="/admin/questoes"'); expect(html).toContain(`href="/admin/questoes/${Q1}"`)
+    expect(html).toContain('id="lote"'); expect(html).toContain('Sugerir assunto de Matérias pelo texto (1 sem assunto)')
+    expect(html).toContain('Marque questões na lista') // ações em lote só aparecem depois de marcar
   })
   it('filtro "Sem assunto": pega só as questões sem assunto', async () => {
     await Banco({ searchParams: Promise.resolve({ assunto: '(sem assunto)' }) })
@@ -185,12 +186,12 @@ describe('telas', () => {
     h.dados.disciplines = [{ id: DISC, nome: 'Anestesiologia' }]
     const html = renderToStaticMarkup(await PraticarInicio({ searchParams: Promise.resolve({}) }))
     expect(html).toContain('O que você quer praticar?'); expect(html).toContain('formAction="/banco/praticar"')
-    expect(html).toContain('href="/banco/questoes?assunto=(sem%20assunto)&amp;org=1"'); expect(html).toContain('1 questão está sem assunto')
+    expect(html).toContain('href="/admin/questoes?assunto=(sem%20assunto)"'); expect(html).toContain('1 questão está sem assunto')
     expect(html).not.toContain('name="sel"'); expect(html).not.toContain('Sugerir pelo texto')
   })
   it('Praticar com o banco vazio: leva a importar', async () => {
     const html = renderToStaticMarkup(await PraticarInicio({ searchParams: Promise.resolve({}) }))
-    expect(html).toContain('href="/banco/importar"'); expect(html).not.toContain('O que você quer praticar?')
+    expect(html).toContain('href="/admin/importar"'); expect(html).not.toContain('O que você quer praticar?')
   })
   it('busca simples: banca, assunto e ano à vista; sem "Organizar", nada de caixinhas nem ferramentas', async () => {
     h.dados.banco_questoes = [{ id: Q1, blocos: [{ tipo: 'texto', texto: 'Enunciado' }], alternativas: [], gabarito: 'A', anulada: false, discipline_id: DISC, topic_id: null,
@@ -200,7 +201,7 @@ describe('telas', () => {
     expect(html).toContain('<option value="UFMA" selected="">UFMA (2)</option>'); expect(html).toContain('<option value="2022">2022</option>')
     expect(html).toContain('href="/banco/praticar?banca=UFMA&amp;de=2020&amp;ate=2024"')
     expect(html).not.toContain('name="sel"'); expect(html).not.toContain('Ligar assuntos'); expect(html).not.toContain('Sugerir pelo texto')
-    expect(html).toContain('href="/banco/questoes?banca=UFMA&amp;de=2020&amp;ate=2024&amp;org=1"')
+    expect(html).not.toContain('Organiz'); expect(html).toContain(`href="/admin/questoes/${Q1}"`) // a administradora: atalho para editar
   })
 })
 
@@ -217,12 +218,17 @@ describe('estudante (conta que não é a administradora)', () => {
     h.dados.banco_questoes = [{ id: Q1, blocos: [{ tipo: 'texto', texto: 'Enunciado' }], alternativas: [], gabarito: 'A', anulada: false, topic_id: null, assunto: null, vezes: 0, acertos: 0 }]
     const html = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({ org: '1' }) }))
     expect(html).not.toContain('Importar questões'); expect(html).not.toContain('Organiz'); expect(html).not.toContain('name="sel"')
-    expect(html).not.toContain('Mudar assunto'); expect(html).not.toContain('Sugerir pelo texto'); expect(html).toContain('Excluir do banco')
+    expect(html).not.toContain('Mudar assunto'); expect(html).not.toContain('Sugerir pelo texto'); expect(html).toContain('Excluir do seu banco')
+    expect(html).not.toContain('Administração')
     expect(html).toContain('Praticar esta')
   })
   it('Praticar com o banco vazio: sem botão de importar', async () => {
     const html = renderToStaticMarkup(await PraticarInicio({ searchParams: Promise.resolve({}) }))
-    expect(html).not.toContain('/banco/importar'); expect(html).toContain('assim que forem publicadas')
+    expect(html).not.toContain('/admin/importar'); expect(html).toContain('assim que forem publicadas')
+  })
+  it('a Administração não abre para quem não é a administradora', async () => {
+    await expect(AdminQuestoes({ searchParams: Promise.resolve({}) })).rejects.toThrow('REDIRECT')
+    expect(h.redirects).toEqual(['/banco/questoes'])
   })
   it('marcar todas: começa só com "desta página" (o "todas destes filtros" aparece depois de marcar a página)', () => {
     const html = renderToStaticMarkup(<MarcarTodas form="lote" total={120} naPagina={30} />)

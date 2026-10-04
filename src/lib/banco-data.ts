@@ -107,3 +107,29 @@ export async function carregarTemas(sb: SupabaseClient): Promise<Tema[]> {
   const { data: d2, error: e2 } = await sb.from('temas').select('id,area,especialidade,nome').limit(5000) // sem a 0041 (sem palavras-chave)
   return e2 ? [] : ((d2 ?? []) as Tema[])
 }
+
+/** Filtros só da Administração (o que falta fazer nas questões). */
+export const FILTROS_ADMIN = [
+  ['reportadas', 'Com explicação reportada'], ['sem-tema', 'Sem tema'], ['sem-explicacao', 'Sem explicação'],
+  ['falta-publicar', 'Alteradas, falta publicar'], ['so-meu', 'Só no seu banco (não publicadas)'], ['publicadas', 'Publicadas no banco geral'],
+] as const
+export type FiltroAdmin = (typeof FILTROS_ADMIN)[number][0]
+export const lerFiltroAdmin = (v: string | null | undefined): FiltroAdmin | null => (FILTROS_ADMIN.find(([k]) => k === v)?.[0] ?? null)
+
+/** Aplica o filtro da Administração. "reportadas" precisa das impressões digitais das questões com reporte aberto. */
+export function aplicarFiltroAdmin<Q>(q: Q, adm: FiltroAdmin | null, hashesReportados: string[] = []): Q {
+  let x = q as any
+  if (adm === 'sem-tema') x = x.is('tema_id', null)
+  if (adm === 'sem-explicacao') x = x.is('explicacao', null).eq('anulada', false).not('gabarito', 'is', null)
+  if (adm === 'falta-publicar') x = x.eq('pendente_publicar', true)
+  if (adm === 'so-meu') x = x.is('origem_geral', null)
+  if (adm === 'publicadas') x = x.not('origem_geral', 'is', null)
+  if (adm === 'reportadas') x = x.in('hash', hashesReportados.length ? hashesReportados : ['-'])
+  return x as Q
+}
+
+/** As impressões digitais das questões com explicação reportada e ainda não resolvida (sem a 0042: nenhuma). */
+export async function hashesReportados(sb: SupabaseClient) {
+  const { data } = await sb.from('explicacao_reportes').select('hash').is('resolvido_em', null).limit(2000)
+  return [...new Set(((data ?? []) as { hash: string }[]).map(r => r.hash))]
+}

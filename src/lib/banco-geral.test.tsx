@@ -29,6 +29,7 @@ vi.mock('next/navigation', () => ({ redirect: (u: string) => { h.redirects.push(
 import { publicarNoBancoGeral, retirarDoBancoGeral, restaurarDoBancoGeral, importarNoBanco } from './banco'
 import { avisoDoBancoGeral } from './banco-data'
 import Banco from '@/app/(app)/banco/questoes/page'
+import AdminQuestoes from '@/app/(app)/admin/questoes/page'
 import PraticarInicio from '@/app/(app)/banco/page'
 
 const Q1 = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', Q2 = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
@@ -136,11 +137,13 @@ describe('telas', () => {
     h.dados.banco_questoes = [{ id: Q1, origem_geral: 'g1', blocos: [{ tipo: 'texto', texto: 'Enunciado' }], alternativas: [], gabarito: 'A', anulada: false, discipline_id: null, topic_id: null, assunto: 'X', vezes: 0, acertos: 0 }]
     h.rpcRes.sincronizar_banco_geral = { data: { novas: 5, corrigidas: 0 }, error: null }
   }
-  it('administradora: vê o bloco do banco geral; questões publicadas têm a marca', async () => {
+  it('administradora: no Banco vê a mesma tela de busca, com o atalho para a Administração; lá as publicadas têm a marca', async () => {
     banco(); h.rpcRes.eh_admin = { data: true, error: null }
     const html = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({ org: '1' }) }))
-    expect(html).toContain('Publicar as marcadas'); expect(html).toContain('O comentário <b>não</b> vai')
-    expect(html).toContain('· banco geral'); expect(html).toContain('5 questões novas do banco geral entraram no seu banco.')
+    expect(html).not.toContain('Publicar'); expect(html).toContain('Editar na Administração')
+    expect(html).toContain('5 questões novas do banco geral entraram no seu banco.')
+    const adm = renderToStaticMarkup(await AdminQuestoes({ searchParams: Promise.resolve({}) }))
+    expect(adm).toContain('>publicada<'); expect(adm).not.toContain('O comentário <b>não</b> vai') // ações em lote: só depois de marcar
   })
   it('conta comum: sem o bloco de publicar', async () => {
     banco(); h.rpcRes.eh_admin = { data: false, error: null }

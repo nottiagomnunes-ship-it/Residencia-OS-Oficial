@@ -1,5 +1,5 @@
 import { supabaseServer } from '@/lib/supabase/server'
-import { aplicarFiltros, assuntoDoFiltro, podeOrganizar } from '@/lib/banco-data'
+import { aplicarFiltros, assuntoDoFiltro, podeOrganizar, aplicarFiltroAdmin, lerFiltroAdmin, hashesReportados } from '@/lib/banco-data'
 import { lerFiltros, pacoteDoBanco } from '@/lib/engine/banco'
 import type { Alternativa, Bloco } from '@/lib/engine/provas'
 import { hojeBR } from '@/lib/dates'
@@ -13,9 +13,9 @@ export async function GET(req: Request) {
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return new Response('Entre na sua conta.', { status: 401 })
   if (!(await podeOrganizar(sb))) return new Response('Só a conta administradora exporta o banco.', { status: 403 })
-  const f = lerFiltros(Object.fromEntries(new URL(req.url).searchParams))
-  const { data, error } = await aplicarFiltros(sb.from('banco_questoes').select('id,blocos,alternativas,gabarito,gabarito_origem,anulada,comentario,area,discipline_id,assunto,banca,ano'), f, await assuntoDoFiltro(sb, f))
-    .order('criada_em').limit(3000)
+  const ps = Object.fromEntries(new URL(req.url).searchParams), f = lerFiltros(ps), adm = lerFiltroAdmin(ps.adm) // adm: filtro da Administração (ex.: sem tema)
+  const base = aplicarFiltros(sb.from('banco_questoes').select('id,blocos,alternativas,gabarito,gabarito_origem,anulada,comentario,area,discipline_id,assunto,banca,ano'), f, await assuntoDoFiltro(sb, f))
+  const { data, error } = await aplicarFiltroAdmin(base, adm, adm === 'reportadas' ? await hashesReportados(sb) : []).order('criada_em').limit(3000)
   if (error) return new Response('Não foi possível ler o banco.', { status: 500 })
   const qs = (data ?? []) as any[]
   const [{ data: ds }, { data: comTema }, { data: comExpl }] = await Promise.all([

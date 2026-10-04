@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { SECOES, AJUSTES, secaoDe, abaDe, type Icone as NomeIcone, type Secao } from '@/lib/engine/menu'
+import { SECOES, AJUSTES, ADMIN, secaoDe, abaDe, dentro, type Icone as NomeIcone, type Secao } from '@/lib/engine/menu'
 
 /** Guarda a escolha (menu recolhido ou aberto) neste aparelho. Vai em cookie para o servidor já desenhar o menu certo, sem piscar. */
 const guardarMenu = (recolhido: boolean) => { document.cookie = `menu=${recolhido ? 'recolhido' : 'aberto'}; path=/; max-age=31536000; SameSite=Lax` }
@@ -13,6 +13,7 @@ const CAMINHOS: Record<NomeIcone, string> = {
   questoes: 'M5 4h11l3 3v13H5zM9 12l2 2 4-4',
   materias: 'M4 5c3-1 5-1 8 1 3-2 5-2 8-1v14c-3-1-5-1-8 1-3-2-5-2-8-1zM12 6v14',
   progresso: 'M4 20V10M10 20V4M16 20v-8M22 20H2',
+  admin: 'M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6zM9 12l2 2 4-4',
   ajustes: 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
 }
 export function Icone({ nome, className = 'size-5' }: { nome: NomeIcone; className?: string }) {
@@ -23,7 +24,7 @@ export function Icone({ nome, className = 'size-5' }: { nome: NomeIcone; classNa
  * Menu lateral (telas largas): as 5 seções e, no rodapé, Configurações e Ajuda. O botão ‹ recolhe o menu para uma faixa só com os ícones.
  * A escolha fica lembrada neste aparelho.
  */
-export function Sidebar({ recolhidoInicial = false }: { recolhidoInicial?: boolean }) {
+export function Sidebar({ recolhidoInicial = false, admin = false }: { recolhidoInicial?: boolean; admin?: boolean }) {
   const path = usePathname(), atual = secaoDe(path)
   const [recolhido, setRecolhido] = useState(recolhidoInicial)
   const definir = (v: boolean) => { setRecolhido(v); guardarMenu(v) }
@@ -43,7 +44,7 @@ export function Sidebar({ recolhidoInicial = false }: { recolhidoInicial?: boole
           className="grid size-11 shrink-0 place-items-center rounded-xl text-lg text-muted hover:bg-line/50 hover:text-brand">{recolhido ? '›' : '‹'}</button>
       </div>
       <nav aria-label="Seções" className="flex flex-col gap-1">{SECOES.map(s => item(s))}</nav>
-      <div className="mt-auto flex flex-col gap-1 border-t border-line pt-3">{rodape}</div>
+      <div className="mt-auto flex flex-col gap-1 border-t border-line pt-3">{admin && item(ADMIN, ADMIN.nome, ADMIN.href, atual === ADMIN)}{rodape}</div>
     </aside>)
 }
 
@@ -63,11 +64,12 @@ export function BottomNav() {
  * Topo da página: as abas da seção atual (ex.: Agenda → Calendário · Plano de estudo · Meu tempo · Compromissos) e, no celular,
  * a engrenagem (Configurações) e a Ajuda. Seção de uma aba só não mostra abas.
  */
-export function SubNav() {
+export function SubNav({ admin = false }: { admin?: boolean }) {
   const path = usePathname(), s = secaoDe(path), aba = s ? abaDe(path, s) : null
   useEffect(() => { document.getElementById('aba-atual')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }) }, [path])
   const extras = (
     <div className="ml-auto flex shrink-0 items-center gap-1">
+      {admin && <Link href="/admin" aria-label="Administração" aria-current={dentro(path, '/admin') ? 'page' : undefined} className={`grid size-11 place-items-center rounded-xl hover:text-brand ${dentro(path, '/admin') ? 'text-brand' : 'text-muted'}`}><Icone nome="admin" /></Link>}
       <Link href="/ajuda" aria-label="Ajuda" className="grid size-11 place-items-center rounded-xl text-muted hover:text-brand"><span aria-hidden className="grid size-5 place-items-center rounded-full border border-current text-xs">?</span></Link>
       <Link href="/configuracoes" aria-label="Configurações" className="grid size-11 place-items-center rounded-xl text-muted hover:text-brand"><Icone nome="ajustes" /></Link>
     </div>)
