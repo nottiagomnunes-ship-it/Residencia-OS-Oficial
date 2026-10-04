@@ -57,7 +57,7 @@ export async function criarDisciplinaDoBanco(nome: string): Promise<{ id?: strin
 
 /** Grava o lote: confere, calcula a impressão digital de cada questão e deixa o banco ignorar as repetidas. */
 export async function importarNoBanco(dados: unknown, publicar: { colecao: string | null } | null = null, opcoes: { criarTemas?: boolean } = {}):
-  Promise<{ ok: true; novas: number; repetidas: number; publicacao?: string; erroPublicacao?: string; temas?: string } | { ok: false; erro: string }> {
+  Promise<{ ok: true; novas: number; repetidas: number; publicacao?: string; erroPublicacao?: string; temas?: string; explicacoes?: string } | { ok: false; erro: string }> {
   const { sb, uid } = await ctx()
   if (!(await podeOrganizar(sb))) return { ok: false, erro: SO_ADMIN }
   const v = validarLote(dados, uid)
@@ -72,17 +72,19 @@ export async function importarNoBanco(dados: unknown, publicar: { colecao: strin
   refresh()
   // as deste arquivo no banco (novas e as que já estavam), pela impressão digital
   const idPorHash = new Map<string, string>()
-  if (publicar || itens.some(q => q.tema)) for (let i = 0; i < itens.length; i += 200) {
+  if (publicar || itens.some(q => q.tema || q.explicacao)) for (let i = 0; i < itens.length; i += 200) {
     const { data } = await sb.from('banco_questoes').select('id,hash').in('hash', itens.slice(i, i + 200).map(q => q.hash))
     for (const q of (data ?? []) as { id: string; hash: string }[]) idPorHash.set(q.hash, q.id)
   }
   const temas = itens.some(q => q.tema) ? await aplicarTemasDoLote(sb, itens, idPorHash, !!opcoes.criarTemas) : undefined
-  if (!publicar) return { ok: true, novas, repetidas: itens.length - novas, ...(temas ? { temas } : {}) }
+  const explicacoes = itens.some(q => q.explicacao) ? await aplicarExplicacoesDoLote(sb, itens, idPorHash) : undefined
+  const extras = { ...(temas ? { temas } : {}), ...(explicacoes ? { explicacoes } : {}) }
+  if (!publicar) return { ok: true, novas, repetidas: itens.length - novas, ...extras }
   // "Publicar também no banco geral" (depois dos temas, para o tema ir junto)
   const ids = [...new Set(idPorHash.values())]
   const r = await publicarIds(sb, ids, publicar.colecao?.trim().slice(0, 120) || null)
-  return r.ok ? { ok: true, novas, repetidas: itens.length - novas, publicacao: resumoDaPublicacao(r), ...(temas ? { temas } : {}) }
-    : { ok: true, novas, repetidas: itens.length - novas, ...(temas ? { temas } : {}), erroPublicacao: `As questões entraram no seu banco, mas a publicação falhou: ${r.erro} Publique pelo Banco → Organizar.` }
+  return r.ok ? { ok: true, novas, repetidas: itens.length - novas, publicacao: resumoDaPublicacao(r), ...extras }
+    : { ok: true, novas, repetidas: itens.length - novas, ...extras, erroPublicacao: `As questões entraram no seu banco, mas a publicação falhou: ${r.erro} Publique pelo Banco → Organizar.` }
 }
 
 /** Sorteia as questões que batem com os filtros e abre a lista na tela de prova. */
@@ -469,4 +471,52 @@ async function aplicarTemasDoLote(sb: Awaited<ReturnType<typeof supabaseServer>>
   const sem = itens.filter(i => i.tema).length - n
   return `Tema aplicado em ${n} ${n === 1 ? 'questão' : 'questões'}` + (criados ? ` (${criados} ${criados === 1 ? 'tema novo criado' : 'temas novos criados'} na lista)` : '') +
     (sem > 0 ? `; ${sem} ${sem === 1 ? 'ficou' : 'ficaram'} sem tema${faltam.length && !criar ? ' (temas que não estão na lista)' : ''}` : '') + '.'
+}
+
+// ---------- Explicações (texto original: IA ou revisado pela administradora; vai para o banco geral, diferente do comentário) ----------
+
+const SEM_EXPLICACOES = 'Falta atualizar o banco: rode supabase/migrations/0042_explicacoes.sql no SQL Editor do Supabase.'
+
+/** Importação com explicação (pacote preparado fora do app): grava a explicação em cada questão, inclusive nas que já estavam no banco. */
+async function aplicarExplicacoesDoLote(sb: Awaited<ReturnType<typeof supabaseServer>>, itens: { hash: string; explicacao?: { texto: string; origem: 'ia' | 'revisada' } | null }[],
+  idPorHash: Map<string, string>): Promise<string> {
+  const alvo = itens.flatMap(i => (i.explicacao && idPorHash.get(i.hash) ? [{ id: idPorHash.get(i.hash)!, e: i.explicacao }] : []))
+  let n = 0, falhou = false
+  for (let i = 0; i < alvo.length && !falhou; i += 20) {
+    const rs = await Promise.all(alvo.slice(i, i + 20).map(x => sb.from('banco_questoes').update({ explicacao: x.e.texto, explicacao_origem: x.e.origem }).eq('id', x.id)))
+    for (const r of rs) { if (r.error) falhou = true; else n++ }
+  }
+  if (falhou && !n) return SEM_EXPLICACOES
+  return `Explicação gravada em ${n} ${n === 1 ? 'questão' : 'questões'}.`
+}
+
+/** Administradora: escreve, corrige ou apaga a explicação de uma questão do próprio banco (fica "revisada"). Publique de novo para chegar às outras contas. */
+export async function salvarExplicacao(id: string, texto: string): Promise<{ ok: boolean; erro?: string }> {
+  const { sb } = await ctx()
+  if (!(await podeOrganizar(sb))) return { ok: false, erro: SO_ADMIN }
+  const t = texto.trim().slice(0, 8000)
+  const { error } = await sb.from('banco_questoes').update({ explicacao: t || null, explicacao_origem: t ? 'revisada' : null }).eq('id', id)
+  if (error) return { ok: false, erro: /explicacao/.test(error.message) ? SEM_EXPLICACOES : 'Não foi possível salvar.' }
+  refresh()
+  return { ok: true }
+}
+
+/** Quem estuda: reporta erro na explicação de uma questão (vai para a administradora conferir). */
+export async function reportarExplicacao(id: string, motivo: string): Promise<{ ok: boolean; erro?: string }> {
+  const { sb, uid } = await ctx()
+  const m = motivo.trim().slice(0, 1000)
+  if (m.length < 3) return { ok: false, erro: 'Conte em poucas palavras o que está errado.' }
+  const { data: q } = await sb.from('banco_questoes').select('hash,origem_geral').eq('id', id).maybeSingle()
+  if (!q) return { ok: false, erro: 'Questão não encontrada.' }
+  const { error } = await sb.from('explicacao_reportes').insert({ user_id: uid, hash: q.hash, geral_id: q.origem_geral ?? null, motivo: m })
+  return error ? { ok: false, erro: 'Não foi possível enviar. Tente de novo.' } : { ok: true }
+}
+
+/** Administradora: marca um reporte como resolvido. */
+export async function resolverReporte(fd: FormData) {
+  const { sb } = await ctx()
+  const volta = voltaDoBanco(fd)
+  await sb.from('explicacao_reportes').update({ resolvido_em: new Date().toISOString() }).eq('id', String(fd.get('id') || ''))
+  refresh()
+  redirect(comAviso(volta, 'ok', 'Reporte marcado como resolvido. Se corrigiu a explicação, publique a questão de novo.'))
 }

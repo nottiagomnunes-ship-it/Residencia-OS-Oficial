@@ -1,16 +1,17 @@
 import Link from 'next/link'
 import { supabaseServer } from '@/lib/supabase/server'
-import { excluirDoBanco, definirAssuntoEmLote, definirTemaEmLote, sugerirTemasPeloTexto, ligarAssunto, sugerirAssuntosDoBanco, publicarNoBancoGeral, retirarDoBancoGeral, restaurarDoBancoGeral } from '@/lib/banco'
+import { excluirDoBanco, definirAssuntoEmLote, definirTemaEmLote, sugerirTemasPeloTexto, resolverReporte, ligarAssunto, sugerirAssuntosDoBanco, publicarNoBancoGeral, retirarDoBancoGeral, restaurarDoBancoGeral } from '@/lib/banco'
 import { aplicarFiltros, assuntoDoFiltro, sincronizarBancoGeral, ehAdmin, avisoDoBancoGeral, podeOrganizar, carregarTemas } from '@/lib/banco-data'
 import { porEspecialidade } from '@/lib/engine/temas'
 import OpcoesDeAssunto from '@/components/banco/OpcoesDeAssunto'
 import { lerFiltros, filtrosParaUrl, SEM_ASSUNTO, assuntoParecido, type Filtros } from '@/lib/engine/banco'
 import { textoDosBlocos, ehLetra, type Bloco } from '@/lib/engine/provas'
 import { AREAS, ROTULO_AREA, SIGLA_AREA, lerArea } from '@/lib/engine/areas'
-import { inputCls } from '@/components/ui'
+import { inputCls, fmtData } from '@/components/ui'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
 import AssuntoDaQuestao, { type TopicoSimples } from '@/components/banco/AssuntoDaQuestao'
 import MarcarTodas from '@/components/banco/MarcarTodas'
+import ExplicacaoDaQuestao from '@/components/banco/ExplicacaoDaQuestao'
 
 const POR_PAGINA = 30
 type Linha = { id: string; blocos: Bloco[]; alternativas: { letra: string; texto: string }[]; gabarito: string | null; gabarito_origem: string | null; anulada: boolean
@@ -27,7 +28,7 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
   const org = gestor && sp.org === '1' // modo Organizar (assuntos, lote, banco geral)
   const aviso = avisoDoBancoGeral(sync), daPagina = <T,>(q: T) => (aplicarFiltros(q, f, topico) as any).order('ano', { ascending: false, nullsFirst: false }).order('criada_em', { ascending: false }).range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1)
   // separadas: sem a 0037, estas falham e a página segue sem as marcas do banco geral
-  const [{ data: todas, error }, { data: lista, count }, { data: ds }, { data: ts }, { data: geralDaPagina }, { count: removidas }, { data: colecoes }, temas, { data: comTema }] = await Promise.all([
+  const [{ data: todas, error }, { data: lista, count }, { data: ds }, { data: ts }, { data: geralDaPagina }, { count: removidas }, { data: colecoes }, temas, { data: comTema }, { data: explDaPagina }, { data: reportes }] = await Promise.all([
     sb.from('banco_questoes').select('id,discipline_id,topic_id,assunto,banca,ano').limit(20000),
     aplicarFiltros(sb.from('banco_questoes').select('id,blocos,alternativas,gabarito,gabarito_origem,anulada,comentario,area,discipline_id,topic_id,assunto,banca,ano,vezes,acertos,ultimo_certo', { count: 'exact' }), f, topico)
       .order('ano', { ascending: false, nullsFirst: false }).order('criada_em', { ascending: false }).range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1),
@@ -38,6 +39,8 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
     admin ? sb.from('banco_geral').select('colecao').not('colecao', 'is', null).limit(5000) : Promise.resolve({ data: [] }),
     carregarTemas(sb), // separada: sem a 0040, a lista vem vazia e a página segue com os assuntos
     sb.from('banco_questoes').select('id,tema_id').not('tema_id', 'is', null).limit(20000),
+    daPagina(sb.from('banco_questoes').select('id,explicacao,explicacao_origem')), // sem a 0042: vazia
+    admin ? sb.from('explicacao_reportes').select('id,hash,motivo,criado_em').is('resolvido_em', null).order('criado_em').limit(50) : Promise.resolve({ data: [] }),
   ])
   if (error) return (
     <div className="space-y-4"><h1 className="text-2xl font-semibold">Banco de questões</h1>
@@ -64,6 +67,13 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
     const sugerido = assuntoParecido(nome, topicos, disc)
     return { nome, n: g.n, disc, padrao: sugerido ? `t:${sugerido.id}` : disc ? `criar:${disc}` : '' }
   })
+  const expl = new Map(((explDaPagina ?? []) as { id: string; explicacao: string | null; explicacao_origem: string | null }[]).map(q => [q.id, q]))
+  const abertos = (reportes ?? []) as { id: string; hash: string; motivo: string; criado_em: string }[]
+  // a questão de cada reporte no SEU banco (pela impressão digital), para corrigir ali mesmo
+  const { data: dosReportes } = abertos.length
+    ? await sb.from('banco_questoes').select('id,hash,blocos,explicacao,explicacao_origem,banca,ano').in('hash', [...new Set(abertos.map(r => r.hash))])
+    : { data: [] }
+  const porHash = new Map(((dosReportes ?? []) as any[]).map(q => [q.hash as string, q]))
   const doGeral = new Set(((geralDaPagina ?? []) as { id: string; origem_geral: string | null }[]).filter(q => q.origem_geral).map(q => q.id))
   const nomesColecoes = [...new Set(((colecoes ?? []) as { colecao: string }[]).map(c => c.colecao))].sort()
   const linhas = (lista ?? []) as Linha[], total = count ?? 0, paginas = Math.max(1, Math.ceil(total / POR_PAGINA))
@@ -125,6 +135,20 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
         </div>
 
         {org && <>
+        {admin && abertos.length > 0 && <section className="space-y-3 rounded-2xl border border-danger/40 bg-surface p-5 text-sm">
+          <h2 className="font-medium text-danger">Explicações reportadas ({abertos.length})</h2>
+          <p className="text-muted">Quem estuda apontou possíveis erros nestas explicações. Corrija (fica "revisada"), publique a questão de novo e marque como resolvido.</p>
+          <ul className="space-y-3">{abertos.map(r => { const q = porHash.get(r.hash); return (
+            <li key={r.id} className="space-y-2 rounded-xl border border-line p-3">
+              <p><b className="font-medium">“{r.motivo}”</b> <span className="text-xs text-muted">· {fmtData(r.criado_em.slice(0, 10))}</span></p>
+              {q ? <>
+                <p className="text-xs text-muted">{[q.banca, q.ano].filter(Boolean).join(' ')} · {textoDosBlocos(q.blocos ?? []).slice(0, 180)}…</p>
+                <ExplicacaoDaQuestao id={q.id} texto={q.explicacao} origem={q.explicacao_origem} podeEditar />
+              </> : <p className="text-xs text-warn">Essa questão não está mais no seu banco.</p>}
+              <form action={resolverReporte}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="volta" value={volta} />
+                <button className="rounded-lg border border-line px-3 py-1.5 hover:border-brand">Marcar como resolvido</button></form>
+            </li>) })}</ul>
+        </section>}
         {soltos.length > 0 && <section className="space-y-3 rounded-2xl border border-line bg-surface p-5 text-sm">
           <h2 className="font-medium">Ligar assuntos</h2>
           <p className="text-muted">Estes nomes de assunto ainda não estão ligados a um assunto seu de Matérias, então não contam no Desempenho por assunto. Ligue cada um uma vez: todas as questões com aquele nome vão juntas. Já deixei escolhido o de nome mais parecido; confira antes.</p>
@@ -222,7 +246,8 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
                     <ul className="space-y-1">{q.alternativas.map(a => <li key={a.letra}><b>{a.letra})</b> {a.texto}</li>)}</ul>
                     <details className="text-muted"><summary className="cursor-pointer">Ver gabarito</summary>
                       <p className="mt-1">{ehLetra(q.gabarito) ? <>Gabarito: <b className="text-brand">{q.gabarito}</b>{q.gabarito_origem === 'ia' && <span className="text-warn"> (sugerido pela IA, conferir)</span>}</> : 'Sem gabarito.'}</p>
-                      {q.comentario && <p className="mt-1 whitespace-pre-line">{q.comentario}</p>}</details>
+                      {q.comentario && <p className="mt-1 whitespace-pre-line">{q.comentario}</p>}
+                      {(expl.get(q.id)?.explicacao || gestor) && <div className="mt-2"><ExplicacaoDaQuestao id={q.id} texto={expl.get(q.id)?.explicacao ?? null} origem={expl.get(q.id)?.explicacao_origem ?? null} podeEditar={gestor} /></div>}</details>
                     {gestor && <AssuntoDaQuestao id={q.id} topicId={q.topic_id} assunto={q.assunto} disciplinaId={q.discipline_id} assuntos={topicos} disciplinas={discs} />}
                     <form action={excluirDoBanco}><input type="hidden" name="id" value={q.id} /><button className="text-sm text-danger hover:underline">Excluir do banco</button></form>
                   </div>

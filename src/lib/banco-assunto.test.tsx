@@ -26,8 +26,9 @@ vi.mock('@/lib/supabase/server', () => ({ supabaseServer: async () => ({
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }))
 vi.mock('next/navigation', () => ({ redirect: (u: string) => { h.redirects.push(u); throw new Error('REDIRECT') }, useRouter: () => ({ refresh: () => {}, push: () => {} }) }))
 
-import { definirAssuntoDoBanco, definirAssuntoEmLote, sugerirAssuntosDoBanco, ligarAssunto, importarNoBanco, adicionarTemas, definirTemaEmLote, sugerirTemasPeloTexto, editarTema } from './banco'
+import { definirAssuntoDoBanco, definirAssuntoEmLote, sugerirAssuntosDoBanco, ligarAssunto, importarNoBanco, salvarExplicacao, reportarExplicacao, adicionarTemas, definirTemaEmLote, sugerirTemasPeloTexto, editarTema } from './banco'
 import OpcoesDeAssunto from '@/components/banco/OpcoesDeAssunto'
+import ExplicacaoDaQuestao from '@/components/banco/ExplicacaoDaQuestao'
 import { GET as exportar } from '@/app/(app)/banco/exportar/route'
 import AssuntoDaQuestao from '@/components/banco/AssuntoDaQuestao'
 import MarcarTodas from '@/components/banco/MarcarTodas'
@@ -317,5 +318,38 @@ describe('importar pacote classificado (com tema)', () => {
     expect(h.filtros).toContain('banco_questoes.eq(banca,UFMA)')
     h.admin = false
     expect((await exportar(new Request('http://x/banco/exportar'))).status).toBe(403)
+  })
+})
+
+describe('explicações (IA ou revisadas)', () => {
+  const q = (t: string, ex?: string) => ({ blocos: [{ tipo: 'texto', texto: t }], alternativas: [{ letra: 'A', texto: 'a' }, { letra: 'B', texto: 'b' }], gabarito: 'A', ...(ex ? { explicacao: ex } : {}) })
+  it('importar: grava a explicação nas questões do arquivo (marcada como IA)', async () => {
+    const { createHash } = await import('crypto'), { textoParaHash } = await import('./engine/banco')
+    const item = q('Um', 'A está certa porque X.')
+    h.dados.banco_questoes = [{ id: Q1, hash: createHash('sha256').update(textoParaHash(item.blocos as any, item.alternativas as any)).digest('hex') }]
+    const r = await importarNoBanco({ questoes: [item] })
+    expect(r).toMatchObject({ ok: true })
+    expect(updates().map(u => u.dados)).toContainEqual({ explicacao: 'A está certa porque X.', explicacao_origem: 'ia' })
+  })
+  it('administradora edita (fica "revisada") ou apaga; estudante não edita', async () => {
+    expect(await salvarExplicacao(Q1, '  Nova explicação ')).toEqual({ ok: true })
+    expect(await salvarExplicacao(Q1, '')).toEqual({ ok: true })
+    expect(updates().map(u => u.dados)).toEqual([{ explicacao: 'Nova explicação', explicacao_origem: 'revisada' }, { explicacao: null, explicacao_origem: null }])
+    h.admin = false
+    expect(await salvarExplicacao(Q1, 'x')).toMatchObject({ ok: false })
+  })
+  it('estudante reporta erro (vai com a impressão digital da questão)', async () => {
+    h.admin = false
+    h.dados['banco_questoes:um'] = { hash: 'abc', origem_geral: null }
+    expect(await reportarExplicacao(Q1, 'curto')).toEqual({ ok: true })
+    expect(h.ops.find(o => o.t === 'explicacao_reportes')!.dados).toEqual({ user_id: '11111111-1111-1111-1111-111111111111', hash: 'abc', geral_id: null, motivo: 'curto' })
+    expect(await reportarExplicacao(Q1, ' a ')).toMatchObject({ ok: false })
+  })
+  it('na tela: etiqueta de IA e "Reportar erro" para quem estuda; "Editar" para a administradora', () => {
+    const est = renderToStaticMarkup(<ExplicacaoDaQuestao id={Q1} texto="Porque sim." origem="ia" />)
+    expect(est).toContain('Explicação gerada por IA: confira'); expect(est).toContain('Reportar erro'); expect(est).not.toContain('Editar')
+    const adm = renderToStaticMarkup(<ExplicacaoDaQuestao id={Q1} texto="Porque sim." origem="revisada" podeEditar />)
+    expect(adm).toContain('Explicação (revisada)'); expect(adm).toContain('Editar'); expect(adm).not.toContain('Reportar erro')
+    expect(renderToStaticMarkup(<ExplicacaoDaQuestao id={Q1} texto={null} origem={null} />)).toBe('')
   })
 })

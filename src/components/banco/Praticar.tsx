@@ -6,6 +6,7 @@ import { classificarErro } from '@/lib/provas'
 import { MOTIVOS, type Motivo } from '@/lib/engine/questoes'
 import type { Letra } from '@/lib/engine/provas'
 import type { QuestaoPratica } from '@/lib/banco-data'
+import ExplicacaoDaQuestao from '@/components/banco/ExplicacaoDaQuestao'
 import { Enunciado } from '@/components/provas/Enunciado'
 
 /**
@@ -105,6 +106,7 @@ export default function Praticar({ filtros, titulo, inicial, total }: { filtros:
             {correcao.refazer && <p className="text-sm text-info">🔁 {fraseRefazer(correcao.refazer)}</p>}
             {correcao.gabaritoIA && <p className="text-xs text-warn">Gabarito sugerido pela IA, não oficial: confira.</p>}
             {correcao.comentario && <p className="whitespace-pre-line rounded-lg bg-line/40 p-3 text-sm text-muted">{correcao.comentario}</p>}
+            {correcao.explicacao && <ExplicacaoDaQuestao key={q.id} id={q.id} texto={correcao.explicacao} origem={correcao.explicacaoOrigem ?? 'ia'} />}
             {!correcao.correta && correcao.erroId && (
               <fieldset><legend className="mb-2 text-sm text-muted">Já está no Caderno de Erros. Por que você errou? (opcional)</legend>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">{(Object.keys(MOTIVOS) as Motivo[]).map(k => (

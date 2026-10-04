@@ -44,7 +44,7 @@ describe('responder', () => {
     h.dados['banco_questoes:um'] = questao
     h.rpcRes = { data: { correta: false, gabarito: 'B', gabarito_origem: 'oficial', comentario: 'Pela SBA, 4 h.', erro_id: 'e1', xp: 0 }, error: null }
     const r = await responderPratica(ID(1), 'A', false)
-    expect(r).toEqual({ ok: true, correcao: { correta: false, gabarito: 'B', gabaritoIA: false, comentario: 'Pela SBA, 4 h.', erroId: 'e1', xp: 0, refazer: null } })
+    expect(r).toEqual({ ok: true, correcao: { correta: false, gabarito: 'B', gabaritoIA: false, comentario: 'Pela SBA, 4 h.', erroId: 'e1', xp: 0, refazer: null, explicacao: null, explicacaoOrigem: null } })
     expect(h.rpcs[0].args).toMatchObject({ p_questao: ID(1), p_alt: 'A', p_chute: false, p_dia: '2026-10-05' })
     expect(h.rpcs[0].args.p_texto).toBe('UNICAMP 2016\n\nQual o jejum para leite materno?\n\nA) 2 h\nB) 4 h\n\nSua resposta: A · Gabarito: B')
   })

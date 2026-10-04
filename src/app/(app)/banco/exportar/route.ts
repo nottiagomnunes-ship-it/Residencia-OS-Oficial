@@ -18,15 +18,18 @@ export async function GET(req: Request) {
     .order('criada_em').limit(3000)
   if (error) return new Response('Não foi possível ler o banco.', { status: 500 })
   const qs = (data ?? []) as any[]
-  const [{ data: ds }, { data: comTema }] = await Promise.all([
+  const [{ data: ds }, { data: comTema }, { data: comExpl }] = await Promise.all([
     sb.from('disciplines').select('id,nome'),
     sb.from('banco_questoes').select('id,temas(especialidade,nome)').in('id', qs.map(q => q.id).slice(0, 3000)).not('tema_id', 'is', null), // sem a 0040: nada
+    sb.from('banco_questoes').select('id,explicacao,explicacao_origem').in('id', qs.map(q => q.id).slice(0, 3000)).not('explicacao', 'is', null), // sem a 0042: nada
   ])
   const disc = new Map((ds ?? []).map(d => [d.id as string, d.nome as string]))
   const tema = new Map(((comTema ?? []) as any[]).filter(q => q.temas).map(q => [q.id as string, `${q.temas.especialidade} > ${q.temas.nome}`]))
+  const ex = new Map(((comExpl ?? []) as any[]).map(q => [q.id as string, q]))
   const pacote = pacoteDoBanco(qs.map(q => ({
     blocos: (q.blocos ?? []) as Bloco[], alternativas: (q.alternativas ?? []) as Alternativa[], gabarito: q.gabarito, gabarito_origem: q.gabarito_origem, anulada: q.anulada,
     comentario: q.comentario, area: q.area, disciplina: q.discipline_id ? disc.get(q.discipline_id) ?? null : null, assunto: q.assunto, tema: tema.get(q.id) ?? null, banca: q.banca, ano: q.ano,
+    explicacao: ex.get(q.id)?.explicacao ?? null, explicacao_origem: ex.get(q.id)?.explicacao_origem ?? null,
   })), `Exportado do banco em ${hojeBR()}`)
   return new Response(JSON.stringify(pacote, null, 1), { headers: {
     'content-type': 'application/json; charset=utf-8', 'content-disposition': `attachment; filename="banco-${hojeBR()}-${qs.length}-questoes.json"`, 'cache-control': 'no-store',

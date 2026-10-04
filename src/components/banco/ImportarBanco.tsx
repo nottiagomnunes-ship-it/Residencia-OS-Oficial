@@ -28,7 +28,7 @@ export default function ImportarBanco({ disciplinas, assuntos, admin = false, te
   const [lido, setLido] = useState<Lido | null>(null), [erro, setErro] = useState<string | null>(null), [lendo, setLendo] = useState(false)
   const [disc, setDisc] = useState(''), [novaDisc, setNovaDisc] = useState(''), [fonte, setFonte] = useState('')
   const [salvando, setSalvando] = useState<string | null>(null), [aberta, setAberta] = useState<number | null>(null)
-  const [resultado, setResultado] = useState<{ novas: number; repetidas: number; publicacao?: string; erroPublicacao?: string; temas?: string } | null>(null)
+  const [resultado, setResultado] = useState<{ novas: number; repetidas: number; publicacao?: string; erroPublicacao?: string; temas?: string; explicacoes?: string } | null>(null)
   // administrador: publicar no banco geral junto com a importação (já vai para todas as contas)
   const [publicar, setPublicar] = useState(true), [colecao, setColecao] = useState(''), [criarTemas, setCriarTemas] = useState(true)
   // assunto: '' = o que veio no arquivo (ou a sugestão); 't:<id>' = um assunto de Matérias; 'nenhum'; 'outro' = o nome escrito em textoTodas
@@ -92,7 +92,7 @@ export default function ImportarBanco({ disciplinas, assuntos, admin = false, te
     total: lido.itens.length, comGabarito: lido.itens.filter(i => i.gabarito && !i.anulada).length,
     anuladas: lido.itens.filter(i => i.anulada).map(i => i.questao.numero), semGabarito: lido.itens.filter(i => !i.gabarito && !i.anulada).map(i => i.questao.numero),
     ia: lido.itens.filter(i => i.gabarito_origem === 'ia').length,
-    comTema: lido.itens.filter(i => i.tema).length,
+    comTema: lido.itens.filter(i => i.tema).length, comExplicacao: lido.itens.filter(i => i.explicacao).length,
     temasNovos: [...new Set(lido.itens.flatMap(i => (i.tema && !temasLista.some(t => normalizar(t.especialidade) === normalizar(i.tema!.especialidade) && normalizar(t.nome) === normalizar(i.tema!.nome)) ? [`${i.tema.especialidade} › ${i.tema.nome}`] : [])))],
     comAssunto: classificados.filter(i => i.topic_id).length, sugeridos: classificados.filter(i => i.sugerido).length, semAssunto: classificados.filter(i => !i.assunto).length,
   }
@@ -127,11 +127,12 @@ export default function ImportarBanco({ disciplinas, assuntos, admin = false, te
         alternativas: i.questao.alternativas, gabarito: i.anulada ? null : i.gabarito, gabarito_origem: i.anulada ? null : i.gabarito_origem, anulada: i.anulada,
         comentario: i.comentario, area: i.area, discipline_id: i.discipline_id, topic_id: i.topic_id, assunto: i.tema?.nome ?? i.assunto, banca: i.banca, ano: i.ano, fonte: fonte.trim() || null,
         tema: i.tema ? `${i.tema.especialidade} > ${i.tema.nome}` : null,
+        explicacao: i.explicacao?.texto ?? null, explicacao_origem: i.explicacao?.origem ?? null,
       }))
       if (admin && publicar) setSalvando('Gravando e publicando no banco geral…')
       const r = await importarNoBanco({ questoes }, admin && publicar ? { colecao: colecao.trim() || fonte.trim() || null } : null, { criarTemas })
       if (!r.ok) throw new Error(r.erro)
-      setResultado({ novas: r.novas, repetidas: r.repetidas, publicacao: r.publicacao, erroPublicacao: r.erroPublicacao, temas: r.temas }); setLido(null); setSalvando(null)
+      setResultado({ novas: r.novas, repetidas: r.repetidas, publicacao: r.publicacao, erroPublicacao: r.erroPublicacao, temas: r.temas, explicacoes: r.explicacoes }); setLido(null); setSalvando(null)
       router.refresh()
     } catch (e) {
       if (enviados.length) await sb.storage.from('provas').remove(enviados).catch(() => {})
@@ -152,6 +153,7 @@ export default function ImportarBanco({ disciplinas, assuntos, admin = false, te
       {resultado && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-3 text-sm">
         {resultado.novas} {resultado.novas === 1 ? 'questão nova entrou' : 'questões novas entraram'} no banco.{resultado.repetidas ? ` ${resultado.repetidas} já ${resultado.repetidas === 1 ? 'estava' : 'estavam'} lá e não ${resultado.repetidas === 1 ? 'foi repetida' : 'foram repetidas'}.` : ''} <a href="/banco/questoes" className="text-brand underline">Ver no Banco</a> · <a href="/banco" className="text-brand underline">Praticar</a>
         {resultado.temas && <span className="mt-1 block">{resultado.temas}</span>}
+        {resultado.explicacoes && <span className="mt-1 block">{resultado.explicacoes}</span>}
         {resultado.publicacao && <span className="mt-1 block">{resultado.publicacao}</span>}</p>}
       {resultado?.erroPublicacao && <p role="alert" className="rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm text-warn">{resultado.erroPublicacao}</p>}
 
@@ -212,6 +214,7 @@ export default function ImportarBanco({ disciplinas, assuntos, admin = false, te
               </li>))}</ul>
           </details>
         </section>
+        {admin && resumo.comExplicacao > 0 && <p className={`${card} text-sm`}><b className="font-medium">{resumo.comExplicacao} {resumo.comExplicacao === 1 ? 'questão vem' : 'questões vêm'} com explicação.</b> <span className="text-muted">Ela é gravada na questão (também nas que já estão no banco) e, ao publicar, vai para as outras contas com a etiqueta de IA. O comentário, não.</span></p>}
         {admin && resumo.comTema > 0 && <section className={`${card} space-y-2 text-sm`}>
           <p><b className="font-medium">{resumo.comTema} {resumo.comTema === 1 ? 'questão vem' : 'questões vêm'} com tema.</b> <span className="text-muted">Ao adicionar, o tema é aplicado nelas, inclusive nas que já estão no seu banco (essas não se repetem: só recebem o tema).</span></p>
           {resumo.temasNovos.length > 0 && <label className="flex items-start gap-2"><input type="checkbox" checked={criarTemas} onChange={e => setCriarTemas(e.target.checked)} className="mt-0.5 size-4 accent-brand" />

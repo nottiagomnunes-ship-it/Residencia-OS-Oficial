@@ -204,5 +204,7 @@ describe('tema escrito e exportar/importar de volta', () => {
     const lido = lerPacote2(json)
     expect(hash2(lido.itens[0].questao.blocos, lido.itens[0].questao.alternativas)).toBe(hash2(blocos, alternativas))
     expect(lido.itens[0]).toMatchObject({ gabarito: 'A', banca: 'UFMA', ano: 2020, comentario: 'meu', tema: { especialidade: 'Anestesiologia', nome: 'Hipertermia maligna' } })
+    const p2 = pacoteDoBanco([{ blocos, alternativas, gabarito: 'A', anulada: false, banca: null, ano: null, explicacao: 'Dantrolene é o tratamento.', explicacao_origem: 'revisada' }], 't')
+    expect(lerPacote2(JSON.parse(JSON.stringify(p2))).itens[0].explicacao).toEqual({ texto: 'Dantrolene é o tratamento.', origem: 'revisada' })
   })
 })

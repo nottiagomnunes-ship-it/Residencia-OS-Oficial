@@ -8,6 +8,12 @@ export type QuestaoDoBanco = {
   comentario: string | null; area: Area | null; discipline_id: string | null; topic_id: string | null; assunto: string | null
   banca: string | null; ano: number | null; fonte: string | null
   tema?: TemaEscrito | null // tema da lista geral pelo nome (só a conta administradora aplica)
+  explicacao?: Explicacao | null // explicação original (IA ou revisada); diferente do comentário, pode ir para o banco geral
+}
+export type Explicacao = { texto: string; origem: 'ia' | 'revisada' }
+const lerExplicacao = (texto: unknown, origem: unknown): Explicacao | null => {
+  const t = str(texto, 8000)
+  return t ? { texto: t, origem: origem === 'revisada' ? 'revisada' : 'ia' } : null
 }
 /** Um tema pelo nome: "Anestesiologia > Via aérea difícil". */
 export type TemaEscrito = { especialidade: string; nome: string }
@@ -39,6 +45,7 @@ export type ItemLido = {
   questao: QuestaoLida; gabarito: Letra | null; gabarito_origem: 'oficial' | 'ia' | null; anulada: boolean; comentario: string | null
   disciplina: string | null; assunto: string | null; area: Area | null; banca: string | null; ano: number | null
   tema?: TemaEscrito | null
+  explicacao?: Explicacao | null
 }
 export type LoteLido = { itens: ItemLido[]; imagens: Record<string, string>; fonte: string | null; disciplina: string | null; avisos: string[] }
 
@@ -74,6 +81,7 @@ export function lerPacote(json: unknown): LoteLido {
       anulada: q.anulada === true || g === 'X', comentario: str(q.comentario, 5000), disciplina: str(q.disciplina, 120), assunto: str(q.assunto, 120),
       area: lerArea(q.area), banca: str(q.banca, 60), ano: Number.isInteger(ano) && ano > 1980 && ano < 2100 ? ano : null,
       tema: lerTemaEscrito(q.tema, str(q.disciplina, 120) ?? str(p.disciplina, 120)),
+      explicacao: lerExplicacao(q.explicacao, q.explicacao_origem),
     })
   })
   return { itens, imagens, fonte: str(p.fonte, 120), disciplina: str(p.disciplina, 120), avisos }
@@ -139,6 +147,7 @@ export function validarLote(v: unknown, uid: string): { ok: true; questoes: Ques
       discipline_id: ehUuid(b.discipline_id) ? b.discipline_id : null, topic_id: ehUuid(b.topic_id) ? b.topic_id : null,
       assunto: str(b.assunto, 120), banca: str(b.banca, 60), ano: ano !== null && Number.isInteger(ano) && ano > 1980 && ano < 2100 ? ano : null, fonte: str(b.fonte, 120),
       tema: lerTemaEscrito(b.tema),
+      explicacao: lerExplicacao(b.explicacao, b.explicacao_origem),
     })
   }
   return { ok: true, questoes: out }
@@ -249,7 +258,8 @@ export function assuntoParecido<T extends { nome: string; discipline_id: string 
  * as que já estão no banco não se repetem (o texto é o mesmo) e só recebem o tema. Figuras não vão (só o lugar delas); o comentário vai.
  */
 export function pacoteDoBanco(qs: { blocos: Bloco[]; alternativas: Alternativa[]; gabarito: string | null; gabarito_origem?: string | null; anulada: boolean; comentario?: string | null
-  area?: string | null; disciplina?: string | null; assunto?: string | null; tema?: string | null; banca: string | null; ano: number | null }[], fonte: string) {
+  area?: string | null; disciplina?: string | null; assunto?: string | null; tema?: string | null; banca: string | null; ano: number | null
+  explicacao?: string | null; explicacao_origem?: string | null }[], fonte: string) {
   return {
     formato: 'residencia-os/banco', versao: 1, fonte,
     questoes: qs.map(q => ({
@@ -258,6 +268,7 @@ export function pacoteDoBanco(qs: { blocos: Bloco[]; alternativas: Alternativa[]
       gabarito: q.anulada ? 'X' : q.gabarito, ...(q.gabarito_origem === 'ia' ? { gabarito_origem: 'ia' } : {}), ...(q.comentario ? { comentario: q.comentario } : {}),
       ...(q.area ? { area: q.area } : {}), ...(q.disciplina ? { disciplina: q.disciplina } : {}), ...(q.assunto ? { assunto: q.assunto } : {}), ...(q.tema ? { tema: q.tema } : {}),
       ...(q.banca ? { banca: q.banca } : {}), ...(q.ano ? { ano: q.ano } : {}),
+      ...(q.explicacao ? { explicacao: q.explicacao, explicacao_origem: q.explicacao_origem === 'revisada' ? 'revisada' : 'ia' } : {}),
     })),
   }
 }

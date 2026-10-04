@@ -38,7 +38,8 @@ export async function proximaQuestao(filtrosBrutos: Record<string, string | unde
 
 /** Onde a questão ficou na fila de refazer depois desta resposta (só quando mudou): etapa 0 = amanhã, 1 = em 7 dias, 2 = em 30, 3 = saiu. */
 export type Refazer = { etapa: number; proxima: string | null }
-export type Correcao = { correta: boolean; gabarito: string; gabaritoIA: boolean; comentario: string | null; erroId: string | null; xp: number; refazer?: Refazer | null }
+export type Correcao = { correta: boolean; gabarito: string; gabaritoIA: boolean; comentario: string | null; erroId: string | null; xp: number; refazer?: Refazer | null
+  explicacao?: string | null; explicacaoOrigem?: string | null }
 /** Corrige na hora e grava (sessão de questões do dia, XP, contagem da questão e, se errou ou chutou, o Caderno de Erros). */
 export async function responderPratica(id: string, alternativa: string, chute: boolean): Promise<{ ok: true; correcao: Correcao } | { ok: false; erro: string }> {
   const sb = await sessao()
@@ -57,8 +58,9 @@ export async function responderPratica(id: string, alternativa: string, chute: b
   if (chute && d0.correta === true) await sb.rpc('refazer_chutes', { p_ids: [id] }) // acertou no chute: refazer também (sem a 0039, nada acontece)
   const depois = await filaDaQuestao().catch(() => null)
   const refazer = depois && depois.atualizada_em !== antes?.atualizada_em ? { etapa: depois.etapa, proxima: depois.proxima } : null
+  const { data: ex } = await sb.from('banco_questoes').select('explicacao,explicacao_origem').eq('id', id).maybeSingle().then(r => r, () => ({ data: null })) // sem a 0042: sem explicação
   await carregarGamificacao(sb, hojeBR()).catch(() => {})
   ;['/banco', '/revisoes', '/questoes', '/desempenho', '/caderno-de-erros', '/inicio'].forEach(p => revalidatePath(p))
   const d = data as Record<string, unknown>
-  return { ok: true, correcao: { correta: d.correta === true, gabarito: String(d.gabarito), gabaritoIA: d.gabarito_origem === 'ia', comentario: (d.comentario as string) ?? null, erroId: (d.erro_id as string) ?? null, xp: Number(d.xp ?? 0), refazer } }
+  return { ok: true, correcao: { correta: d.correta === true, gabarito: String(d.gabarito), gabaritoIA: d.gabarito_origem === 'ia', comentario: (d.comentario as string) ?? null, erroId: (d.erro_id as string) ?? null, xp: Number(d.xp ?? 0), refazer, explicacao: (ex as any)?.explicacao ?? null, explicacaoOrigem: (ex as any)?.explicacao_origem ?? null } }
 }
