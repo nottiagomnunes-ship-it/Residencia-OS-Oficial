@@ -9,14 +9,16 @@ export type DiscSimples = { id: string; nome: string }
 /**
  * Escolher o assunto de uma questão do banco: os assuntos de Matérias (os da disciplina da questão primeiro), "Sem assunto" ou um nome novo.
  * Grava na hora. Um nome novo pode virar também um assunto em Matérias (na disciplina escolhida), para contar no Desempenho do assunto.
+ * Fechado, mostra só o assunto atual e "Mudar assunto" (é para corrigir uma questão; em várias de uma vez, use o lote ou "Ligar assuntos").
  */
-export default function AssuntoDaQuestao({ id, topicId, assunto, disciplinaId, assuntos, disciplinas, compacto = false }: {
+export default function AssuntoDaQuestao({ id, topicId, assunto, disciplinaId, assuntos, disciplinas, abertoInicial = false }: {
   id: string; topicId: string | null; assunto: string | null; disciplinaId: string | null
-  assuntos: TopicoSimples[]; disciplinas: DiscSimples[]; compacto?: boolean
+  assuntos: TopicoSimples[]; disciplinas: DiscSimples[]; abertoInicial?: boolean
 }) {
   const [lista, setLista] = useState(assuntos)
   const [atual, setAtual] = useState({ topicId, assunto, disciplinaId })
   const [escrevendo, setEscrevendo] = useState(false), [texto, setTexto] = useState(''), [criarEm, setCriarEm] = useState(disciplinaId ?? '')
+  const [aberto, setAberto] = useState(abertoInicial)
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null), [pend, start] = useTransition()
 
   const nomeDisc = new Map(disciplinas.map(d => [d.id, d.nome]))
@@ -29,7 +31,7 @@ export default function AssuntoDaQuestao({ id, topicId, assunto, disciplinaId, a
     const r = await definirAssuntoDoBanco([id], escolha).catch(() => ({ ok: false as const, erro: 'Sem conexão. Tente de novo.', topic: undefined, n: 0 }))
     if (!r.ok) { setMsg({ ok: false, t: r.erro ?? 'Não foi possível salvar.' }); return }
     if (r.topic) { setLista(l => [...l, r.topic!]); novo = { topicId: r.topic.id, assunto: r.topic.nome, disciplinaId: r.topic.discipline_id } }
-    setAtual(novo); setEscrevendo(false); setTexto(''); setMsg({ ok: true, t: 'Salvo' })
+    setAtual(novo); setEscrevendo(false); setTexto(''); setAberto(false); setMsg({ ok: true, t: 'Salvo' })
   })
   const escolher = (v: string) => {
     if (v === 'outro') { setEscrevendo(true); return }
@@ -42,8 +44,15 @@ export default function AssuntoDaQuestao({ id, topicId, assunto, disciplinaId, a
     salvar({ assunto: nome, criar_em: criarEm || null }, { topicId: null, assunto: nome, disciplinaId: atual.disciplinaId })
   }
 
+  if (!aberto) return (
+    <p className="flex flex-wrap items-center gap-x-2 text-sm">
+      <span className="text-muted">Assunto:</span>
+      {atual.assunto ? <span>{atual.assunto}{!atual.topicId && <span className="text-muted"> (só nome, fora de Matérias)</span>}</span> : <span className="text-warn">sem assunto</span>}
+      <button type="button" onClick={() => { setAberto(true); setMsg(null) }} className="text-brand hover:underline">Mudar assunto</button>
+      {msg && <span role={msg.ok ? 'status' : 'alert'} className={`text-xs ${msg.ok ? 'text-brand' : 'text-danger'}`}>{msg.t}</span>}
+    </p>)
   return (
-    <div className={`space-y-2 text-sm ${compacto ? '' : 'rounded-xl border border-line p-3'}`}>
+    <div className="space-y-2 rounded-xl border border-line p-3 text-sm">
       <label className="flex flex-wrap items-center gap-2"><span className="text-muted">Assunto</span>
         <select value={escrevendo ? 'outro' : valor} onChange={e => escolher(e.target.value)} disabled={pend} aria-label="Assunto da questão" className={inputCls + ' min-w-0 flex-1'}>
           <option value="">Sem assunto</option>
@@ -54,6 +63,7 @@ export default function AssuntoDaQuestao({ id, topicId, assunto, disciplinaId, a
         </select>
         {pend && <span className="text-xs text-muted">Salvando…</span>}
         {!pend && msg && <span role={msg.ok ? 'status' : 'alert'} className={`text-xs ${msg.ok ? 'text-brand' : 'text-danger'}`}>{msg.t}</span>}
+        {!pend && <button type="button" onClick={() => { setAberto(false); setEscrevendo(false) }} className="text-muted hover:underline">Fechar</button>}
       </label>
       {escrevendo && <div className="flex flex-wrap items-center gap-2">
         <input value={texto} onChange={e => setTexto(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); salvarTexto() } }} maxLength={120} autoFocus

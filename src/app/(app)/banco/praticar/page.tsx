@@ -9,16 +9,15 @@ export default async function PraticarPage({ searchParams }: { searchParams: Pro
   const f = lerFiltros(await searchParams)
   const sb = await supabaseServer()
   const filtros = Object.fromEntries(new URLSearchParams(filtrosParaUrl(f)))
-  const [primeira, topico, disc, { data: ts }, { data: ds }] = await Promise.all([
+  const [primeira, topico, disc] = await Promise.all([
     proximaQuestao(filtros, []), assuntoDoFiltro(sb, f),
     f.disciplina ? sb.from('disciplines').select('nome').eq('id', f.disciplina).maybeSingle().then(r => r.data?.nome as string | undefined) : Promise.resolve(undefined),
-    sb.from('topics').select('id,nome,discipline_id').limit(5000), sb.from('disciplines').select('id,nome').order('ordem'),
   ])
   const titulo = [f.area ? ROTULO_AREA[f.area] : null, disc, topico?.nome ?? f.assunto, f.banca,
     f.situacao === 'nunca' ? 'nunca feitas' : f.situacao === 'errei' ? 'que errei' : f.situacao === 'acertei' ? 'que acertei' : null].filter(Boolean).join(' · ') || 'todas as questões'
   return (
     <>
       {primeira.erro && <p role="alert" className="mb-4 rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm text-warn">{primeira.erro}</p>}
-      <Praticar key={filtrosParaUrl(f)} filtros={filtros} titulo={titulo} inicial={primeira.questao} total={primeira.restantes} assuntos={ts ?? []} disciplinas={ds ?? []} />
+      <Praticar key={filtrosParaUrl(f)} filtros={filtros} titulo={titulo} inicial={primeira.questao} total={primeira.restantes} />
     </>)
 }

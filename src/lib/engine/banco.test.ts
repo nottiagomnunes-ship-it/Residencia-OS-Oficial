@@ -155,3 +155,21 @@ describe('assunto pelo texto', () => {
     expect(sugerirAssunto('maligna', assuntos)).toBeNull()                                     // só parte do nome não basta
   })
 })
+
+import { assuntoParecido } from './banco'
+describe('assunto parecido (ligar assuntos)', () => {
+  const ts = [{ id: '1', nome: 'Via aérea difícil', discipline_id: 'A' }, { id: '2', nome: 'Anestésicos locais', discipline_id: 'A' },
+    { id: '3', nome: 'Via aérea', discipline_id: 'B' }, { id: '4', nome: 'Hipertermia maligna', discipline_id: 'A' }]
+  it('nome igual (sem acento) ganha; senão, o que tem mais palavras em comum', () => {
+    expect(assuntoParecido('VIA AEREA', ts)?.id).toBe('3')
+    expect(assuntoParecido('Anestésico local', ts)?.id).toBe('2')
+    expect(assuntoParecido('Via aérea difícil no adulto', ts)?.id).toBe('1')
+  })
+  it('a disciplina das questões desempata', () => {
+    const iguais = [{ id: 'x', nome: 'Choque', discipline_id: 'A' }, { id: 'y', nome: 'Choque', discipline_id: 'B' }]
+    expect(assuntoParecido('Choque', iguais, 'B')?.id).toBe('y')
+  })
+  it('pouco parecido: nada', () => {
+    expect(assuntoParecido('Farmacologia geral', ts)).toBeNull(); expect(assuntoParecido('de', ts)).toBeNull()
+  })
+})

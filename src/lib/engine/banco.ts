@@ -194,3 +194,25 @@ export function sugerirAssunto<T extends { nome: string }>(textoDaQuestao: strin
   }
   return melhor?.a ?? null
 }
+
+/**
+ * Para "Ligar assuntos": o assunto de Matérias de nome mais parecido com um nome solto ("Via aérea" → "Via aérea difícil").
+ * Conta as palavras em comum (aceitando singular/plural); precisa de pelo menos metade das palavras do maior dos dois nomes.
+ * Empate: o da disciplina preferida (a das questões), depois o de nome mais curto. Sem nada parecido, null.
+ */
+export function assuntoParecido<T extends { nome: string; discipline_id: string }>(nome: string, assuntos: T[], disciplinaPreferida: string | null = null): T | null {
+  const a = palavras(nome)
+  if (!a.length) return null
+  // mesma palavra com outro final: "anestesico"/"anestesicos", "local"/"locais", "maligna"/"maligno"
+  const parecidas = (x: string, y: string) => { if (x === y) return true; const m = Math.min(x.length, y.length); let p = 0; while (p < m && x[p] === y[p]) p++; return m >= 4 && p >= Math.max(4, m - 2) }
+  let melhor: { t: T; nota: number } | null = null
+  for (const t of assuntos) {
+    const b = palavras(t.nome)
+    if (!b.length) continue
+    const comuns = b.filter(w => a.some(x => parecidas(x, w))).length
+    const nota = comuns / Math.max(a.length, b.length) + (t.discipline_id === disciplinaPreferida ? 0.01 : 0) - t.nome.length / 1e5
+    if (comuns / Math.max(a.length, b.length) < 0.5) continue
+    if (!melhor || nota > melhor.nota) melhor = { t, nota }
+  }
+  return melhor?.t ?? null
+}

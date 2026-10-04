@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import { supabaseServer } from '@/lib/supabase/server'
-import { excluirDoBanco, definirAssuntoEmLote, sugerirAssuntosDoBanco, publicarNoBancoGeral, retirarDoBancoGeral, restaurarDoBancoGeral } from '@/lib/banco'
+import { excluirDoBanco, definirAssuntoEmLote, ligarAssunto, sugerirAssuntosDoBanco, publicarNoBancoGeral, retirarDoBancoGeral, restaurarDoBancoGeral } from '@/lib/banco'
 import { aplicarFiltros, assuntoDoFiltro, sincronizarBancoGeral, ehAdmin, avisoDoBancoGeral } from '@/lib/banco-data'
-import { lerFiltros, filtrosParaUrl, SEM_ASSUNTO, type Filtros } from '@/lib/engine/banco'
+import { lerFiltros, filtrosParaUrl, SEM_ASSUNTO, assuntoParecido, type Filtros } from '@/lib/engine/banco'
 import { textoDosBlocos, ehLetra, type Bloco } from '@/lib/engine/provas'
 import { AREAS, ROTULO_AREA, SIGLA_AREA, lerArea } from '@/lib/engine/areas'
 import { inputCls } from '@/components/ui'
@@ -24,7 +24,7 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
   const aviso = avisoDoBancoGeral(sync), daPagina = <T,>(q: T) => (aplicarFiltros(q, f, topico) as any).order('criada_em', { ascending: false }).range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1)
   // separadas: sem a 0037, estas falham e a página segue sem as marcas do banco geral
   const [{ data: todas, error }, { data: lista, count }, { data: ds }, { data: ts }, { data: geralDaPagina }, { count: removidas }, { data: colecoes }] = await Promise.all([
-    sb.from('banco_questoes').select('discipline_id,assunto,banca').limit(20000),
+    sb.from('banco_questoes').select('discipline_id,topic_id,assunto,banca').limit(20000),
     aplicarFiltros(sb.from('banco_questoes').select('id,blocos,alternativas,gabarito,gabarito_origem,anulada,comentario,area,discipline_id,topic_id,assunto,banca,ano,vezes,acertos,ultimo_certo', { count: 'exact' }), f, topico)
       .order('criada_em', { ascending: false }).range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1),
     sb.from('disciplines').select('id,nome').order('ordem'),
@@ -42,6 +42,18 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
   const assuntos = [...new Set(T.filter(q => !f.disciplina || q.discipline_id === f.disciplina).map(q => q.assunto).filter(Boolean))].sort() as string[]
   const bancas = [...new Set(T.map(q => q.banca).filter(Boolean))].sort() as string[]
   const semAssunto = T.filter(q => !q.assunto).length
+  // "Ligar assuntos": nomes de assunto que não estão ligados a Matérias (ex.: vieram do banco geral com um nome diferente do seu)
+  const porNome = new Map<string, { n: number; discs: Map<string, number> }>()
+  for (const q of T) if (q.assunto && !q.topic_id) {
+    const g = porNome.get(q.assunto) ?? { n: 0, discs: new Map() }; g.n++
+    if (q.discipline_id) g.discs.set(q.discipline_id, (g.discs.get(q.discipline_id) ?? 0) + 1)
+    porNome.set(q.assunto, g)
+  }
+  const soltos = [...porNome].sort((a, b) => b[1].n - a[1].n || a[0].localeCompare(b[0])).map(([nome, g]) => {
+    const disc = [...g.discs].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
+    const sugerido = assuntoParecido(nome, topicos, disc)
+    return { nome, n: g.n, disc, padrao: sugerido ? `t:${sugerido.id}` : disc ? `criar:${disc}` : '' }
+  })
   const doGeral = new Set(((geralDaPagina ?? []) as { id: string; origem_geral: string | null }[]).filter(q => q.origem_geral).map(q => q.id))
   const nomesColecoes = [...new Set(((colecoes ?? []) as { colecao: string }[]).map(c => c.colecao))].sort()
   const linhas = (lista ?? []) as Linha[], total = count ?? 0, paginas = Math.max(1, Math.ceil(total / POR_PAGINA))
@@ -81,13 +93,30 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
           </div>
         </form>
 
+        {soltos.length > 0 && <section className="space-y-3 rounded-2xl border border-line bg-surface p-5 text-sm">
+          <h2 className="font-medium">Ligar assuntos</h2>
+          <p className="text-muted">Estes nomes de assunto ainda não estão ligados a um assunto seu de Matérias, então não contam no Desempenho por assunto. Ligue cada um uma vez: todas as questões com aquele nome vão juntas. Já deixei escolhido o de nome mais parecido; confira antes.</p>
+          <ul className="divide-y divide-line">{soltos.slice(0, 25).map(r => (
+            <li key={r.nome}><form action={ligarAssunto} className="flex flex-wrap items-center gap-2 py-2">
+              <input type="hidden" name="volta" value={volta} /><input type="hidden" name="rotulo" value={r.nome} />
+              <span className="min-w-40 flex-1"><b className="font-medium">{r.nome}</b> <span className="text-muted">· {r.n} {r.n === 1 ? 'questão' : 'questões'}</span></span>
+              <select name="alvo" defaultValue={r.padrao} aria-label={`Ligar "${r.nome}" a`} className={inputCls + ' min-w-0 flex-1'}>
+                <option value="">Escolha o assunto de Matérias…</option>
+                {gruposTopicos.map(d => <optgroup key={d.id} label={d.nome}>{topicos.filter(t => t.discipline_id === d.id).sort((a, b) => a.nome.localeCompare(b.nome)).map(t => <option key={t.id} value={`t:${t.id}`}>{t.nome}</option>)}</optgroup>)}
+                {discs.length > 0 && <optgroup label={`Criar "${r.nome.slice(0, 40)}" em Matérias`}>{discs.map(d => <option key={d.id} value={`criar:${d.id}`}>Criar em {d.nome}</option>)}</optgroup>}
+              </select>
+              <button className="rounded-lg border border-line px-3 py-1.5 hover:border-brand">Ligar</button>
+            </form></li>))}</ul>
+          {soltos.length > 25 && <p className="text-xs text-muted">E mais {soltos.length - 25}: aparecem aqui à medida que você liga estes.</p>}
+        </section>}
+
         <section className="space-y-3 rounded-2xl border border-line bg-surface p-5 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-medium">Assunto das questões</h2>
             {semAssunto ? <Link href={`/banco/questoes?assunto=${encodeURIComponent(SEM_ASSUNTO)}`} className="text-muted hover:text-brand">{semAssunto} {semAssunto === 1 ? 'questão' : 'questões'} sem assunto</Link>
               : <span className="text-muted">Todas têm assunto</span>}
           </div>
-          <p className="text-muted">Abra uma questão para escolher o assunto dela, ou marque várias na lista abaixo e dê o mesmo assunto a todas. Ligado a um assunto de Matérias, o resultado entra no Desempenho daquele assunto.</p>
+          <p className="text-muted">Marque várias questões na lista abaixo e dê o mesmo assunto a todas. Para corrigir uma só, abra a questão e use "Mudar assunto". Ligado a um assunto de Matérias, o resultado entra no Desempenho daquele assunto.</p>
           {semAssunto > 0 && <form action={sugerirAssuntosDoBanco} className="flex flex-wrap items-center gap-2">
             <input type="hidden" name="volta" value={volta} />
             <button className="rounded-lg border border-line px-3 py-1.5 hover:border-brand">Sugerir pelo texto</button>

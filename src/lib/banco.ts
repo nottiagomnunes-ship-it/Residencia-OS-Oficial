@@ -249,3 +249,19 @@ export async function restaurarDoBancoGeral(fd: FormData) {
   const n = Number(data?.novas) || 0
   redirect(comAviso(volta, 'ok', n ? `${n} ${n === 1 ? 'questão do banco geral voltou' : 'questões do banco geral voltaram'} para o seu banco.` : 'Nenhuma questão para trazer de volta.'))
 }
+
+/**
+ * "Ligar assuntos": todas as questões com um nome de assunto que ainda não está ligado a Matérias passam a usar o assunto escolhido
+ * (alvo "t:<id>") ou um assunto novo com esse nome, criado em Matérias na disciplina escolhida (alvo "criar:<id da disciplina>").
+ */
+export async function ligarAssunto(fd: FormData) {
+  const { sb } = await ctx()
+  const volta = voltaDoBanco(fd), rotulo = String(fd.get('rotulo') || '').trim(), alvo = String(fd.get('alvo') || '')
+  if (!rotulo || !alvo) redirect(comAviso(volta, 'erro', 'Escolha o assunto de Matérias para ligar.'))
+  const { data } = await sb.from('banco_questoes').select('id').eq('assunto', rotulo).is('topic_id', null).limit(2000)
+  const ids = (data ?? []).map((q: { id: string }) => q.id)
+  if (!ids.length) redirect(comAviso(volta, 'erro', 'Não há mais questões com esse nome sem ligação.'))
+  const r = await definirAssuntoDoBanco(ids, alvo.startsWith('t:') ? { topic_id: alvo.slice(2) } : alvo.startsWith('criar:') ? { assunto: rotulo, criar_em: alvo.slice(6) } : { assunto: rotulo })
+  if (!r.ok) redirect(comAviso(volta, 'erro', r.erro ?? 'Não foi possível ligar.'))
+  redirect(comAviso(volta, 'ok', `${r.n} ${r.n === 1 ? 'questão de' : 'questões de'} "${rotulo}" ${r.n === 1 ? 'ligada' : 'ligadas'} ao assunto de Matérias. Agora ${r.n === 1 ? 'conta' : 'contam'} no Desempenho dele.`))
+}
