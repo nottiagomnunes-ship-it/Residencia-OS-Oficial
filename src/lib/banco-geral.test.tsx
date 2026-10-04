@@ -26,7 +26,7 @@ vi.mock('@/lib/supabase/server', () => ({ supabaseServer: async () => ({
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }))
 vi.mock('next/navigation', () => ({ redirect: (u: string) => { h.redirects.push(u); throw new Error('REDIRECT') }, useRouter: () => ({ refresh: () => {}, push: () => {} }) }))
 
-import { publicarNoBancoGeral, retirarDoBancoGeral, restaurarDoBancoGeral } from './banco'
+import { publicarNoBancoGeral, retirarDoBancoGeral, restaurarDoBancoGeral, importarNoBanco } from './banco'
 import { avisoDoBancoGeral } from './banco-data'
 import Banco from '@/app/(app)/banco/questoes/page'
 import PraticarInicio from '@/app/(app)/banco/page'
@@ -73,6 +73,38 @@ describe('publicar no banco geral (administrador)', () => {
     h.dados.banco_questoes = [{ id: Q1, gabarito: 'A', anulada: false, blocos: [] }]
     await expect(publicarNoBancoGeral(fd({ sel: Q1 }))).rejects.toThrow('REDIRECT'); expect(msg()).toContain('0037_banco_geral.sql')
     await expect(publicarNoBancoGeral(fd({}))).rejects.toThrow('REDIRECT'); expect(msg()).toContain('Marque as questões')
+  })
+})
+
+describe('importar já publicando (administrador)', () => {
+  const q = (t: string) => ({ blocos: [{ tipo: 'texto', texto: t }], alternativas: [{ letra: 'A', texto: 'a' }, { letra: 'B', texto: 'b' }], gabarito: 'A' })
+  it('grava no banco e publica as questões do arquivo (achadas pela impressão digital), com a coleção', async () => {
+    h.rpcRes.importar_banco = { data: 2, error: null }
+    h.rpcRes.publicar_no_banco_geral = { data: { novas: 2, atualizadas: 0 }, error: null }
+    h.dados.banco_questoes = [{ id: Q1, gabarito: 'A', anulada: false, blocos: [] }, { id: Q2, gabarito: 'A', anulada: false, blocos: [] }]
+    const r = await importarNoBanco({ questoes: [q('Primeira'), q('Segunda')] }, { colecao: ' Anestesio UFMA ' })
+    expect(r).toMatchObject({ ok: true, novas: 2, repetidas: 0, publicacao: expect.stringContaining('2 questões publicadas no banco geral') })
+    expect(h.filtros.some(f => f.startsWith('banco_questoes.in(hash,'))).toBe(true)
+    expect(h.rpcs.find(x => x.nome === 'publicar_no_banco_geral')!.args).toMatchObject({ p_colecao: 'Anestesio UFMA' })
+  })
+  it('sem marcar "publicar": só importa', async () => {
+    h.rpcRes.importar_banco = { data: 1, error: null }
+    expect(await importarNoBanco({ questoes: [q('Uma')] })).toEqual({ ok: true, novas: 1, repetidas: 0 })
+    expect(h.rpcs.some(x => x.nome === 'publicar_no_banco_geral')).toBe(false)
+  })
+  it('se a publicação falha, a importação vale e o aviso diz como publicar depois', async () => {
+    h.rpcRes.importar_banco = { data: 1, error: null }
+    h.dados.banco_questoes = [{ id: Q1, gabarito: 'A', anulada: false, blocos: [] }]
+    const r = await importarNoBanco({ questoes: [q('Uma')] }, { colecao: null })
+    expect(r).toMatchObject({ ok: true, novas: 1, erroPublicacao: expect.stringContaining('Banco → Organizar') })
+  })
+  it('publicar muitas: vai de 1000 em 1000, numa vez só', async () => {
+    h.dados.banco_questoes = [{ id: Q1, gabarito: 'A', anulada: false, blocos: [] }]
+    h.rpcRes.publicar_no_banco_geral = { data: { novas: 1000, atualizadas: 0 }, error: null }
+    const ids = Array.from({ length: 2500 }, (_, i) => `${String(i).padStart(8, '0')}-aaaa-aaaa-aaaa-aaaaaaaaaaaa`)
+    await expect(publicarNoBancoGeral(fd({ sel: ids }))).rejects.toThrow('REDIRECT')
+    expect(h.rpcs.filter(x => x.nome === 'publicar_no_banco_geral')).toHaveLength(3)
+    expect(msg()).toContain('3000 questões publicadas')
   })
 })
 

@@ -23,12 +23,14 @@ const palpiteDisciplina = (arquivo: string) => {
 }
 
 /** Importar questões para o banco: lê PDF, .docx ou pacote .json, mostra a prévia e grava sem repetir as que já existem. */
-export default function ImportarBanco({ disciplinas, assuntos }: { disciplinas: Disc[]; assuntos: Assunto[] }) {
+export default function ImportarBanco({ disciplinas, assuntos, admin = false }: { disciplinas: Disc[]; assuntos: Assunto[]; admin?: boolean }) {
   const router = useRouter()
   const [lido, setLido] = useState<Lido | null>(null), [erro, setErro] = useState<string | null>(null), [lendo, setLendo] = useState(false)
   const [disc, setDisc] = useState(''), [novaDisc, setNovaDisc] = useState(''), [fonte, setFonte] = useState('')
   const [salvando, setSalvando] = useState<string | null>(null), [aberta, setAberta] = useState<number | null>(null)
-  const [resultado, setResultado] = useState<{ novas: number; repetidas: number } | null>(null)
+  const [resultado, setResultado] = useState<{ novas: number; repetidas: number; publicacao?: string; erroPublicacao?: string } | null>(null)
+  // administrador: publicar no banco geral junto com a importação (já vai para todas as contas)
+  const [publicar, setPublicar] = useState(true), [colecao, setColecao] = useState('')
   // assunto: '' = o que veio no arquivo (ou a sugestão); 't:<id>' = um assunto de Matérias; 'nenhum'; 'outro' = o nome escrito em textoTodas
   const [assuntoTodas, setAssuntoTodas] = useState(''), [textoTodas, setTextoTodas] = useState(''), [sugerir, setSugerir] = useState(true)
   const [porQuestao, setPorQuestao] = useState<Record<number, string>>({})
@@ -122,9 +124,10 @@ export default function ImportarBanco({ disciplinas, assuntos }: { disciplinas: 
         alternativas: i.questao.alternativas, gabarito: i.anulada ? null : i.gabarito, gabarito_origem: i.anulada ? null : i.gabarito_origem, anulada: i.anulada,
         comentario: i.comentario, area: i.area, discipline_id: i.discipline_id, topic_id: i.topic_id, assunto: i.assunto, banca: i.banca, ano: i.ano, fonte: fonte.trim() || null,
       }))
-      const r = await importarNoBanco({ questoes })
+      if (admin && publicar) setSalvando('Gravando e publicando no banco geral…')
+      const r = await importarNoBanco({ questoes }, admin && publicar ? { colecao: colecao.trim() || fonte.trim() || null } : null)
       if (!r.ok) throw new Error(r.erro)
-      setResultado({ novas: r.novas, repetidas: r.repetidas }); setLido(null); setSalvando(null)
+      setResultado({ novas: r.novas, repetidas: r.repetidas, publicacao: r.publicacao, erroPublicacao: r.erroPublicacao }); setLido(null); setSalvando(null)
       router.refresh()
     } catch (e) {
       if (enviados.length) await sb.storage.from('provas').remove(enviados).catch(() => {})
@@ -143,7 +146,9 @@ export default function ImportarBanco({ disciplinas, assuntos }: { disciplinas: 
       </label>
       {erro && <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 p-3 text-sm text-danger">{erro}</p>}
       {resultado && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-3 text-sm">
-        {resultado.novas} {resultado.novas === 1 ? 'questão nova entrou' : 'questões novas entraram'} no banco.{resultado.repetidas ? ` ${resultado.repetidas} já ${resultado.repetidas === 1 ? 'estava' : 'estavam'} lá e não ${resultado.repetidas === 1 ? 'foi repetida' : 'foram repetidas'}.` : ''} <a href="/banco/questoes" className="text-brand underline">Ver no Banco</a> · <a href="/banco" className="text-brand underline">Praticar</a></p>}
+        {resultado.novas} {resultado.novas === 1 ? 'questão nova entrou' : 'questões novas entraram'} no banco.{resultado.repetidas ? ` ${resultado.repetidas} já ${resultado.repetidas === 1 ? 'estava' : 'estavam'} lá e não ${resultado.repetidas === 1 ? 'foi repetida' : 'foram repetidas'}.` : ''} <a href="/banco/questoes" className="text-brand underline">Ver no Banco</a> · <a href="/banco" className="text-brand underline">Praticar</a>
+        {resultado.publicacao && <span className="mt-1 block">{resultado.publicacao}</span>}</p>}
+      {resultado?.erroPublicacao && <p role="alert" className="rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm text-warn">{resultado.erroPublicacao}</p>}
 
       {lido && resumo && <>
         <section className={`${card} space-y-3`}>
@@ -202,9 +207,14 @@ export default function ImportarBanco({ disciplinas, assuntos }: { disciplinas: 
               </li>))}</ul>
           </details>
         </section>
+        {admin && <section className={`${card} space-y-2 text-sm`}>
+          <label className="flex items-start gap-2"><input type="checkbox" checked={publicar} onChange={e => setPublicar(e.target.checked)} className="mt-0.5 size-4 accent-brand" />
+            <span><b className="font-medium">Publicar também no banco geral</b> <span className="text-muted">— todas as contas recebem estas questões (enunciado, figuras, alternativas, gabarito, disciplina e assunto; o comentário não vai).</span></span></label>
+          {publicar && <label className="block text-muted">Coleção (opcional)<input value={colecao} onChange={e => setColecao(e.target.value)} maxLength={120} placeholder={fonte || 'Ex.: Anestesiologia – UFMA'} className={inputCls + ' mt-1 w-full'} /></label>}
+        </section>}
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" onClick={salvar} disabled={!!salvando || (disc === NOVA && !novaDisc.trim())} className="min-h-12 rounded-xl bg-brand px-6 font-medium text-black disabled:opacity-50">
-            {salvando ?? `Adicionar ${resumo.total} ao banco`}</button>
+            {salvando ?? (admin && publicar ? `Adicionar ${resumo.total} e publicar para todos` : `Adicionar ${resumo.total} ao banco`)}</button>
           <span className="text-xs text-muted">Questões que já estão no banco (mesmo texto) não são repetidas.</span>
         </div>
       </>}
