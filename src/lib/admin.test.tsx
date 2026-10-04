@@ -19,6 +19,8 @@ const cadeia = (t: string) => {
   r.delete = () => { op.tipo = 'delete'; h.ops.push(op); return r }
   const res = () => (op.tipo !== 'select' ? { data: null, count: 1, error: null } : h.resp(t, op.filtros, op.campos ?? ''))
   r.maybeSingle = async () => ({ data: h.um[`${t}:${op.campos}`] ?? h.um[t] ?? null, error: null })
+  r.single = r.maybeSingle
+  for (const m of ['gt', 'lt']) r[m] = (...a: any[]) => { op.filtros.push(`${m}(${a.join(',')})`); return r }
   r.then = (ok: any) => Promise.resolve(res()).then(ok)
   return r
 }
@@ -40,6 +42,7 @@ import Pendencias from '@/app/(app)/admin/page'
 import EditarQuestao from '@/app/(app)/admin/questoes/[id]/page'
 import BarraDoLote from '@/components/admin/BarraDoLote'
 import Banco from '@/app/(app)/banco/questoes/page'
+import Desempenho from '@/app/(app)/desempenho/page'
 
 const Q1 = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', Q0 = '00000000-aaaa-aaaa-aaaa-aaaaaaaaaaaa', Q2 = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
 const fd = (o: Record<string, string | string[]>) => { const f = new FormData(); for (const [k, v] of Object.entries(o)) for (const x of [v].flat()) f.append(k, x); return f }
@@ -198,5 +201,18 @@ describe('só a administradora (regra única)', () => {
     expect((await lerPdfDeQuestoes(f)).erro).toMatch(/Só a conta administradora/)
     expect(await importarNoBanco({ questoes: [] })).toMatchObject({ ok: false, erro: expect.stringMatching(/Só a conta administradora/) })
     expect(h.uploads).toEqual([])
+  })
+})
+
+describe('Desempenho por tema', () => {
+  it('mostra o acerto em cada tema das questões do banco, o menor primeiro, com atalho para praticar o tema', async () => {
+    const T1 = '7e000000-0000-0000-0000-000000000001', T2 = '7e000000-0000-0000-0000-000000000002'
+    h.resp = (t, f, c) => t === 'temas' ? { data: [{ id: T1, area: 'cirurgia', especialidade: 'Anestesiologia', nome: 'Via aérea difícil', palavras: null }, { id: T2, area: 'cirurgia', especialidade: 'Anestesiologia', nome: 'Hipertermia maligna', palavras: null }], error: null }
+      : t === 'banco_questoes' && c === 'tema_id,vezes,acertos' ? { data: [{ tema_id: T1, vezes: 10, acertos: 9 }, { tema_id: T2, vezes: 6, acertos: 2 }], error: null }
+      : { data: [], error: null }
+    const html = renderToStaticMarkup(await Desempenho())
+    expect(html).toContain('Banco de questões por tema')
+    expect(html.indexOf('Hipertermia maligna')).toBeLessThan(html.indexOf('Via aérea difícil'))
+    expect(html).toMatch(/33%.*\(2\/6\)/); expect(html).toContain(`href="/banco/praticar?assunto=${encodeURIComponent(`tema:${T2}`)}"`)
   })
 })

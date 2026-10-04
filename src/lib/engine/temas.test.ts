@@ -87,3 +87,14 @@ describe('lista de temas em texto (para mandar ao Claude)', () => {
       ['pediatria', 'Neonatologia', 'Icterícia - fototerapia', null]])
   })
 })
+
+import { desempenhoPorTema } from './temas'
+describe('desempenho por tema (questões do banco)', () => {
+  it('soma as tentativas de cada tema; menor acerto primeiro, temas com poucas respostas no fim; sem tema não conta', () => {
+    const temas = [{ id: 'a', area: null, especialidade: 'Anestesio', nome: 'Via aérea' }, { id: 'b', area: null, especialidade: 'Anestesio', nome: 'Locais' },
+      { id: 'c', area: null, especialidade: 'Cardio', nome: 'FA' }, { id: 'd', area: null, especialidade: 'Cardio', nome: 'Nunca feito' }]
+    const r = desempenhoPorTema([{ tema_id: 'a', vezes: 4, acertos: 3 }, { tema_id: 'a', vezes: 2, acertos: 1 }, { tema_id: 'b', vezes: 10, acertos: 9 },
+      { tema_id: 'c', vezes: 2, acertos: 0 }, { tema_id: 'd', vezes: 0, acertos: 0 }, { tema_id: null, vezes: 9, acertos: 0 }], temas)
+    expect(r.map(x => [x.nome, x.feitas, x.pct])).toEqual([['Via aérea', 6, 67], ['Locais', 10, 90], ['FA', 2, 0]])
+  })
+})

@@ -90,7 +90,7 @@ describe('corrigir uma lista', () => {
 
 describe('tela de importar', () => {
   it('começa só com a escolha do arquivo (PDF, .docx ou .json)', () => {
-    const html = renderToStaticMarkup(<ImportarBanco disciplinas={[]} assuntos={[]} />)
+    const html = renderToStaticMarkup(<ImportarBanco />)
     expect(html).toContain('accept=".pdf,.docx,.json'); expect(html).not.toContain('Adicionar')
   })
 })

@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'fs'
 import path from 'path'
 import { paragrafosDoPdf, extrairOrigem, pareceTerFigura } from './provas-pdf'
 import { montarQuestoes, lerGabarito, textoDosBlocos, ehCertoErrado } from './provas'
-import { lerPacote, itensDeQuestoes, classificar, validarLote, textoParaHash, lerFiltros, filtrosParaUrl, sortear, nomeDaLista, acharDisciplina } from './banco'
+import { lerPacote, itensDeQuestoes, validarLote, textoParaHash, lerFiltros, filtrosParaUrl, sortear, nomeDaLista } from './banco'
 
 const fx = (n: string) => path.join(__dirname, '__fixtures__', n)
 // o texto que o servidor extrai do PDF (unpdf), página por página: gerado uma vez a partir dos PDFs de exemplo
@@ -83,19 +83,6 @@ describe('pacote .json', () => {
   })
 })
 
-describe('classificação', () => {
-  const ds = [{ id: 'd1', nome: 'Anestesiologia', area: 'cirurgia' as const }, { id: 'd2', nome: 'Pediatria', area: null }]
-  const ts = [{ id: 't1', nome: 'Via aérea', discipline_id: 'd1' }]
-  const item = (o: object = {}) => ({ questao: { numero: 1, blocos: [{ tipo: 'texto' as const, texto: 'Lactente de 6 meses' }], alternativas: [] }, gabarito: null, gabarito_origem: null, anulada: false,
-    comentario: null, disciplina: null, assunto: null, area: null, banca: null, ano: null, ...o })
-  it('disciplina do item ou a padrão; assunto só se existir; área da disciplina, senão pelo nome, senão pelo texto', () => {
-    const r = classificar([item({ assunto: 'via aerea' }), item({ disciplina: 'pediatria' }), item({ assunto: 'Inexistente' })], ds, ts, ds[0])
-    expect(r.map(x => [x.discipline_id, x.topic_id, x.area])).toEqual([['d1', 't1', 'cirurgia'], ['d2', null, 'pediatria'], ['d1', null, 'cirurgia']])
-    expect(classificar([item()], ds, ts, null)[0]).toMatchObject({ discipline_id: null, area: 'pediatria' })
-    expect(acharDisciplina('ANESTESIOLOGIA', ds)?.id).toBe('d1'); expect(acharDisciplina(null, ds)).toBeNull()
-  })
-})
-
 describe('conferência no servidor', () => {
   const uid = '11111111-1111-1111-1111-111111111111'
   const q = (o: object = {}) => ({ blocos: [{ tipo: 'texto', texto: ' x ' }], alternativas: [{ letra: 'A', texto: 'a' }, { letra: 'B', texto: 'b' }], gabarito: 'B', gabarito_origem: 'ia', ...o })
@@ -156,38 +143,7 @@ describe('Praticar: qual é a próxima', () => {
   })
 })
 
-describe('assunto pelo texto', () => {
-  const assuntos = [{ id: 'hm', nome: 'Hipertermia maligna' }, { id: 'al', nome: 'Anestésicos locais' }, { id: 'va', nome: 'Via aérea difícil' }, { id: 'v', nome: 'Via aérea' }, { id: 'j', nome: 'Jejum pré-operatório' }]
-  it('todas as palavras do nome precisam aparecer; ganha o mais específico; plural e acento não atrapalham', async () => {
-    const { sugerirAssunto } = await import('./banco')
-    expect(sugerirAssunto('Em relação à HIPERTERMIA MALIGNA, assinale', assuntos)?.id).toBe('hm')
-    expect(sugerirAssunto('Toxicidade do anestésico local lidocaína', assuntos)?.id).toBe('al')
-    expect(sugerirAssunto('São preditores de via aérea difícil para intubação', assuntos)?.id).toBe('va')
-    expect(sugerirAssunto('Manejo da via aérea no trauma', assuntos)?.id).toBe('v')
-    expect(sugerirAssunto('O período de jejum pré-operatório para leite materno', assuntos)?.id).toBe('j')
-    expect(sugerirAssunto('Qual o agente de indução mais indicado?', assuntos)).toBeNull()
-    expect(sugerirAssunto('maligna', assuntos)).toBeNull()                                     // só parte do nome não basta
-  })
-})
-
-import { assuntoParecido, rotuloDosAnos } from './banco'
-describe('assunto parecido (ligar assuntos)', () => {
-  const ts = [{ id: '1', nome: 'Via aérea difícil', discipline_id: 'A' }, { id: '2', nome: 'Anestésicos locais', discipline_id: 'A' },
-    { id: '3', nome: 'Via aérea', discipline_id: 'B' }, { id: '4', nome: 'Hipertermia maligna', discipline_id: 'A' }]
-  it('nome igual (sem acento) ganha; senão, o que tem mais palavras em comum', () => {
-    expect(assuntoParecido('VIA AEREA', ts)?.id).toBe('3')
-    expect(assuntoParecido('Anestésico local', ts)?.id).toBe('2')
-    expect(assuntoParecido('Via aérea difícil no adulto', ts)?.id).toBe('1')
-  })
-  it('a disciplina das questões desempata', () => {
-    const iguais = [{ id: 'x', nome: 'Choque', discipline_id: 'A' }, { id: 'y', nome: 'Choque', discipline_id: 'B' }]
-    expect(assuntoParecido('Choque', iguais, 'B')?.id).toBe('y')
-  })
-  it('pouco parecido: nada', () => {
-    expect(assuntoParecido('Farmacologia geral', ts)).toBeNull(); expect(assuntoParecido('de', ts)).toBeNull()
-  })
-})
-
+import { rotuloDosAnos } from './banco'
 import { lerTemaEscrito, pacoteDoBanco, lerPacote as lerPacote2, textoParaHash as hash2 } from './banco'
 describe('tema escrito e exportar/importar de volta', () => {
   it('lê "Especialidade > Tema"; só o nome usa a especialidade padrão', () => {

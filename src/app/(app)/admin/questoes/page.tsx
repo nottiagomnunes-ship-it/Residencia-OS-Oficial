@@ -1,16 +1,14 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
-import { definirAssuntoEmLote, definirTemaEmLote, sugerirTemasPeloTexto, ligarAssunto, sugerirAssuntosDoBanco, publicarNoBancoGeral, retirarDoBancoGeral, restaurarDoBancoGeral } from '@/lib/banco'
+import { definirTemaEmLote, sugerirTemasPeloTexto, publicarNoBancoGeral, retirarDoBancoGeral, restaurarDoBancoGeral } from '@/lib/banco'
 import { aplicarFiltros, assuntoDoFiltro, ehAdmin, carregarTemas, FILTROS_ADMIN, lerFiltroAdmin, aplicarFiltroAdmin, hashesReportados } from '@/lib/banco-data'
 import { porEspecialidade } from '@/lib/engine/temas'
 import OpcoesDeAssunto from '@/components/banco/OpcoesDeAssunto'
-import { lerFiltros, filtrosParaUrl, assuntoParecido, type Filtros } from '@/lib/engine/banco'
+import { lerFiltros, filtrosParaUrl, type Filtros } from '@/lib/engine/banco'
 import { textoDosBlocos, type Bloco } from '@/lib/engine/provas'
-import { AREAS, ROTULO_AREA } from '@/lib/engine/areas'
 import { inputCls } from '@/components/ui'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
-import type { TopicoSimples } from '@/components/banco/AssuntoDaQuestao'
 import MarcarTodas from '@/components/banco/MarcarTodas'
 import BarraDoLote from '@/components/admin/BarraDoLote'
 
@@ -26,11 +24,9 @@ export default async function AdminQuestoes({ searchParams }: { searchParams: Pr
   const [topico, reportados] = await Promise.all([assuntoDoFiltro(sb, f), adm === 'reportadas' ? hashesReportados(sb) : Promise.resolve([])])
   const consulta = (campos: string) => aplicarFiltroAdmin(aplicarFiltros(sb.from('banco_questoes').select(campos, { count: 'exact' }), f, topico), adm, reportados)
     .order('ano', { ascending: false, nullsFirst: false }).order('criada_em', { ascending: false }).range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1)
-  const [{ data: todas, error }, primeira, { data: ds }, { data: ts }, temas, { data: colecoes }, { count: removidas }, { data: comTema }] = await Promise.all([
-    sb.from('banco_questoes').select('id,discipline_id,topic_id,assunto,banca,ano').limit(20000),
+  const [{ data: todas, error }, primeira, temas, { data: colecoes }, { count: removidas }, { data: comTema }] = await Promise.all([
+    sb.from('banco_questoes').select('id,assunto,banca,ano').limit(20000),
     consulta('id,blocos,gabarito,anulada,assunto,banca,ano,tema_id,origem_geral,explicacao,pendente_publicar,hash'),
-    sb.from('disciplines').select('id,nome').order('ordem'),
-    sb.from('topics').select('id,nome,discipline_id').limit(5000),
     carregarTemas(sb),
     sb.from('banco_geral').select('colecao').not('colecao', 'is', null).limit(5000),
     sb.from('banco_geral_removidas').select('geral_id', { count: 'exact', head: true }),
@@ -46,25 +42,11 @@ export default async function AdminQuestoes({ searchParams }: { searchParams: Pr
       .order('ano', { ascending: false, nullsFirst: false }).order('criada_em', { ascending: false }).range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1)
     : primeira
   const temaDe = new Map(((comTema ?? []) as { id: string; tema_id: string }[]).map(q => [q.id, q.tema_id]))
-  const T = (todas ?? []).map(q => ({ ...q, tema_id: temaDe.get(q.id) ?? null })), discs = (ds ?? []) as { id: string; nome: string }[], topicos = (ts ?? []) as TopicoSimples[]
-  const nomeDisc = new Map(discs.map(d => [d.id, d.nome])), nomeTema = new Map(temas.map(t => [t.id, t.nome]))
-  const discsComQuestao = [...new Set(T.map(q => q.discipline_id).filter(Boolean))] as string[]
+  const T = (todas ?? []).map(q => ({ ...q, tema_id: temaDe.get(q.id) ?? null }))
+  const nomeTema = new Map(temas.map(t => [t.id, t.nome]))
   const contar = (xs: (string | null)[]) => { const m = new Map<string, number>(); for (const x of xs) if (x) m.set(x, (m.get(x) ?? 0) + 1); return m }
   const bancas = [...contar(T.map(q => q.banca))].sort((a, b) => a[0].localeCompare(b[0]))
   const anos = [...new Set(T.map(q => q.ano).filter((a): a is number => !!a))].sort((a, b) => b - a)
-  const semAssunto = T.filter(q => !q.assunto).length
-  // "Ligar assuntos" (só para o seu Desempenho): nomes de assunto que não estão ligados a Matérias
-  const porNome = new Map<string, { n: number; discs: Map<string, number> }>()
-  for (const q of T) if (q.assunto && !q.topic_id) {
-    const g = porNome.get(q.assunto) ?? { n: 0, discs: new Map() }; g.n++
-    if (q.discipline_id) g.discs.set(q.discipline_id, (g.discs.get(q.discipline_id) ?? 0) + 1)
-    porNome.set(q.assunto, g)
-  }
-  const soltos = [...porNome].sort((a, b) => b[1].n - a[1].n || a[0].localeCompare(b[0])).map(([nome, g]) => {
-    const disc = [...g.discs].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
-    const sugerido = assuntoParecido(nome, topicos, disc)
-    return { nome, n: g.n, padrao: sugerido ? `t:${sugerido.id}` : disc ? `criar:${disc}` : '' }
-  })
   const nomesColecoes = [...new Set(((colecoes ?? []) as { colecao: string }[]).map(c => c.colecao))].sort()
   const linhas = (lista ?? []) as unknown as Linha[], total = count ?? 0, paginas = Math.max(1, Math.ceil(total / POR_PAGINA))
   const qsLista = (o: Partial<Filtros> & { p?: number; adm?: string | null }) => {
@@ -74,7 +56,6 @@ export default async function AdminQuestoes({ searchParams }: { searchParams: Pr
   const url = (o: Partial<Filtros> & { p?: number; adm?: string | null }) => { const qs = qsLista(o); return qs ? `/admin/questoes?${qs}` : '/admin/questoes' }
   const volta = url({ p: pagina }), filtrosLote = qsLista({})
   const filtrado = !!(f.area || f.disciplina || f.assunto || f.topico || f.banca || f.anoDe || f.anoAte || adm)
-  const gruposTopicos = discs.filter(d => topicos.some(t => t.discipline_id === d.id))
   const sel = inputCls + ' w-full', btn = 'rounded-xl border border-line px-4 py-2 text-sm hover:border-brand'
   const marca = (cor: string, txt: string) => <span className={`rounded-full border px-2 py-0.5 text-xs ${cor}`}>{txt}</span>
   return (
@@ -101,13 +82,7 @@ export default async function AdminQuestoes({ searchParams }: { searchParams: Pr
               <select name="de" defaultValue={f.anoDe ?? ''} aria-label="Ano: de" className={inputCls + ' min-w-0 flex-1'}><option value="">desde</option>{anos.map(a => <option key={a} value={a}>{a}</option>)}</select>–
               <select name="ate" defaultValue={f.anoAte ?? ''} aria-label="Ano: até" className={inputCls + ' min-w-0 flex-1'}><option value="">até</option>{anos.map(a => <option key={a} value={a}>{a}</option>)}</select></div></fieldset>
           </div>
-          <details open={!!(f.area || f.disciplina)} className="text-sm">
-            <summary className="cursor-pointer text-muted">Mais filtros</summary>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <label className="text-muted">Área<select name="area" defaultValue={f.area ?? ''} className={sel}><option value="">Todas</option>{AREAS.map(a => <option key={a} value={a}>{ROTULO_AREA[a]}</option>)}</select></label>
-              <label className="text-muted">Disciplina<select name="disciplina" defaultValue={f.disciplina ?? ''} className={sel}><option value="">Todas</option>{discsComQuestao.map(d => <option key={d} value={d}>{nomeDisc.get(d) ?? 'Disciplina'}</option>)}</select></label>
-            </div>
-          </details>
+          {f.area && <input type="hidden" name="area" value={f.area} />}{f.disciplina && <input type="hidden" name="disciplina" value={f.disciplina} />}
           {f.topico && <input type="hidden" name="topico" value={f.topico} />}
           <div className="flex flex-wrap gap-2">
             <button className="rounded-xl bg-brand px-5 py-2 font-medium text-black">Buscar</button>
@@ -174,45 +149,6 @@ export default async function AdminQuestoes({ searchParams }: { searchParams: Pr
           </nav>}
         </section>
 
-        <details className="rounded-2xl border border-line bg-surface p-4 text-sm">
-          <summary className="cursor-pointer font-medium">Ajustes de assunto das suas Matérias <span className="font-normal text-muted">· só para o seu Desempenho{soltos.length || semAssunto ? ` (${soltos.length + (semAssunto ? 1 : 0)} pendente${soltos.length + (semAssunto ? 1 : 0) === 1 ? '' : 's'})` : ''}</span></summary>
-          <div className="mt-3 space-y-4">
-            <p className="text-muted">Isto não muda nada para as outras contas (elas usam o tema). Serve para as questões contarem no Desempenho dos seus assuntos de Matérias.</p>
-            {soltos.length > 0 && <div className="space-y-2">
-              <h3 className="font-medium">Ligar assuntos</h3>
-              <ul className="divide-y divide-line">{soltos.slice(0, 25).map(r => (
-                <li key={r.nome}><form action={ligarAssunto} className="flex flex-wrap items-center gap-2 py-2">
-                  <input type="hidden" name="volta" value={volta} /><input type="hidden" name="rotulo" value={r.nome} />
-                  <span className="min-w-40 flex-1"><b className="font-medium">{r.nome}</b> <span className="text-muted">· {r.n}</span></span>
-                  <select name="alvo" defaultValue={r.padrao} aria-label={`Ligar "${r.nome}" a`} className={inputCls + ' min-w-0 flex-1'}>
-                    <option value="">Escolha o assunto de Matérias…</option>
-                    {gruposTopicos.map(d => <optgroup key={d.id} label={d.nome}>{topicos.filter(t => t.discipline_id === d.id).sort((a, b) => a.nome.localeCompare(b.nome)).map(t => <option key={t.id} value={`t:${t.id}`}>{t.nome}</option>)}</optgroup>)}
-                    {discs.length > 0 && <optgroup label={`Criar "${r.nome.slice(0, 40)}" em Matérias`}>{discs.map(d => <option key={d.id} value={`criar:${d.id}`}>Criar em {d.nome}</option>)}</optgroup>}
-                  </select>
-                  <button className="rounded-lg border border-line px-3 py-1.5 hover:border-brand">Ligar</button>
-                </form></li>))}</ul>
-              {soltos.length > 25 && <p className="text-xs text-muted">E mais {soltos.length - 25}.</p>}
-            </div>}
-            {semAssunto > 0 && <form action={sugerirAssuntosDoBanco} className="flex flex-wrap items-center gap-2">
-              <input type="hidden" name="volta" value={volta} />
-              <button className="rounded-lg border border-line px-3 py-1.5 hover:border-brand">Sugerir assunto de Matérias pelo texto ({semAssunto} sem assunto)</button>
-            </form>}
-            <div className="space-y-2 border-t border-line pt-3">
-              <h3 className="font-medium">Dar assunto às marcadas</h3>
-              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
-                <label className="text-muted">Assunto de Matérias<select name="alvo" form="lote" defaultValue="" className={sel}>
-                  <option value="">Escolha… (ou escreva ao lado)</option>
-                  {gruposTopicos.map(d => <optgroup key={d.id} label={d.nome}>{topicos.filter(t => t.discipline_id === d.id).sort((a, b) => a.nome.localeCompare(b.nome)).map(t => <option key={t.id} value={`t:${t.id}`}>{t.nome}</option>)}</optgroup>)}
-                  <option value="nenhum">Sem assunto (tirar)</option>
-                </select></label>
-                <label className="text-muted">ou um nome novo<input name="texto" form="lote" maxLength={120} placeholder="Ex.: Bloqueio de neuroeixo" className={sel} />
-                  {discs.length > 0 && <select name="criar_em" form="lote" defaultValue={f.disciplina ?? ''} aria-label="Criar em Matérias" className={sel + ' mt-1'}>
-                    <option value="">Só o nome (não criar em Matérias)</option>{discs.map(d => <option key={d.id} value={d.id}>Criar em Matérias: {d.nome}</option>)}</select>}</label>
-                <button form="lote" formAction={definirAssuntoEmLote} className="rounded-xl border border-line px-4 py-2 hover:border-brand">Salvar nas marcadas</button>
-              </div>
-            </div>
-          </div>
-        </details>
 
         {!!removidas && <form action={restaurarDoBancoGeral} className="flex flex-wrap items-center gap-2 text-sm">
           <input type="hidden" name="volta" value={volta} />

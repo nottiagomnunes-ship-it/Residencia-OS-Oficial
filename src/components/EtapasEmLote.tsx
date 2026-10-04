@@ -1,6 +1,5 @@
 'use client'
 import { useMemo, useState, useTransition } from 'react'
-import Link from 'next/link'
 import { aplicarEmLote, desfazerUltimoLote } from '@/lib/etapas'
 import { selecionarAssuntos, type Modelo, type TopicoLote } from '@/lib/engine/etapas'
 import { inputCls } from '@/components/ui'

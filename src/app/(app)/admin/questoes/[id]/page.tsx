@@ -9,7 +9,6 @@ import { LETRAS, ehLetra, type Alternativa } from '@/lib/engine/provas'
 import { inputCls, fmtData } from '@/components/ui'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
 import NovaFigura from '@/components/admin/NovaFigura'
-import AssuntoDaQuestao, { type TopicoSimples } from '@/components/banco/AssuntoDaQuestao'
 
 type Extra = { tema_id: string | null; explicacao: string | null; explicacao_origem: string | null; pendente_publicar: boolean | null }
 
@@ -23,11 +22,10 @@ export default async function EditarQuestao({ params, searchParams }: { params: 
   if (!(await ehAdmin(sb))) redirect('/banco/questoes')
   if (!/^[0-9a-f-]{36}$/i.test(id)) redirect('/admin/questoes')
   const lista = lerLista(sp.lista), voltaLista = lista ?? '/admin/questoes'
-  const [{ data: q }, { data: extra }, pratica, temas, { data: ds }, { data: ts }] = await Promise.all([
+  const [{ data: q }, { data: extra }, pratica, temas] = await Promise.all([
     sb.from('banco_questoes').select('id,hash,blocos,alternativas,gabarito,gabarito_origem,anulada,banca,ano,assunto,discipline_id,topic_id,comentario,origem_geral,vezes,acertos').eq('id', id).maybeSingle(),
     sb.from('banco_questoes').select('tema_id,explicacao,explicacao_origem,pendente_publicar').eq('id', id).maybeSingle(), // sem a 0043: vem vazio
     carregarQuestaoPratica(sb, id), carregarTemas(sb),
-    sb.from('disciplines').select('id,nome').order('ordem'), sb.from('topics').select('id,nome,discipline_id').limit(5000),
   ])
   if (!q) return (
     <div className="space-y-4"><Link href={voltaLista} className="text-sm text-muted hover:text-brand">← Questões</Link>
@@ -139,11 +137,6 @@ export default async function EditarQuestao({ params, searchParams }: { params: 
           <button name="intencao" value="publicar" className="rounded-xl bg-brand px-5 py-2.5 font-medium text-black">{q.origem_geral ? 'Salvar e atualizar no banco geral' : 'Salvar e publicar'}</button>
         </div>
       </form>
-
-      <details className="rounded-2xl border border-line bg-surface p-4 text-sm">
-        <summary className="cursor-pointer font-medium">Assunto das suas Matérias <span className="font-normal text-muted">· só para o seu Desempenho; as outras contas usam o tema</span></summary>
-        <div className="mt-3"><AssuntoDaQuestao id={q.id} topicId={q.topic_id} assunto={q.assunto} disciplinaId={q.discipline_id} assuntos={(ts ?? []) as TopicoSimples[]} disciplinas={(ds ?? []) as { id: string; nome: string }[]} /></div>
-      </details>
 
       <section className="flex flex-wrap items-center gap-3 border-t border-line pt-4 text-sm">
         {q.origem_geral && <form action={retirarDoBancoGeral}><input type="hidden" name="sel" value={q.id} /><input type="hidden" name="volta" value={volta} />

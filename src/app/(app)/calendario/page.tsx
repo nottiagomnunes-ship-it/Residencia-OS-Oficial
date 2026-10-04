@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { supabaseServer } from '@/lib/supabase/server'
 import { hojeBR } from '@/lib/dates'
-import { addDays } from '@/lib/engine/review'
 import { agendaDosDias } from '@/lib/agenda-data'
 import { diasDaVisao, mover, type Visao } from '@/lib/engine/calendar'
 import NovaTarefa from '@/components/NovaTarefa'
@@ -9,7 +8,6 @@ import { carregarModelos } from '@/lib/etapas-data'
 import { etapasDasRevisoes } from '@/lib/revisao-etapas-data'
 import type { Etapa } from '@/lib/engine/etapas'
 import CalendarBoard, { type Item } from '@/components/CalendarBoard'
-import { inputCls } from '@/components/ui'
 
 export default async function Calendario({ searchParams }: { searchParams: Promise<{ v?: string; d?: string }> }) {
   const sp = await searchParams, hoje = hojeBR()

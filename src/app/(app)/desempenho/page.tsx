@@ -8,12 +8,16 @@ import Graficos from '@/components/Graficos'
 import { ResumoPorArea } from '@/components/ResumoPorArea'
 import { carregarAreas } from '@/lib/areas-data'
 import { areaDeMenorAcerto, resumoPorArea, SIGLA_AREA } from '@/lib/engine/areas'
+import { carregarTemas } from '@/lib/banco-data'
+import { desempenhoPorTema } from '@/lib/engine/temas'
 
 const corAcerto = (p: number | null) => (p == null ? '#8A9A93' : p >= 75 ? '#22C55E' : p >= 65 ? '#F59E0B' : '#EF4444')
 
 export default async function Desempenho() {
   const sb = await supabaseServer()
-  const [d, areas] = await Promise.all([carregarDesempenho(sb, hojeBR()), carregarAreas(sb)])
+  const [d, areas, temas, { data: feitas }] = await Promise.all([carregarDesempenho(sb, hojeBR()), carregarAreas(sb), carregarTemas(sb),
+    sb.from('banco_questoes').select('tema_id,vezes,acertos').gt('vezes', 0).not('tema_id', 'is', null).limit(20000)]) // sem a 0040: vazio
+  const porTema = desempenhoPorTema((feitas ?? []) as { tema_id: string; vezes: number; acertos: number }[], temas)
   const porArea = areas.disponivel ? resumoPorArea(d.disciplinas.map(x => ({ area: areas.mapa[x.id] ?? null, total: x.total, acertos: x.acertos }))) : null
   const nenhumaOrganizada = d.disciplinas.length > 0 && d.disciplinas.every(x => !areas.mapa[x.id])
   const geral = pct(d.acertos, d.total)
@@ -50,6 +54,19 @@ export default async function Desempenho() {
             </div>))}
         </section>
       </div>
+      {porTema.length > 0 && <section className="space-y-3 rounded-2xl border border-line bg-surface p-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="font-medium">Banco de questões por tema</h2>
+          <span className="text-xs text-muted">menor acerto primeiro · conta cada tentativa</span></div>
+        <ul className="space-y-2">{porTema.slice(0, 10).map(t => (
+          <li key={t.id}><Link href={`/banco/praticar?assunto=${encodeURIComponent(`tema:${t.id}`)}`} className="block space-y-1.5 hover:text-brand">
+            <div className="flex justify-between gap-2 text-sm"><span>{t.nome} <span className="text-xs text-muted">· {t.especialidade}</span></span>
+              <span style={{ color: corAcerto(t.feitas >= 5 ? t.pct : null) }}>{t.pct}% <span className="text-xs text-muted">({t.acertos}/{t.feitas})</span></span></div>
+            <Bar pct={t.pct} cor={corAcerto(t.feitas >= 5 ? t.pct : null)} />
+          </Link></li>))}</ul>
+        {porTema.length > 10 && <details className="text-sm"><summary className="cursor-pointer text-muted">Ver os outros {porTema.length - 10} temas</summary>
+          <ul className="mt-2 divide-y divide-line">{porTema.slice(10).map(t => <li key={t.id} className="flex justify-between gap-2 py-1.5"><span>{t.nome} <span className="text-xs text-muted">· {t.especialidade}</span></span><span className="text-muted">{t.pct}% ({t.acertos}/{t.feitas})</span></li>)}</ul></details>}
+        <p className="text-xs text-muted">Toque num tema para praticar só ele.</p>
+      </section>}
       <Graficos serie={d.serie} disciplinas={d.disciplinas.map(x => ({ nome: x.nome, progresso: x.progresso }))} assuntos={fracos} />
     </div>
   )

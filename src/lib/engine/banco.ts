@@ -1,5 +1,5 @@
-import { normalizar, ehArea, lerArea, sugerirArea, type Area } from './areas'
-import { LETRAS, ehLetra, ehUuid, sugerirAreaDaQuestao, textoDosBlocos, type Alternativa, type Bloco, type Letra, type QuestaoLida } from './provas'
+import { normalizar, ehArea, lerArea, type Area } from './areas'
+import { LETRAS, ehLetra, ehUuid, textoDosBlocos, type Alternativa, type Bloco, type Letra, type QuestaoLida } from './provas'
 import { extrairOrigem } from './provas-pdf'
 
 /** Uma questão pronta para entrar no banco (já com a classificação resolvida para os ids da pessoa). */
@@ -94,27 +94,6 @@ export function itensDeQuestoes(questoes: QuestaoLida[], gabarito: Map<number, L
     const g = gabarito.get(q0.numero)
     return { questao, gabarito: g && g !== 'X' ? g : null, gabarito_origem: g && g !== 'X' ? 'oficial' : null, anulada: !!q0.anulada || g === 'X',
       comentario: null, disciplina: null, assunto: null, area: null, banca, ano }
-  })
-}
-
-// ---------- Classificação: nomes → ids da pessoa ----------
-
-export type Disc = { id: string; nome: string; area: Area | null }
-export type Assunto = { id: string; nome: string; discipline_id: string }
-
-/** A disciplina da pessoa com esse nome (sem diferenciar acento e maiúsculas), se existir. */
-export const acharDisciplina = (nome: string | null, ds: Disc[]) => (nome ? ds.find(d => normalizar(d.nome) === normalizar(nome)) ?? null : null)
-
-/**
- * Resolve cada item: disciplina (a do item, senão a padrão do lote), assunto (só se existir em Conteúdos com esse nome; senão fica como rótulo)
- * e área (a do item, senão a da disciplina, senão a sugerida pelo texto).
- */
-export function classificar(itens: ItemLido[], ds: Disc[], ts: Assunto[], padrao: Disc | null) {
-  return itens.map(i => {
-    const d = acharDisciplina(i.disciplina, ds) ?? padrao
-    const t = d && i.assunto ? ts.find(x => x.discipline_id === d.id && normalizar(x.nome) === normalizar(i.assunto!)) ?? null : null
-    const area = i.area ?? d?.area ?? (d ? sugerirArea(d.nome) : null) ?? sugerirAreaDaQuestao(textoDosBlocos(i.questao.blocos))
-    return { ...i, discipline_id: d?.id ?? null, topic_id: t?.id ?? null, area }
   })
 }
 
@@ -215,43 +194,6 @@ const PALAVRAS_VAZIAS = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'em', 'no'
 export const palavras = (s: string) => normalizar(s).split(' ').filter(w => w.length >= 3 && !PALAVRAS_VAZIAS.has(w))
 /** A palavra aparece no texto, aceitando singular/plural e pequenas variações no fim ("anestesico" acha "anestesicos"). */
 export const temPalavra = (texto: string, w: string) => (' ' + texto).includes(' ' + (w.length >= 6 ? w.slice(0, w.length - 2) : w))
-
-/**
- * O assunto (de Matérias → Assuntos) mais provável para uma questão: o que tem TODAS as palavras do nome no enunciado ou nas alternativas.
- * Entre os que servem, fica o de nome mais específico (mais palavras). Sem nenhum, null: a pessoa escolhe.
- */
-export function sugerirAssunto<T extends { nome: string }>(textoDaQuestao: string, assuntos: T[]): T | null {
-  const t = normalizar(textoDaQuestao)
-  let melhor: { a: T; n: number } | null = null
-  for (const a of assuntos) {
-    const ws = palavras(a.nome)
-    if (!ws.length || !ws.every(w => temPalavra(t, w))) continue
-    if (!melhor || ws.length > melhor.n || (ws.length === melhor.n && a.nome.length > melhor.a.nome.length)) melhor = { a, n: ws.length }
-  }
-  return melhor?.a ?? null
-}
-
-/**
- * Para "Ligar assuntos": o assunto de Matérias de nome mais parecido com um nome solto ("Via aérea" → "Via aérea difícil").
- * Conta as palavras em comum (aceitando singular/plural); precisa de pelo menos metade das palavras do maior dos dois nomes.
- * Empate: o da disciplina preferida (a das questões), depois o de nome mais curto. Sem nada parecido, null.
- */
-export function assuntoParecido<T extends { nome: string; discipline_id: string }>(nome: string, assuntos: T[], disciplinaPreferida: string | null = null): T | null {
-  const a = palavras(nome)
-  if (!a.length) return null
-  // mesma palavra com outro final: "anestesico"/"anestesicos", "local"/"locais", "maligna"/"maligno"
-  const parecidas = (x: string, y: string) => { if (x === y) return true; const m = Math.min(x.length, y.length); let p = 0; while (p < m && x[p] === y[p]) p++; return m >= 4 && p >= Math.max(4, m - 2) }
-  let melhor: { t: T; nota: number } | null = null
-  for (const t of assuntos) {
-    const b = palavras(t.nome)
-    if (!b.length) continue
-    const comuns = b.filter(w => a.some(x => parecidas(x, w))).length
-    const nota = comuns / Math.max(a.length, b.length) + (t.discipline_id === disciplinaPreferida ? 0.01 : 0) - t.nome.length / 1e5
-    if (comuns / Math.max(a.length, b.length) < 0.5) continue
-    if (!melhor || nota > melhor.nota) melhor = { t, nota }
-  }
-  return melhor?.t ?? null
-}
 
 /**
  * Exporta questões do banco como pacote .json (o mesmo formato que o importador lê), para classificar fora do app e importar de volta:

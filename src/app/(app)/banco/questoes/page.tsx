@@ -6,7 +6,6 @@ import OpcoesDeAssunto from '@/components/banco/OpcoesDeAssunto'
 import { lerFiltros, filtrosParaUrl, type Filtros } from '@/lib/engine/banco'
 import { textoDosBlocos, ehLetra, type Bloco } from '@/lib/engine/provas'
 import { BUCKET } from '@/lib/provas-data'
-import { AREAS, ROTULO_AREA } from '@/lib/engine/areas'
 import { inputCls } from '@/components/ui'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
 import ExplicacaoDaQuestao from '@/components/banco/ExplicacaoDaQuestao'
@@ -24,10 +23,9 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
   const [sync, topico, admin] = await Promise.all([sincronizarBancoGeral(sb), assuntoDoFiltro(sb, f), ehAdmin(sb)])
   const aviso = avisoDoBancoGeral(sync), daPagina = <T,>(q: T) => (aplicarFiltros(q, f, topico) as any).order('ano', { ascending: false, nullsFirst: false }).order('criada_em', { ascending: false }).range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1)
   // separadas: sem a 0037/0040/0042, estas falham e a página segue sem elas
-  const [{ data: todas, error }, { data: lista, count }, { data: ds }, { count: removidas }, temas, { data: comTema }, { data: explDaPagina }] = await Promise.all([
+  const [{ data: todas, error }, { data: lista, count }, { count: removidas }, temas, { data: comTema }, { data: explDaPagina }] = await Promise.all([
     sb.from('banco_questoes').select('id,discipline_id,assunto,banca,ano').limit(20000),
     daPagina(sb.from('banco_questoes').select('id,blocos,alternativas,gabarito,gabarito_origem,anulada,comentario,area,discipline_id,topic_id,assunto,banca,ano,vezes,acertos,ultimo_certo', { count: 'exact' })),
-    sb.from('disciplines').select('id,nome').order('ordem'),
     sync ? sb.from('banco_geral_removidas').select('geral_id', { count: 'exact', head: true }) : Promise.resolve({ count: 0 }),
     carregarTemas(sb),
     sb.from('banco_questoes').select('id,tema_id').not('tema_id', 'is', null).limit(20000),
@@ -37,9 +35,7 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
     <div className="space-y-4"><h1 className="text-2xl font-semibold">Banco de questões</h1>
       <p className="rounded-2xl border border-warn/40 bg-warn/10 p-4 text-sm text-warn">Para usar o banco de questões, rode <code>supabase/migrations/0034_banco_questoes.sql</code> no SQL Editor do Supabase (depois da 0028) e recarregue a página.</p></div>)
   const temaDe = new Map(((comTema ?? []) as { id: string; tema_id: string }[]).map(q => [q.id, q.tema_id]))
-  const T = (todas ?? []).map(q => ({ ...q, tema_id: temaDe.get(q.id) ?? null })), discs = (ds ?? []) as { id: string; nome: string }[]
-  const nomeDisc = new Map(discs.map(d => [d.id, d.nome]))
-  const discsComQuestao = [...new Set(T.map(q => q.discipline_id).filter(Boolean))] as string[]
+  const T = (todas ?? []).map(q => ({ ...q, tema_id: temaDe.get(q.id) ?? null }))
   /** Valores de um campo com quantas questões têm cada um (para os seletores: "UFMA (120)"). */
   const contar = (xs: (string | null)[]) => { const m = new Map<string, number>(); for (const x of xs) if (x) m.set(x, (m.get(x) ?? 0) + 1); return m }
   const bancas = [...contar(T.map(q => q.banca))].sort((a, b) => a[0].localeCompare(b[0]))
@@ -59,7 +55,7 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
     return qs ? `/banco/questoes?${qs}` : '/banco/questoes'
   }
   const volta = url({ p: pagina }), filtrado = !!(f.area || f.disciplina || f.assunto || f.topico || f.banca || f.anoDe || f.anoAte || f.situacao !== 'todas')
-  const maisFiltros = !!(f.area || f.disciplina || f.situacao !== 'todas'), praticar = `/banco/praticar${filtrosParaUrl(f) ? `?${filtrosParaUrl(f)}` : ''}`
+  const praticar = `/banco/praticar${filtrosParaUrl(f) ? `?${filtrosParaUrl(f)}` : ''}`
   const sel = inputCls + ' w-full', btn = 'rounded-xl border border-line px-4 py-2 text-sm hover:border-brand'
   return (
     <div className="space-y-6">
@@ -86,15 +82,9 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
                 <select name="ate" defaultValue={f.anoAte ?? ''} aria-label="Ano: até" className={inputCls}><option value="">hoje</option>{anos.map(a => <option key={a} value={a}>{a}</option>)}</select>
               </div></fieldset>
           </div>
-          <details open={maisFiltros} className="text-sm">
-            <summary className="cursor-pointer text-muted">Mais filtros{maisFiltros ? ' (em uso)' : ''}</summary>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <label className="text-muted">Área<select name="area" defaultValue={f.area ?? ''} className={sel}><option value="">Todas</option>{AREAS.map(a => <option key={a} value={a}>{ROTULO_AREA[a]}</option>)}</select></label>
-              <label className="text-muted">Disciplina<select name="disciplina" defaultValue={f.disciplina ?? ''} className={sel}><option value="">Todas</option>{discsComQuestao.map(d => <option key={d} value={d}>{nomeDisc.get(d) ?? 'Disciplina'}</option>)}</select></label>
-              <label className="text-muted">Situação<select name="situacao" defaultValue={f.situacao} className={sel}>
+          <label className="block max-w-xs text-sm text-muted">Situação<select name="situacao" defaultValue={f.situacao} className={sel}>
                 <option value="todas">Todas</option><option value="nunca">Nunca fiz</option><option value="errei">Errei na última vez</option><option value="acertei">Acertei na última vez</option></select></label>
-            </div>
-          </details>
+          {f.area && <input type="hidden" name="area" value={f.area} />}{f.disciplina && <input type="hidden" name="disciplina" value={f.disciplina} />}
           {f.topico && <input type="hidden" name="topico" value={f.topico} />}
           <div className="flex flex-wrap gap-2">
             <button className="rounded-xl bg-brand px-5 py-2 font-medium text-black">Buscar</button>

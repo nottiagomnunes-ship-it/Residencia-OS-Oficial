@@ -5,7 +5,7 @@ import { supabaseServer } from '@/lib/supabase/server'
 import { hojeBR } from '@/lib/dates'
 import { xpQuestoes, MOTIVOS } from '@/lib/engine/questoes'
 import { carregarGamificacao } from '@/lib/gamificacao-data'
-import { somarDia, resolverAlvo } from '@/lib/xp'
+import { resolverAlvo } from '@/lib/xp'
 
 async function ctx() {
   const sb = await supabaseServer()

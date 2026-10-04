@@ -26,11 +26,10 @@ vi.mock('@/lib/supabase/server', () => ({ supabaseServer: async () => ({
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }))
 vi.mock('next/navigation', () => ({ redirect: (u: string) => { h.redirects.push(u); throw new Error('REDIRECT') }, useRouter: () => ({ refresh: () => {}, push: () => {} }) }))
 
-import { definirAssuntoDoBanco, definirAssuntoEmLote, sugerirAssuntosDoBanco, ligarAssunto, importarNoBanco, salvarExplicacao, reportarExplicacao, adicionarTemas, definirTemaEmLote, sugerirTemasPeloTexto, editarTema } from './banco'
+import { importarNoBanco, salvarExplicacao, reportarExplicacao, adicionarTemas, definirTemaEmLote, sugerirTemasPeloTexto, editarTema } from './banco'
 import OpcoesDeAssunto from '@/components/banco/OpcoesDeAssunto'
 import ExplicacaoDaQuestao from '@/components/banco/ExplicacaoDaQuestao'
 import { GET as exportar } from '@/app/(app)/admin/exportar/route'
-import AssuntoDaQuestao from '@/components/banco/AssuntoDaQuestao'
 import MarcarTodas from '@/components/banco/MarcarTodas'
 import Banco from '@/app/(app)/banco/questoes/page'
 import AdminQuestoes from '@/app/(app)/admin/questoes/page'
@@ -42,130 +41,7 @@ const fd = (o: Record<string, string | string[]>) => { const f = new FormData();
 const updates = () => h.ops.filter(o => o.t === 'banco_questoes' && o.tipo === 'update')
 beforeEach(() => { h.dados = {}; h.ops = []; h.redirects = []; h.filtros = []; h.admin = true })
 
-describe('definir o assunto das questões do banco', () => {
-  it('com um assunto de Matérias: liga a questão a ele e à disciplina dele', async () => {
-    h.dados['topics:um'] = { id: TOP, nome: 'Anestésicos locais', discipline_id: DISC }
-    expect(await definirAssuntoDoBanco([Q1, Q2, 'lixo'], { topic_id: TOP })).toMatchObject({ ok: true, n: 2 })
-    expect(updates()[0].dados).toEqual({ topic_id: TOP, assunto: 'Anestésicos locais', discipline_id: DISC })
-    expect(updates()[0].filtros).toEqual([`in(id,${Q1}|${Q2})`])
-  })
-  it('só com um nome: vira rótulo (sem ligação); vazio: tira o assunto', async () => {
-    await definirAssuntoDoBanco([Q1], { assunto: '  Bloqueio de neuroeixo ' })
-    await definirAssuntoDoBanco([Q1], { assunto: null })
-    expect(updates().map(u => u.dados)).toEqual([{ topic_id: null, assunto: 'Bloqueio de neuroeixo' }, { topic_id: null, assunto: null }])
-  })
-  it('"criar em Matérias": reaproveita o assunto de mesmo nome (sem acento/maiúscula) em vez de duplicar', async () => {
-    h.dados.topics = [{ id: TOP, nome: 'Anestésicos Locais', discipline_id: DISC }]
-    h.dados['topics:um'] = { id: TOP, nome: 'Anestésicos Locais', discipline_id: DISC }
-    const r = await definirAssuntoDoBanco([Q1], { assunto: 'anestesicos locais', criar_em: DISC })
-    expect(r.ok).toBe(true); expect(r.topic).toBeUndefined()
-    expect(h.ops.some(o => o.tipo === 'insert')).toBe(false)
-    expect(updates()[0].dados.topic_id).toBe(TOP)
-  })
-  it('"criar em Matérias": cria o assunto na disciplina e liga a questão', async () => {
-    h.dados['topics:um'] = { id: '99999999-9999-9999-9999-999999999999', nome: 'Via aérea difícil', discipline_id: DISC }
-    const r = await definirAssuntoDoBanco([Q1], { assunto: 'Via aérea difícil', criar_em: DISC })
-    const ins = h.ops.find(o => o.tipo === 'insert')!
-    expect(ins.t).toBe('topics'); expect(ins.dados).toEqual({ user_id: '11111111-1111-1111-1111-111111111111', discipline_id: DISC, nome: 'Via aérea difícil' })
-    expect(r.topic).toMatchObject({ nome: 'Via aérea difícil', discipline_id: DISC })
-    expect(updates()[0].dados).toMatchObject({ topic_id: '99999999-9999-9999-9999-999999999999', discipline_id: DISC })
-  })
-  it('sem questão escolhida: não grava nada', async () => {
-    expect(await definirAssuntoDoBanco([], { assunto: 'x' })).toEqual({ ok: false, erro: 'Nenhuma questão escolhida.' })
-    expect(h.ops).toEqual([])
-  })
-})
-
-describe('em lote (lista do banco)', () => {
-  it('grava nas marcadas e volta para a mesma página com o aviso', async () => {
-    h.dados['topics:um'] = { id: TOP, nome: 'Anestésicos locais', discipline_id: DISC }
-    await expect(definirAssuntoEmLote(fd({ sel: [Q1, Q2], alvo: `t:${TOP}`, volta: `/banco?disciplina=${DISC}&p=2` }))).rejects.toThrow('REDIRECT')
-    expect(h.redirects[0]).toMatch(new RegExp(`^/banco\\?disciplina=${DISC}&p=2&ok=`))
-    expect(decodeURIComponent(h.redirects[0])).toContain('Assunto salvo em 2 questões')
-  })
-  it('"todas destes filtros": grava em todas as questões dos filtros, não só nas 30 da página', async () => {
-    h.dados.banco_questoes = Array.from({ length: 120 }, (_, i) => ({ id: `${String(i).padStart(8, '0')}-aaaa-aaaa-aaaa-aaaaaaaaaaaa` }))
-    h.dados['topics:um'] = { id: TOP, nome: 'Via aérea', discipline_id: DISC }
-    await expect(definirAssuntoEmLote(fd({ todas: '1', filtros: 'assunto=Anestesiologia', sel: Q1, alvo: `t:${TOP}`, volta: '/banco/questoes?org=1' }))).rejects.toThrow('REDIRECT')
-    expect(h.filtros).toContain('banco_questoes.eq(assunto,Anestesiologia)')
-    expect(updates()[0].filtros[0].split('|')).toHaveLength(120)
-    expect(decodeURIComponent(h.redirects[0])).toContain('Assunto salvo em 120 questões')
-  })
-  it('um nome escrito vale quando nada da lista foi escolhido', async () => {
-    await expect(definirAssuntoEmLote(fd({ sel: Q1, alvo: '', texto: 'Hipertermia maligna', volta: '/banco' }))).rejects.toThrow('REDIRECT')
-    expect(updates()[0].dados).toEqual({ topic_id: null, assunto: 'Hipertermia maligna' })
-  })
-  it('sem escolha ou sem marcar: avisa; "volta" de fora do banco é ignorada', async () => {
-    await expect(definirAssuntoEmLote(fd({ sel: Q1, alvo: '', volta: 'https://outro.site' }))).rejects.toThrow('REDIRECT')
-    expect(h.redirects[0]).toMatch(/^\/admin\/questoes\?erro=/)
-    await expect(definirAssuntoEmLote(fd({ alvo: 'nenhum', volta: '/banco' }))).rejects.toThrow('REDIRECT')
-    expect(decodeURIComponent(h.redirects[1])).toContain('Nenhuma questão escolhida')
-    expect(updates()).toEqual([])
-  })
-})
-
-describe('ligar assuntos', () => {
-  it('liga todas as questões com o nome (ainda sem ligação) ao assunto de Matérias escolhido', async () => {
-    h.dados.banco_questoes = [{ id: Q1 }, { id: Q2 }]
-    h.dados['topics:um'] = { id: TOP, nome: 'Via aérea difícil', discipline_id: DISC }
-    await expect(ligarAssunto(fd({ rotulo: 'Via aérea', alvo: `t:${TOP}`, volta: '/banco/questoes' }))).rejects.toThrow('REDIRECT')
-    expect(h.filtros).toEqual(expect.arrayContaining(['banco_questoes.eq(assunto,Via aérea)', 'banco_questoes.is(topic_id,null)']))
-    expect(updates()[0].dados).toEqual({ topic_id: TOP, assunto: 'Via aérea difícil', discipline_id: DISC })
-    expect(updates()[0].filtros).toEqual([`in(id,${Q1}|${Q2})`])
-    expect(decodeURIComponent(h.redirects[0])).toContain('2 questões de "Via aérea" ligadas')
-  })
-  it('"criar em Matérias": cria o assunto com esse nome na disciplina e liga', async () => {
-    h.dados.banco_questoes = [{ id: Q1 }]
-    h.dados['topics:um'] = { id: '99999999-9999-9999-9999-999999999999', nome: 'Via aérea', discipline_id: DISC }
-    await expect(ligarAssunto(fd({ rotulo: 'Via aérea', alvo: `criar:${DISC}` }))).rejects.toThrow('REDIRECT')
-    expect(h.ops.find(o => o.tipo === 'insert')!.dados).toMatchObject({ discipline_id: DISC, nome: 'Via aérea' })
-  })
-  it('sem escolha: avisa e não grava', async () => {
-    await expect(ligarAssunto(fd({ rotulo: 'Via aérea', alvo: '' }))).rejects.toThrow('REDIRECT')
-    expect(decodeURIComponent(h.redirects[0])).toContain('Escolha o assunto'); expect(updates()).toEqual([])
-  })
-  it('a tela lista os nomes soltos com o assunto mais parecido já escolhido', async () => {
-    h.dados.banco_questoes = [
-      { id: Q1, blocos: [], alternativas: [], discipline_id: DISC, topic_id: null, assunto: 'Via aerea', vezes: 0, acertos: 0 },
-      { id: Q2, blocos: [], alternativas: [], discipline_id: DISC, topic_id: null, assunto: 'Via aerea', vezes: 0, acertos: 0 }]
-    h.dados.disciplines = [{ id: DISC, nome: 'Anestesiologia' }]
-    h.dados.topics = [{ id: TOP, nome: 'Via aérea difícil', discipline_id: DISC }]
-    const html = renderToStaticMarkup(await AdminQuestoes({ searchParams: Promise.resolve({}) }))
-    expect(html).toContain('Ligar assuntos'); expect(html).toMatch(/<b class="font-medium">Via aerea<\/b> <span class="text-muted">· (<!-- -->)?2<\/span>/)
-    expect(html).toContain(`<option value="t:${TOP}" selected="">Via aérea difícil</option>`)
-  })
-})
-
-describe('sugerir pelo texto', () => {
-  it('liga as questões sem assunto cujo texto tem o nome do assunto (da mesma disciplina)', async () => {
-    const OUTRA = 'cccccccc-cccc-cccc-cccc-cccccccccccc'
-    h.dados.banco_questoes = [
-      { id: Q1, discipline_id: DISC, blocos: [{ tipo: 'texto', texto: 'Paciente com intoxicação por anestésico local após bloqueio' }], alternativas: [] },
-      { id: Q2, discipline_id: DISC, blocos: [{ tipo: 'texto', texto: 'Sobre a fisiologia renal' }], alternativas: [] }]
-    h.dados.topics = [{ id: TOP, nome: 'Anestésicos locais', discipline_id: DISC }, { id: 'x', nome: 'Fisiologia renal', discipline_id: OUTRA }]
-    h.dados['topics:um'] = { id: TOP, nome: 'Anestésicos locais', discipline_id: DISC }
-    await expect(sugerirAssuntosDoBanco(fd({ volta: '/banco' }))).rejects.toThrow('REDIRECT')
-    expect(updates()).toHaveLength(1); expect(updates()[0].filtros).toEqual([`in(id,${Q1})`])
-    expect(decodeURIComponent(h.redirects[0])).toContain('Assunto encontrado para 1 questão')
-  })
-})
-
 describe('telas', () => {
-  const assuntos = [{ id: TOP, nome: 'Anestésicos locais', discipline_id: DISC }, { id: 'c1', nome: 'Arritmias', discipline_id: 'cardio' }]
-  const disciplinas = [{ id: 'cardio', nome: 'Cardiologia' }, { id: DISC, nome: 'Anestesiologia' }]
-  it('o seletor mostra os assuntos da disciplina da questão primeiro, "Sem assunto" e "Outro"', () => {
-    const html = renderToStaticMarkup(<AssuntoDaQuestao id={Q1} topicId={null} assunto={null} disciplinaId={DISC} assuntos={assuntos} disciplinas={disciplinas} abertoInicial />)
-    expect(html.indexOf('label="Anestesiologia"')).toBeLessThan(html.indexOf('label="Cardiologia"'))
-    expect(html).toContain('Sem assunto'); expect(html).toContain('Outro (escrever)')
-  })
-  it('fechado (padrão): só o assunto atual e "Mudar assunto"', () => {
-    const html = renderToStaticMarkup(<AssuntoDaQuestao id={Q1} topicId={null} assunto="Bloqueios" disciplinaId={null} assuntos={assuntos} disciplinas={disciplinas} />)
-    expect(html).toContain('Bloqueios'); expect(html).toContain('só nome, fora de Matérias'); expect(html).toContain('Mudar assunto'); expect(html).not.toContain('<select')
-  })
-  it('um rótulo antigo (sem ligação) continua aparecendo como escolhido', () => {
-    const html = renderToStaticMarkup(<AssuntoDaQuestao id={Q1} topicId={null} assunto="Bloqueios" disciplinaId={null} assuntos={[]} disciplinas={[]} abertoInicial />)
-    expect(html).toMatch(/<option value="rotulo" selected="">Bloqueios \(só nome\)<\/option>/)
-  })
   it('Administração → Questões: caixinha em cada questão, "Editar", ações em lote e "Sugerir pelo texto"', async () => {
     h.dados.banco_questoes = [{ id: Q1, blocos: [{ tipo: 'texto', texto: 'Enunciado' }], alternativas: [{ letra: 'A', texto: 'a' }], gabarito: 'A', anulada: false,
       discipline_id: DISC, topic_id: null, assunto: null, vezes: 0, acertos: 0, ultimo_certo: null }]
@@ -174,7 +50,7 @@ describe('telas', () => {
     const html = renderToStaticMarkup(await AdminQuestoes({ searchParams: Promise.resolve({ ok: 'Assunto salvo em 1 questão.' }) }))
     expect(html).toMatch(new RegExp(`<input type="checkbox" form="lote"[^>]*name="sel" value="${Q1}"`))
     expect(html).toContain('name="volta" value="/admin/questoes"'); expect(html).toContain(`href="/admin/questoes/${Q1}"`)
-    expect(html).toContain('id="lote"'); expect(html).toContain('Sugerir assunto de Matérias pelo texto (1 sem assunto)')
+    expect(html).toContain('id="lote"'); expect(html).not.toContain('Matérias'); expect(html).not.toContain('Ligar assuntos') // classificação só pelo tema
     expect(html).toContain('Marque questões na lista') // ações em lote só aparecem depois de marcar
   })
   it('filtro "Sem assunto": pega só as questões sem assunto', async () => {
@@ -183,10 +59,10 @@ describe('telas', () => {
   })
   it('Praticar: só o começo do estudo, com o link para organizar no Banco (sem a lista de questões)', async () => {
     h.dados.banco_questoes = [{ discipline_id: DISC, assunto: null, banca: null, vezes: 0, acertos: 0, gabarito: 'A', anulada: false }]
-    h.dados.disciplines = [{ id: DISC, nome: 'Anestesiologia' }]
     const html = renderToStaticMarkup(await PraticarInicio({ searchParams: Promise.resolve({}) }))
     expect(html).toContain('O que você quer praticar?'); expect(html).toContain('formAction="/banco/praticar"')
-    expect(html).toContain('href="/admin/questoes?assunto=(sem%20assunto)"'); expect(html).toContain('1 questão está sem assunto')
+    expect(html).toContain('href="/admin/questoes?adm=sem-tema"'); expect(html).toContain('1 questão está sem tema')
+    expect(html).not.toContain('name="area"'); expect(html).not.toContain('name="disciplina"') // sem filtros de Área e Disciplina
     expect(html).not.toContain('name="sel"'); expect(html).not.toContain('Sugerir pelo texto')
   })
   it('Praticar com o banco vazio: leva a importar', async () => {
@@ -202,18 +78,12 @@ describe('telas', () => {
     expect(html).toContain('href="/banco/praticar?banca=UFMA&amp;de=2020&amp;ate=2024"')
     expect(html).not.toContain('name="sel"'); expect(html).not.toContain('Ligar assuntos'); expect(html).not.toContain('Sugerir pelo texto')
     expect(html).not.toContain('Organiz'); expect(html).toContain(`href="/admin/questoes/${Q1}"`) // a administradora: atalho para editar
+    expect(html).not.toContain('name="area"'); expect(html).not.toContain('name="disciplina"'); expect(html).toContain('name="situacao"')
   })
 })
 
 describe('estudante (conta que não é a administradora)', () => {
   beforeEach(() => { h.admin = false })
-  it('não muda assunto, não liga nem sugere: o servidor recusa', async () => {
-    expect(await definirAssuntoDoBanco([Q1], { assunto: 'x' })).toEqual({ ok: false, erro: expect.stringContaining('Só a conta administradora') })
-    await expect(ligarAssunto(fd({ rotulo: 'Via aérea', alvo: `t:${TOP}` }))).rejects.toThrow('REDIRECT')
-    await expect(sugerirAssuntosDoBanco(fd({}))).rejects.toThrow('REDIRECT')
-    expect(h.redirects.every(r => decodeURIComponent(r).includes('Só a conta administradora'))).toBe(true)
-    expect(h.ops.filter(o => o.tipo !== 'select')).toEqual([])
-  })
   it('a tela fica só com a busca: sem Importar, sem Organizar (nem pela URL) e sem "Mudar assunto"; excluir continua', async () => {
     h.dados.banco_questoes = [{ id: Q1, blocos: [{ tipo: 'texto', texto: 'Enunciado' }], alternativas: [], gabarito: 'A', anulada: false, topic_id: null, assunto: null, vezes: 0, acertos: 0 }]
     const html = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({ org: '1' }) }))

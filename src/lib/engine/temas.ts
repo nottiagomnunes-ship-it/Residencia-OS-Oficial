@@ -93,3 +93,15 @@ export function listaDeTemasEmTexto(temas: Tema[]): string {
   return porEspecialidade(temas).flatMap(([, ts]) => ts.map(t => [t.area ? ROTULO_AREA[t.area] : null, limpo(t.especialidade), limpo(t.nome).replace(/:/g, ' -')]
     .filter(Boolean).join(' > ') + (t.palavras ? `: ${limpo(t.palavras)}` : ''))).join('\n')
 }
+
+export type DesempenhoTema = { id: string; nome: string; especialidade: string; feitas: number; acertos: number; pct: number }
+/**
+ * Acerto por tema nas questões do banco (soma de vezes/acertos das questões de cada tema; cada nova tentativa conta).
+ * Ordem: menor acerto primeiro entre os temas com pelo menos `minimo` respostas; os com poucas respostas vão para o fim.
+ */
+export function desempenhoPorTema(qs: { tema_id: string | null; vezes: number; acertos: number }[], temas: Tema[], minimo = 5): DesempenhoTema[] {
+  const soma = new Map<string, { f: number; a: number }>()
+  for (const q of qs) if (q.tema_id && q.vezes > 0) { const s = soma.get(q.tema_id) ?? { f: 0, a: 0 }; s.f += q.vezes; s.a += q.acertos; soma.set(q.tema_id, s) }
+  return temas.filter(t => soma.has(t.id)).map(t => { const s = soma.get(t.id)!; return { id: t.id, nome: t.nome, especialidade: t.especialidade, feitas: s.f, acertos: s.a, pct: Math.round((s.a / s.f) * 100) } })
+    .sort((x, y) => Number(y.feitas >= minimo) - Number(x.feitas >= minimo) || x.pct - y.pct || y.feitas - x.feitas)
+}

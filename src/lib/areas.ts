@@ -2,7 +2,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
-import { AREAS, ehArea, type Area } from '@/lib/engine/areas'
+import { ehArea, type Area } from '@/lib/engine/areas'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const PAGINAS = ['/disciplinas', '/desempenho', '/conteudos', '/questoes', '/caderno-de-erros', '/simulados']
