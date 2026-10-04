@@ -3,8 +3,9 @@ import { createHash } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
-import { validarLote, textoParaHash, lerFiltros, sortear, nomeDaLista } from '@/lib/engine/banco'
-import { sugerirArea } from '@/lib/engine/areas'
+import { validarLote, textoParaHash, lerFiltros, sortear, nomeDaLista, sugerirAssunto } from '@/lib/engine/banco'
+import { textoDosBlocos, type Bloco } from '@/lib/engine/provas'
+import { sugerirArea, normalizar } from '@/lib/engine/areas'
 import { aplicarFiltros, assuntoDoFiltro } from '@/lib/banco-data'
 
 async function ctx() {
@@ -13,6 +14,8 @@ async function ctx() {
   if (!user) redirect('/login')
   return { sb, uid: user.id }
 }
+/** Para onde voltar depois de um formulário da lista do banco: só para a própria página (com os filtros), nunca para fora do app. */
+const voltaDoBanco = (fd: FormData) => { const v = String(fd.get('volta') || ''); return /^\/banco(\?[^\s]*)?$/.test(v) ? v : '/banco' }
 const SEM_TABELA = 'Falta atualizar o banco: rode supabase/migrations/0034_banco_questoes.sql no SQL Editor do Supabase.'
 const semTabela = (e: { code?: string; message?: string } | null) => !!e && (e.code === '42P01' || e.code === 'PGRST205' || e.code === 'PGRST202' || /does not exist|schema cache/i.test(e.message ?? ''))
 const refresh = () => ['/banco', '/questoes', '/desempenho', '/caderno-de-erros', '/inicio'].forEach(p => revalidatePath(p, 'layout'))
@@ -89,4 +92,79 @@ export async function excluirDoBanco(fd: FormData) {
   const { sb } = await ctx()
   await sb.from('banco_questoes').delete().eq('id', String(fd.get('id')))
   refresh()
+}
+
+/**
+ * Define o assunto de questões do banco. Com um assunto de Matérias (topic_id), a questão fica ligada a ele (e à disciplina dele), e o
+ * Desempenho do assunto passa a contar essas questões. Com só um nome, vira um rótulo (serve para filtrar). Os dois vazios: tira o assunto.
+ */
+export async function definirAssuntoDoBanco(ids: string[], escolha: { topic_id?: string | null; assunto?: string | null; criar_em?: string | null }): Promise<{ ok: boolean; n?: number; erro?: string; topic?: { id: string; nome: string; discipline_id: string } }> {
+  const { sb, uid } = await ctx()
+  const alvo = ids.filter(x => /^[0-9a-f-]{36}$/i.test(x)).slice(0, 2000)
+  if (!alvo.length) return { ok: false, erro: 'Nenhuma questão escolhida.' }
+  let muda: Record<string, unknown>, criado: { id: string; nome: string; discipline_id: string } | undefined
+  const nomeNovo = (escolha.assunto ?? '').trim().slice(0, 120)
+  if (!escolha.topic_id && nomeNovo && escolha.criar_em) {
+    // "Criar também em Matérias": usa o assunto com esse nome na disciplina, se já existir; senão cria
+    const { data: ts } = await sb.from('topics').select('id,nome,discipline_id').eq('discipline_id', escolha.criar_em).limit(2000)
+    const igual = (ts ?? []).find(t => normalizar(t.nome) === normalizar(nomeNovo))
+    if (igual) escolha = { topic_id: igual.id }
+    else {
+      const { data: novo, error } = await sb.from('topics').insert({ user_id: uid, discipline_id: escolha.criar_em, nome: nomeNovo }).select('id,nome,discipline_id').single()
+      if (error || !novo) return { ok: false, erro: 'Não foi possível criar o assunto em Matérias.' }
+      criado = novo as typeof criado; escolha = { topic_id: novo.id }
+    }
+  }
+  if (escolha.topic_id) {
+    const { data: t } = await sb.from('topics').select('id,nome,discipline_id').eq('id', escolha.topic_id).maybeSingle()
+    if (!t) return { ok: false, erro: 'Assunto não encontrado.' }
+    muda = { topic_id: t.id, assunto: t.nome, discipline_id: t.discipline_id }
+  } else {
+    const nome = (escolha.assunto ?? '').trim().slice(0, 120)
+    muda = { topic_id: null, assunto: nome || null }
+  }
+  let n = 0
+  for (let i = 0; i < alvo.length; i += 300) {
+    const { error, count } = await sb.from('banco_questoes').update(muda, { count: 'exact' }).in('id', alvo.slice(i, i + 300))
+    if (error) return { ok: false, erro: 'Não foi possível salvar o assunto.' }
+    n += count ?? 0
+  }
+  refresh()
+  return { ok: true, n, topic: criado }
+}
+
+/** Formulário da lista do banco: o assunto escolhido vai para as questões marcadas. */
+export async function definirAssuntoEmLote(fd: FormData) {
+  const ids = fd.getAll('sel').map(String), valor = String(fd.get('alvo') || ''), texto = String(fd.get('texto') || '')
+  const volta = voltaDoBanco(fd)
+  const criar = String(fd.get('criar_em') || '') || null, sep = volta.includes('?') ? '&' : '?'
+  // um nome escrito vale quando nada da lista foi escolhido (ou foi escolhido "Outro")
+  const escolha = valor.startsWith('t:') ? { topic_id: valor.slice(2) } : valor === 'nenhum' ? { assunto: null } : texto.trim() ? { assunto: texto, criar_em: criar } : null
+  if (!escolha) redirect(`${volta}${sep}erro=${encodeURIComponent('Escolha o assunto na lista ou escreva o nome.')}`)
+  const r = await definirAssuntoDoBanco(ids, escolha)
+  redirect(`${volta}${volta.includes('?') ? '&' : '?'}${r.ok ? `ok=${encodeURIComponent(`Assunto salvo em ${r.n} ${r.n === 1 ? 'questão' : 'questões'}.`)}` : `erro=${encodeURIComponent(r.erro ?? 'Escolha um assunto.')}`}`)
+}
+
+/**
+ * Sugere e grava o assunto das questões SEM assunto, pelo texto delas e pelos nomes dos seus assuntos em Matérias (da mesma disciplina,
+ * ou de todas, se a questão não tem disciplina). Só grava quando todas as palavras do nome do assunto aparecem na questão.
+ */
+export async function sugerirAssuntosDoBanco(fd: FormData) {
+  const { sb } = await ctx()
+  const volta = voltaDoBanco(fd)
+  const [{ data: qs }, { data: ts }] = await Promise.all([
+    sb.from('banco_questoes').select('id,blocos,alternativas,discipline_id').is('assunto', null).limit(5000),
+    sb.from('topics').select('id,nome,discipline_id').limit(5000),
+  ])
+  const porTopico = new Map<string, string[]>()
+  for (const q of qs ?? []) {
+    const texto = textoDosBlocos((q.blocos ?? []) as Bloco[]) + ' ' + ((q.alternativas ?? []) as { texto: string }[]).map(a => a.texto).join(' ')
+    const cands = (ts ?? []).filter(t => !q.discipline_id || t.discipline_id === q.discipline_id)
+    const t = sugerirAssunto(texto, cands)
+    if (t) porTopico.set(t.id, [...(porTopico.get(t.id) ?? []), q.id])
+  }
+  let n = 0
+  for (const [topic, ids] of porTopico) { const r = await definirAssuntoDoBanco(ids, { topic_id: topic }); n += r.n ?? 0 }
+  const msg = n ? `Assunto encontrado para ${n} ${n === 1 ? 'questão' : 'questões'}. As outras continuam sem assunto: escolha à mão.` : 'Não achei o assunto pelo texto em nenhuma questão. Confira se os assuntos existem em Matérias → Assuntos, ou escolha à mão.'
+  redirect(`${volta}${volta.includes('?') ? '&' : '?'}${n ? 'ok' : 'erro'}=${encodeURIComponent(msg)}`)
 }

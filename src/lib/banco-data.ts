@@ -26,17 +26,17 @@ export function aplicarFiltros<Q>(q: Q, f: Filtros, topico: { id: string; nome: 
 
 /** Uma questão para responder no Praticar: SEM o gabarito (ele só chega depois de responder). */
 export type QuestaoPratica = { id: string; blocos: ({ tipo: 'texto'; texto: string } | { tipo: 'imagem'; caminho: string; url: string | null })[]; alternativas: Alternativa[]
-  banca: string | null; ano: number | null; assunto: string | null; vezes: number; acertos: number }
+  banca: string | null; ano: number | null; assunto: string | null; topic_id: string | null; discipline_id: string | null; vezes: number; acertos: number }
 
 export async function carregarQuestaoPratica(sb: SupabaseClient, id: string): Promise<QuestaoPratica | null> {
-  const { data: q } = await sb.from('banco_questoes').select('id,blocos,alternativas,banca,ano,assunto,vezes,acertos').eq('id', id).maybeSingle()
+  const { data: q } = await sb.from('banco_questoes').select('id,blocos,alternativas,banca,ano,assunto,topic_id,discipline_id,vezes,acertos').eq('id', id).maybeSingle()
   if (!q) return null
   const blocos = (Array.isArray(q.blocos) ? q.blocos : []) as Bloco[]
   const caminhos = blocos.flatMap(b => (b.tipo === 'imagem' ? [b.caminho] : []))
   const urls = new Map<string, string>()
   if (caminhos.length) { const { data } = await sb.storage.from(BUCKET).createSignedUrls(caminhos, 60 * 60 * 6); for (const d of data ?? []) if (d.path && d.signedUrl) urls.set(d.path, d.signedUrl) }
   return {
-    id: q.id, banca: q.banca, ano: q.ano, assunto: q.assunto, vezes: q.vezes, acertos: q.acertos,
+    id: q.id, banca: q.banca, ano: q.ano, assunto: q.assunto, topic_id: q.topic_id ?? null, discipline_id: q.discipline_id ?? null, vezes: q.vezes, acertos: q.acertos,
     alternativas: (Array.isArray(q.alternativas) ? q.alternativas : []).filter((a: Alternativa) => ehLetra(a?.letra)).map((a: Alternativa) => ({ letra: a.letra, texto: String(a.texto ?? '') })),
     blocos: blocos.map(b => (b.tipo === 'imagem' ? { ...b, url: urls.get(b.caminho) ?? null } : b)),
   }

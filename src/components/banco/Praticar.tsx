@@ -7,12 +7,15 @@ import { MOTIVOS, type Motivo } from '@/lib/engine/questoes'
 import type { Letra } from '@/lib/engine/provas'
 import type { QuestaoPratica } from '@/lib/banco-data'
 import { Enunciado } from '@/components/provas/Enunciado'
+import AssuntoDaQuestao, { type TopicoSimples, type DiscSimples } from '@/components/banco/AssuntoDaQuestao'
 
 /**
  * Praticar: uma questão por vez, com a correção na hora. Sem lista e sem entregar: cada resposta já conta (Desempenho, XP, Caderno de Erros).
  * Primeiro vêm as questões que você nunca fez, depois as que errou; as desta sessão não repetem.
  */
-export default function Praticar({ filtros, titulo, inicial, total }: { filtros: Record<string, string>; titulo: string; inicial: QuestaoPratica | null; total: number }) {
+export default function Praticar({ filtros, titulo, inicial, total, assuntos = [], disciplinas = [] }: {
+  filtros: Record<string, string>; titulo: string; inicial: QuestaoPratica | null; total: number; assuntos?: TopicoSimples[]; disciplinas?: DiscSimples[]
+}) {
   const [q, setQ] = useState(inicial), [restantes, setRestantes] = useState(total)
   const [escolha, setEscolha] = useState<Letra | null>(null), [chute, setChute] = useState(false), [riscadas, setRiscadas] = useState('')
   const [correcao, setCorrecao] = useState<Correcao | null>(null), [motivo, setMotivo] = useState<Motivo | null>(null)
@@ -101,6 +104,7 @@ export default function Praticar({ filtros, titulo, inicial, total }: { filtros:
                   <button key={k} type="button" onClick={() => darMotivo(k)} aria-pressed={motivo === k}
                     className={`min-h-11 rounded-xl border px-2 text-sm ${motivo === k ? 'border-brand bg-brand/15 text-brand' : 'border-line'}`}>{MOTIVOS[k].rotulo}</button>))}</div>
               </fieldset>)}
+            <AssuntoDaQuestao key={q.id} id={q.id} topicId={q.topic_id} assunto={q.assunto} disciplinaId={q.discipline_id} assuntos={assuntos} disciplinas={disciplinas} />
             <div className="flex justify-end"><button type="button" onClick={proxima} disabled={pend} className="min-h-12 rounded-xl bg-brand px-6 font-medium text-black disabled:opacity-40">{pend ? 'Carregando…' : 'Próxima →'}</button></div>
           </div>}
         {erro && <p role="alert" className="text-sm text-danger">{erro}</p>}

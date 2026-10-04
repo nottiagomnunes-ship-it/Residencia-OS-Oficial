@@ -141,3 +141,17 @@ describe('Praticar: qual é a próxima', () => {
     expect(escolherProxima([])).toBeNull()
   })
 })
+
+describe('assunto pelo texto', () => {
+  const assuntos = [{ id: 'hm', nome: 'Hipertermia maligna' }, { id: 'al', nome: 'Anestésicos locais' }, { id: 'va', nome: 'Via aérea difícil' }, { id: 'v', nome: 'Via aérea' }, { id: 'j', nome: 'Jejum pré-operatório' }]
+  it('todas as palavras do nome precisam aparecer; ganha o mais específico; plural e acento não atrapalham', async () => {
+    const { sugerirAssunto } = await import('./banco')
+    expect(sugerirAssunto('Em relação à HIPERTERMIA MALIGNA, assinale', assuntos)?.id).toBe('hm')
+    expect(sugerirAssunto('Toxicidade do anestésico local lidocaína', assuntos)?.id).toBe('al')
+    expect(sugerirAssunto('São preditores de via aérea difícil para intubação', assuntos)?.id).toBe('va')
+    expect(sugerirAssunto('Manejo da via aérea no trauma', assuntos)?.id).toBe('v')
+    expect(sugerirAssunto('O período de jejum pré-operatório para leite materno', assuntos)?.id).toBe('j')
+    expect(sugerirAssunto('Qual o agente de indução mais indicado?', assuntos)).toBeNull()
+    expect(sugerirAssunto('maligna', assuntos)).toBeNull()                                     // só parte do nome não basta
+  })
+})

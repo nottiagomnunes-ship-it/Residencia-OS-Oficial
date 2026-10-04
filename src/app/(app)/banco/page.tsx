@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { supabaseServer } from '@/lib/supabase/server'
-import { montarLista, excluirDoBanco } from '@/lib/banco'
+import { montarLista, excluirDoBanco, definirAssuntoEmLote, sugerirAssuntosDoBanco } from '@/lib/banco'
 import { aplicarFiltros, assuntoDoFiltro } from '@/lib/banco-data'
 import { lerFiltros, filtrosParaUrl, type Filtros } from '@/lib/engine/banco'
 import { textoDosBlocos, ehLetra, type Bloco } from '@/lib/engine/provas'
@@ -8,22 +8,25 @@ import { AREAS, ROTULO_AREA, SIGLA_AREA, lerArea } from '@/lib/engine/areas'
 import { pct } from '@/lib/engine/desempenho'
 import { fmtData, inputCls } from '@/components/ui'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
+import AssuntoDaQuestao, { type TopicoSimples } from '@/components/banco/AssuntoDaQuestao'
+import MarcarTodas from '@/components/banco/MarcarTodas'
 
 const POR_PAGINA = 30
 type Linha = { id: string; blocos: Bloco[]; alternativas: { letra: string; texto: string }[]; gabarito: string | null; gabarito_origem: string | null; anulada: boolean
-  comentario: string | null; area: string | null; discipline_id: string | null; assunto: string | null; banca: string | null; ano: number | null; vezes: number; acertos: number; ultimo_certo: boolean | null }
+  comentario: string | null; area: string | null; discipline_id: string | null; topic_id: string | null; assunto: string | null; banca: string | null; ano: number | null; vezes: number; acertos: number; ultimo_certo: boolean | null }
 
 export default async function Banco({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams, f = lerFiltros(sp), pagina = Math.max(1, Number(sp.p) || 1)
   const sb = await supabaseServer()
   const topico = await assuntoDoFiltro(sb, f)
   const aplicar = <T,>(q: T): T => aplicarFiltros(q, f, topico)
-  const [{ data: todas, error }, { data: lista, count }, { data: ds }, { data: listas }] = await Promise.all([
+  const [{ data: todas, error }, { data: lista, count }, { data: ds }, { data: listas }, { data: ts }] = await Promise.all([
     sb.from('banco_questoes').select('discipline_id,assunto,banca,vezes,acertos,gabarito,anulada').limit(20000),
-    aplicar(sb.from('banco_questoes').select('id,blocos,alternativas,gabarito,gabarito_origem,anulada,comentario,area,discipline_id,assunto,banca,ano,vezes,acertos,ultimo_certo', { count: 'exact' }))
+    aplicar(sb.from('banco_questoes').select('id,blocos,alternativas,gabarito,gabarito_origem,anulada,comentario,area,discipline_id,topic_id,assunto,banca,ano,vezes,acertos,ultimo_certo', { count: 'exact' }))
       .order('criada_em', { ascending: false }).range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1),
     sb.from('disciplines').select('id,nome').order('ordem'),
     sb.from('provas').select('id,nome,criada_em,prova_tentativas(id,status,total,acertos)').eq('tipo', 'lista').order('criada_em', { ascending: false }).limit(8),
+    sb.from('topics').select('id,nome,discipline_id').limit(5000),
   ])
   const nomeDisc = new Map((ds ?? []).map(d => [d.id as string, d.nome as string]))
   if (error) return (
@@ -35,15 +38,19 @@ export default async function Banco({ searchParams }: { searchParams: Promise<Re
   const assuntos = [...new Set(T.filter(q => !f.disciplina || q.discipline_id === f.disciplina).map(q => q.assunto).filter(Boolean))].sort() as string[]
   const bancas = [...new Set(T.map(q => q.banca).filter(Boolean))].sort() as string[]
   const linhas = (lista ?? []) as Linha[], total = count ?? 0, paginas = Math.max(1, Math.ceil(total / POR_PAGINA))
-  const url = (o: Partial<Filtros> & { p?: number }) => { const q = filtrosParaUrl({ ...f, ...o }); const p = o.p && o.p > 1 ? `p=${o.p}` : ''; return `/banco?${[q, p].filter(Boolean).join('&')}` }
+  const url = (o: Partial<Filtros> & { p?: number }) => { const q = filtrosParaUrl({ ...f, ...o }); const p = o.p && o.p > 1 ? `p=${o.p}` : ''; const qs = [q, p].filter(Boolean).join('&'); return qs ? `/banco?${qs}` : '/banco' }
   const card = (l: string, v: string) => <div className="rounded-2xl border border-line bg-surface p-4"><p className="text-sm text-muted">{l}</p><p className="mt-1 text-2xl font-semibold">{v}</p></div>
   const sel = inputCls + ' w-full'
+  const topicos = (ts ?? []) as TopicoSimples[], discs = (ds ?? []) as { id: string; nome: string }[]
+  const semAssunto = T.filter(q => !q.assunto).length, volta = url({ p: pagina })
+  const gruposTopicos = discs.filter(d => topicos.some(t => t.discipline_id === d.id))
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h1 className="text-2xl font-semibold">Praticar</h1><p className="text-sm text-muted">Seu banco de questões: filtre e responda uma por vez, com a resposta na hora.</p></div>
         <Link href="/banco/importar" className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Importar questões</Link>
       </div>
+      {sp.ok && <AvisoDaUrl tipo="ok" chaves={['ok']}>{sp.ok}</AvisoDaUrl>}
       {sp.erro && <AvisoDaUrl tipo="erro" chaves={['erro']}>{sp.erro}</AvisoDaUrl>}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {card('Questões no banco', String(T.length))}{card('Já feitas', String(feitas.length))}
@@ -78,13 +85,39 @@ export default async function Banco({ searchParams }: { searchParams: Promise<Re
               <span>{l.nome}</span><span className="text-muted">{t?.status === 'corrigida' ? `${t.acertos}/${t.total} (${pct(t.acertos ?? 0, t.total ?? 0)}%)` : t ? 'em andamento' : ''} · {fmtData(String(l.criada_em).slice(0, 10))}</span></Link></li>) })}</ul>
         </section>}
 
+        <section className="space-y-3 rounded-2xl border border-line bg-surface p-5 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-medium">Assunto das questões</h2>
+            <span className="text-muted">{semAssunto ? `${semAssunto} ${semAssunto === 1 ? 'questão' : 'questões'} sem assunto` : 'Todas têm assunto'}</span>
+          </div>
+          <p className="text-muted">Abra uma questão para escolher o assunto dela, ou marque várias na lista abaixo e dê o mesmo assunto a todas. Ligado a um assunto de Matérias, o resultado entra no Desempenho daquele assunto.</p>
+          {semAssunto > 0 && <form action={sugerirAssuntosDoBanco} className="flex flex-wrap items-center gap-2">
+            <input type="hidden" name="volta" value={volta} />
+            <button className="rounded-lg border border-line px-3 py-1.5 hover:border-brand">Sugerir pelo texto</button>
+            <span className="text-xs text-muted">{topicos.length ? 'Procura o nome dos seus assuntos de Matérias no texto das questões sem assunto (da mesma disciplina) e liga quando acha.' : 'Cadastre os assuntos em Matérias → Assuntos para usar a sugestão.'}</span>
+          </form>}
+          <form id="lote" action={definirAssuntoEmLote} className="grid gap-2 border-t border-line pt-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+            <input type="hidden" name="volta" value={volta} />
+            <label className="text-muted">Dar às marcadas o assunto<select name="alvo" defaultValue="" className={sel}>
+              <option value="">Escolha… (ou escreva ao lado)</option>
+              {gruposTopicos.map(d => <optgroup key={d.id} label={d.nome}>{topicos.filter(t => t.discipline_id === d.id).sort((a, b) => a.nome.localeCompare(b.nome)).map(t => <option key={t.id} value={`t:${t.id}`}>{t.nome}</option>)}</optgroup>)}
+              <option value="nenhum">Sem assunto (tirar)</option>
+            </select></label>
+            <label className="text-muted">ou um nome novo<input name="texto" maxLength={120} placeholder="Ex.: Bloqueio de neuroeixo" className={sel} />
+              {discs.length > 0 && <select name="criar_em" defaultValue={f.disciplina ?? ''} aria-label="Criar em Matérias" className={sel + ' mt-1'}>
+                <option value="">Só o nome (não criar em Matérias)</option>{discs.map(d => <option key={d.id} value={d.id}>Criar em Matérias: {d.nome}</option>)}</select>}</label>
+            <button className="rounded-xl bg-brand px-4 py-2 font-medium text-black">Salvar nas marcadas</button>
+          </form>
+        </section>
+
         <section className="space-y-3">
-          <h2 className="font-medium">{total} {total === 1 ? 'questão' : 'questões'}{f.area || f.disciplina || f.assunto || f.topico || f.banca || f.situacao !== 'todas' ? ' com esses filtros' : ''}</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-medium">{total} {total === 1 ? 'questão' : 'questões'}{f.area || f.disciplina || f.assunto || f.topico || f.banca || f.situacao !== 'todas' ? ' com esses filtros' : ''}</h2>{linhas.length > 0 && <MarcarTodas form="lote" />}</div>
           <ul className="space-y-2">{linhas.map(q => {
             const lb = lerArea(q.area)
             return (
-              <li key={q.id} className="rounded-xl border border-line bg-surface p-3 text-sm">
-                <details>
+              <li key={q.id} className="flex gap-3 rounded-xl border border-line bg-surface p-3 text-sm">
+                <input type="checkbox" name="sel" value={q.id} form="lote" aria-label="Marcar esta questão" className="mt-1 size-4 shrink-0 accent-brand" />
+                <details className="min-w-0 flex-1">
                   <summary className="cursor-pointer list-none space-y-1">
                     <span className="flex flex-wrap gap-x-2 text-xs text-muted">
                       {q.banca && <span>{q.banca}{q.ano ? ` ${q.ano}` : ''}</span>}{lb && <span>· {SIGLA_AREA[lb]}</span>}
@@ -100,6 +133,7 @@ export default async function Banco({ searchParams }: { searchParams: Promise<Re
                     <details className="text-muted"><summary className="cursor-pointer">Ver gabarito</summary>
                       <p className="mt-1">{ehLetra(q.gabarito) ? <>Gabarito: <b className="text-brand">{q.gabarito}</b>{q.gabarito_origem === 'ia' && <span className="text-warn"> (sugerido pela IA, conferir)</span>}</> : 'Sem gabarito.'}</p>
                       {q.comentario && <p className="mt-1 whitespace-pre-line">{q.comentario}</p>}</details>
+                    <AssuntoDaQuestao id={q.id} topicId={q.topic_id} assunto={q.assunto} disciplinaId={q.discipline_id} assuntos={topicos} disciplinas={discs} />
                     <form action={excluirDoBanco}><input type="hidden" name="id" value={q.id} /><button className="text-sm text-danger hover:underline">Excluir do banco</button></form>
                   </div>
                 </details>
