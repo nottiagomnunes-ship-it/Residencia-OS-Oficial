@@ -29,12 +29,20 @@ describe('figuras do PDF', () => {
     // sem as marcas de figura, o texto é o mesmo de antes (a impressão digital das questões já importadas não muda)
     expect(r.paginas[1].split('\n').filter(l => !l.startsWith(MARCA_FIGURA)).join('\n')).toBe('QUESTÃO 3\nUFMA 2021 ACESSO DIRETO\nRadiografia de tórax mostrada a seguir.\nO achado é compatível com:\nA) Derrame pleural\nB) Pneumotórax\nC) Cardiomegalia\nD) Normal\n2 de 3')
   })
-  it('lugar da figura: antes da primeira linha abaixo do meio dela, na mesma coluna; sem nenhuma, no fim', () => {
+  it('lugar da figura: depois da última linha acima dela na mesma coluna; sem nenhuma acima, antes da primeira abaixo; sem nada, no fim', () => {
     const it = (str: string, x: number, y: number, w = 400) => ({ str, hasEOL: true, transform: [1, 0, 0, 1, x, y], width: w })
     const itens = [it('Coluna 1 topo', 40, 700, 200), it('Coluna 1 meio', 40, 400, 200), it('Coluna 2 topo', 320, 700, 200), it('Coluna 2 baixo', 320, 300, 200)]
     const fig = (nome: string, x0: number, y0: number, x1: number, y1: number) => ({ nome, pagina: 1, chave: nome, x0, y0, x1, y1 })
-    const t = textoComFiguras(itens, [fig('a', 330, 450, 500, 650), fig('z', 40, 10, 200, 60)])
-    expect(t.split('\n')).toEqual(['Coluna 1 topo', 'Coluna 1 meio', 'Coluna 2 topo', `${MARCA_FIGURA}a`, 'Coluna 2 baixo', `${MARCA_FIGURA}z`, ''])
+    // a: meio da coluna 2; z: pé da coluna 1 (depois da última linha da coluna 1, e não no fim da página); t: topo da coluna 2; s: fora das colunas
+    const t = textoComFiguras(itens, [fig('a', 330, 450, 500, 650), fig('z', 40, 10, 200, 60), fig('t', 330, 720, 500, 800), fig('s', 560, 100, 590, 200)])
+    expect(t.split('\n')).toEqual(['Coluna 1 topo', 'Coluna 1 meio', `${MARCA_FIGURA}z`, `${MARCA_FIGURA}t`, 'Coluna 2 topo', `${MARCA_FIGURA}a`, 'Coluna 2 baixo', `${MARCA_FIGURA}s`, ''])
+  })
+  it('PDF que junta numa "linha" trechos das duas colunas: a linha é separada pela altura', () => {
+    // a figura da coluna 2 (embaixo) não pode cair no meio do texto da coluna 1 só porque o PDF não marcou o fim da linha
+    const itens = [{ str: 'Esquerda alto', hasEOL: false, transform: [1, 0, 0, 1, 40, 500], width: 200 }, { str: ' direita mais baixo', hasEOL: true, transform: [1, 0, 0, 1, 320, 300], width: 200 },
+      { str: 'Esquerda baixo', hasEOL: true, transform: [1, 0, 0, 1, 40, 100], width: 200 }]
+    const t = textoComFiguras(itens, [{ nome: 'f', pagina: 1, chave: 'f', x0: 330, y0: 150, x1: 500, y1: 250 }])
+    expect(t.split('\n')).toEqual(['Esquerda alto direita mais baixo', `${MARCA_FIGURA}f`, 'Esquerda baixo', ''])
   })
   it('posição pela matriz de transformação (com save/restore e formulários)', () => {
     const OPS = { save: 1, restore: 2, transform: 3, paintImageXObject: 4, paintFormXObjectBegin: 5, paintFormXObjectEnd: 6 }

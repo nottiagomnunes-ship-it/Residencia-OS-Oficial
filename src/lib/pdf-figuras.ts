@@ -15,7 +15,7 @@ const vezes = (m: M, c: M): M => [m[0] * c[0] + m[1] * c[2], m[0] * c[1] + m[1] 
 
 export type FiguraNoPdf = { pagina: number; chave: string; x0: number; y0: number; x1: number; y1: number }
 type Img = { width: number; height: number; data?: Uint8ClampedArray | Uint8Array; kind?: number }
-type Linha = { inicio: number; y: number; x0: number; x1: number }
+type Linha = { inicio: number; fim: number; y: number; x0: number; x1: number }
 
 const MIN_LADO = 48, MAX_LARGURA = 1400, MAX_FIGURAS = 150
 
@@ -69,28 +69,39 @@ export function figurasDosComandos(fns: number[], args: unknown[][], OPS: Record
 
 /**
  * O texto de uma página (igual ao extractText) com as figuras no lugar. `itens` são os trechos de getTextContent (com a posição em transform),
- * `figuras` as figuras da página já com nome. Cada figura vai antes da primeira linha cuja base fica abaixo do meio dela e que ocupa a mesma
- * faixa horizontal (em prova de duas colunas, a coluna dela); sem nenhuma, no fim da página.
+ * `figuras` as figuras da página já com nome. Cada figura vai DEPOIS da última linha (na ordem do texto) que fica acima do meio dela na mesma
+ * faixa horizontal — em prova de duas colunas, a coluna dela; normalmente é o título/banca da questão ou a frase que chama a figura.
+ * Sem linha acima na coluna, vai antes da primeira linha abaixo dela na coluna; sem nenhuma, no fim da página.
+ * As linhas são separadas pela posição (mudou a altura = outra linha), porque o PDF às vezes junta numa "linha" trechos das duas colunas.
  */
 export function textoComFiguras(itens: { str: string; hasEOL?: boolean; transform: number[]; width: number }[], figuras: (FiguraNoPdf & { nome: string })[]) {
   const linhas: Linha[] = []
+  let ultimoY: number | null = null
   itens.forEach((it, i) => {
+    if (!it.str.trim()) return // trecho vazio (só quebra de linha): não conta na posição
     const x = it.transform[4], y = it.transform[5]
-    if (i === 0 || itens[i - 1].hasEOL) linhas.push({ inicio: i, y, x0: x, x1: x + (it.width || 0) })
-    else { const l = linhas[linhas.length - 1]; l.x0 = Math.min(l.x0, x); l.x1 = Math.max(l.x1, x + (it.width || 0)) }
+    const nova = !linhas.length || itens[i - 1]?.hasEOL || ultimoY === null || Math.abs(y - ultimoY) > 2
+    if (nova) linhas.push({ inicio: i, fim: i, y, x0: x, x1: x + (it.width || 0) })
+    else { const l = linhas[linhas.length - 1]; l.fim = i; l.x0 = Math.min(l.x0, x); l.x1 = Math.max(l.x1, x + (it.width || 0)) }
+    ultimoY = y
   })
-  const antesDe = new Map<number, string[]>(), noFim: string[] = []
+  // a linha termina na quebra: os trechos vazios logo depois dela (que só trazem a quebra) também são dela
+  for (const l of linhas) while (!itens[l.fim].hasEOL && itens[l.fim + 1] && !itens[l.fim + 1].str.trim()) l.fim++
+  const antesDe = new Map<number, string[]>(), depoisDe = new Map<number, string[]>(), noFim: string[] = []
+  const por = (m: Map<number, string[]>, k: number, n: string) => m.set(k, [...(m.get(k) ?? []), n])
   for (const f of [...figuras].sort((a, b) => b.y1 - a.y1 || a.x0 - b.x0)) {
-    const meio = (f.y0 + f.y1) / 2
-    const abaixo = linhas.filter(l => l.y < meio && l.x1 > f.x0 && l.x0 < f.x1)[0] ?? linhas.filter(l => l.y < meio)[0]
-    if (abaixo) antesDe.set(abaixo.inicio, [...(antesDe.get(abaixo.inicio) ?? []), f.nome]); else noFim.push(f.nome)
+    const meio = (f.y0 + f.y1) / 2, naColuna = linhas.filter(l => l.x1 > f.x0 && l.x0 < f.x1)
+    const acima = naColuna.filter(l => l.y > meio).at(-1), abaixo = naColuna.find(l => l.y < meio)
+    if (acima) por(depoisDe, acima.fim, f.nome); else if (abaixo) por(antesDe, abaixo.inicio, f.nome); else noFim.push(f.nome)
   }
   let texto = ''
+  const marca = (n: string) => { texto += `${texto && !texto.endsWith('\n') ? '\n' : ''}${MARCA_FIGURA}${n}\n` }
   itens.forEach((it, i) => {
-    for (const n of antesDe.get(i) ?? []) texto += `${texto && !texto.endsWith('\n') ? '\n' : ''}${MARCA_FIGURA}${n}\n`
+    for (const n of antesDe.get(i) ?? []) marca(n)
     texto += it.str + (it.hasEOL ? '\n' : '')
+    for (const n of depoisDe.get(i) ?? []) marca(n)
   })
-  for (const n of noFim) texto += `${texto && !texto.endsWith('\n') ? '\n' : ''}${MARCA_FIGURA}${n}\n`
+  noFim.forEach(marca)
   return texto
 }
 

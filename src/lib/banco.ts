@@ -28,13 +28,25 @@ const refresh = () => ['/banco', '/questoes', '/desempenho', '/caderno-de-erros'
  * Lê o PDF de questões: o texto de cada página, com as figuras no lugar. As figuras já são guardadas aqui (na pasta da conta), porque mandar
  * todas de volta para o navegador passaria do limite de tamanho da resposta; volta o caminho e um link temporário para a prévia.
  */
+const MAX_PDF = 30 * 1024 * 1024 // PDF de questões grande (vai pelo armazenamento "importacao", 0044)
 export async function lerPdfDeQuestoes(fd: FormData): Promise<{ paginas?: string[]; figuras?: Record<string, { caminho: string; url: string | null }>; avisoFiguras?: string; erro?: string }> {
   const { sb, uid } = await ctx()
   if (!(await podeOrganizar(sb))) return { erro: SO_ADMIN }
-  const f = fd.get('pdf')
-  if (!(f instanceof File) || f.size === 0) return { erro: 'Selecione um arquivo PDF.' }
-  if (f.size > 4 * 1024 * 1024) return { erro: 'O PDF passa de 4 MB. Divida o arquivo em partes menores.' }
-  const dados = new Uint8Array(await f.arrayBuffer())
+  // PDF pequeno vem no próprio formulário; o grande (o envio direto tem limite de ~4 MB) o navegador põe antes na pasta temporária da conta
+  const f = fd.get('pdf'), temp = String(fd.get('caminho') || '')
+  let dados: Uint8Array
+  if (temp) {
+    if (!new RegExp(`^${uid}/[0-9a-f-]{36}\\.pdf$`).test(temp)) return { erro: 'Arquivo inválido.' }
+    const { data: blob, error } = await sb.storage.from('importacao').download(temp)
+    await sb.storage.from('importacao').remove([temp]).catch(() => {})
+    if (error || !blob) return { erro: 'Não consegui receber o PDF. Se for a primeira vez com um PDF grande, rode supabase/migrations/0044_importacao_pdf_grande.sql no SQL Editor do Supabase.' }
+    if (blob.size > MAX_PDF) return { erro: 'O PDF passa de 30 MB. Divida o arquivo em partes menores.' }
+    dados = new Uint8Array(await blob.arrayBuffer())
+  } else {
+    if (!(f instanceof File) || f.size === 0) return { erro: 'Selecione um arquivo PDF.' }
+    if (f.size > 4 * 1024 * 1024) return { erro: 'O PDF passa de 4 MB por este caminho. Recarregue a página e tente de novo.' }
+    dados = new Uint8Array(await f.arrayBuffer())
+  }
   let paginas: string[], lidas: Awaited<ReturnType<typeof lerPdfComFiguras>>['figuras'] = {}, avisoFiguras: string | undefined
   try {
     ({ paginas, figuras: lidas } = await lerPdfComFiguras(dados.slice()))

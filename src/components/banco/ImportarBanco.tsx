@@ -46,7 +46,16 @@ export default function ImportarBanco({ disciplinas, assuntos, admin = false, te
       let itens: ItemLido[] = [], avisos: string[] = [], semResposta: number[] = [], imagens: Record<string, Blob> = {}, discNome: string | null = null, fonteLote: string | null = null
       const enviadas: Record<string, string> = {}, urlsProntas: Record<string, string> = {}
       if (ext === 'pdf') {
-        const fd = new FormData(); fd.set('pdf', f)
+        const fd = new FormData()
+        if (f.size > 30 * 1024 * 1024) throw new ArquivoInvalido('O PDF passa de 30 MB. Divida o arquivo em partes menores.')
+        if (f.size > 3.5 * 1024 * 1024) { // grande demais para ir direto: passa antes pelo armazenamento "importacao" (o servidor lê e apaga)
+          const sb = supabaseBrowser(), { data: { user } } = await sb.auth.getUser()
+          if (!user) throw new ArquivoInvalido('Sua sessão expirou. Entre de novo.')
+          const caminho = `${user.id}/${crypto.randomUUID()}.pdf`
+          const { error } = await sb.storage.from('importacao').upload(caminho, f, { contentType: 'application/pdf', upsert: false })
+          if (error) throw new ArquivoInvalido(/bucket|not found/i.test(error.message) ? 'Para PDF com mais de 3,5 MB, rode supabase/migrations/0044_importacao_pdf_grande.sql no SQL Editor do Supabase.' : 'Não consegui enviar o PDF. Confira a internet e tente de novo.')
+          fd.set('caminho', caminho)
+        } else fd.set('pdf', f)
         const r = await lerPdfDeQuestoes(fd)
         if (r.erro || !r.paginas) throw new ArquivoInvalido(r.erro ?? 'Não consegui ler esse PDF.')
         const prova = montarQuestoes(paragrafosDoPdf(r.paginas))

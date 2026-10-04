@@ -7,7 +7,7 @@ const h = vi.hoisted(() => ({
   ops: [] as Op[], redirects: [] as string[], rpcs: [] as { nome: string; args: any }[], admin: true,
   /** resposta de uma consulta: (tabela, filtros, campos) → { data, count, error } */
   resp: (() => ({ data: [], count: 0, error: null })) as (t: string, filtros: string[], campos: string) => any,
-  um: {} as Record<string, any>, uploads: [] as [string, string, number][],
+  um: {} as Record<string, any>, uploads: [] as [string, string, number][], baixados: [] as string[], removidos: [] as string[],
 }))
 const cadeia = (t: string) => {
   const op: Op = { t, tipo: 'select', filtros: [], campos: '' }
@@ -25,7 +25,8 @@ const cadeia = (t: string) => {
 vi.mock('@/lib/supabase/server', () => ({ supabaseServer: async () => ({
   auth: { getUser: async () => ({ data: { user: { id: '11111111-1111-1111-1111-111111111111' } } }) }, from: (t: string) => cadeia(t),
   rpc: async (nome: string, args: any) => { h.rpcs.push({ nome, args }); return nome === 'eh_admin' ? { data: h.admin, error: null } : nome === 'publicar_no_banco_geral' ? { data: { novas: 0, atualizadas: 1 }, error: null } : { data: null, error: null } },
-  storage: { from: () => ({ createSignedUrls: async (ps: string[]) => ({ data: ps.map(p => ({ path: p, signedUrl: `https://x/${p}` })) }), copy: async () => ({ error: null }), remove: async () => ({}),
+  storage: { from: () => ({ createSignedUrls: async (ps: string[]) => ({ data: ps.map(p => ({ path: p, signedUrl: `https://x/${p}` })) }), copy: async () => ({ error: null }), remove: async (ps: string[]) => { h.removidos.push(...ps); return {} },
+    download: async (p: string) => { h.baixados.push(p); return { data: new Blob([readFileSync('src/lib/__fixtures__/prova-com-figuras.pdf')]), error: null } },
     upload: async (p: string, b: Buffer, o: any) => { h.uploads.push([p, o.contentType, b.length]); return { error: null } } }) },
 }) }))
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }))
@@ -49,7 +50,7 @@ const QUESTAO = {
   banca: 'UFMA', ano: 2022, tema_id: null, explicacao: 'Porque sim.', explicacao_origem: 'ia', comentario: 'meu', origem_geral: 'g1',
 }
 const base = { id: Q1, bloco_0: 'Qual a conduta?', alt_letra: ['A', 'B'], alt_texto: ['Intubar', 'Observar'], gabarito: 'A', banca: 'UFMA', ano: '2022', tema: '', explicacao: 'Porque sim.', comentario: 'meu' }
-beforeEach(() => { Object.assign(h, { ops: [], redirects: [], rpcs: [], admin: true, um: {}, uploads: [], resp: () => ({ data: [], count: 0, error: null }) }) })
+beforeEach(() => { Object.assign(h, { ops: [], redirects: [], rpcs: [], admin: true, um: {}, uploads: [], baixados: [], removidos: [], resp: () => ({ data: [], count: 0, error: null }) }) })
 
 describe('salvar uma questão (Administração)', () => {
   beforeEach(() => { h.um.banco_questoes = QUESTAO })
@@ -167,5 +168,13 @@ describe('ler o PDF com as figuras', () => {
     expect(h.uploads.map(u => [u[0].replace(/\/banco\/[0-9a-f-]{36}/, '/banco/ID'), u[1]])).toEqual([['11111111-1111-1111-1111-111111111111/banco/ID.webp', 'image/webp'], ['11111111-1111-1111-1111-111111111111/banco/ID.webp', 'image/webp']])
     expect(r.figuras!['pdf-p1-1']).toEqual({ caminho: h.uploads[0][0], url: `https://x/${h.uploads[0][0]}` })
     expect(r.paginas![0]).toContain(`Observe o ECG abaixo:\n${MARCA_FIGURA}pdf-p1-1\nQual o diagnóstico?`)
+  })
+  it('PDF grande: vem pelo armazenamento "importacao" (só da própria pasta), é lido e apagado', async () => {
+    const U = '11111111-1111-1111-1111-111111111111', c = `${U}/cccccccc-cccc-cccc-cccc-cccccccccccc.pdf`
+    const f = new FormData(); f.set('caminho', c)
+    const r = await lerPdfDeQuestoes(f)
+    expect(r.erro).toBeUndefined(); expect(r.paginas).toHaveLength(3); expect(h.baixados).toEqual([c]); expect(h.removidos).toContain(c)
+    const g = new FormData(); g.set('caminho', `outra-conta/cccccccc-cccc-cccc-cccc-cccccccccccc.pdf`)
+    expect(await lerPdfDeQuestoes(g)).toEqual({ erro: 'Arquivo inválido.' }); expect(h.baixados).toHaveLength(1)
   })
 })
