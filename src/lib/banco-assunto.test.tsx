@@ -26,8 +26,9 @@ vi.mock('@/lib/supabase/server', () => ({ supabaseServer: async () => ({
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }))
 vi.mock('next/navigation', () => ({ redirect: (u: string) => { h.redirects.push(u); throw new Error('REDIRECT') }, useRouter: () => ({ refresh: () => {}, push: () => {} }) }))
 
-import { definirAssuntoDoBanco, definirAssuntoEmLote, sugerirAssuntosDoBanco, ligarAssunto, adicionarTemas, definirTemaEmLote, sugerirTemasPeloTexto, editarTema } from './banco'
+import { definirAssuntoDoBanco, definirAssuntoEmLote, sugerirAssuntosDoBanco, ligarAssunto, importarNoBanco, adicionarTemas, definirTemaEmLote, sugerirTemasPeloTexto, editarTema } from './banco'
 import OpcoesDeAssunto from '@/components/banco/OpcoesDeAssunto'
+import { GET as exportar } from '@/app/(app)/banco/exportar/route'
 import AssuntoDaQuestao from '@/components/banco/AssuntoDaQuestao'
 import MarcarTodas from '@/components/banco/MarcarTodas'
 import Banco from '@/app/(app)/banco/questoes/page'
@@ -282,5 +283,39 @@ describe('temas (lista geral)', () => {
     expect(html).not.toContain('Anestésicos locais') // sem questões: não aparece
     expect(html).toContain('<optgroup label="Outros assuntos"><option value="Anestesiologia">Anestesiologia (1)</option></optgroup>')
     expect(html).toContain('Sem assunto (1)')
+  })
+})
+
+describe('importar pacote classificado (com tema)', () => {
+  const q = (t: string, tema?: string) => ({ blocos: [{ tipo: 'texto', texto: t }], alternativas: [{ letra: 'A', texto: 'a' }, { letra: 'B', texto: 'b' }], gabarito: 'A', ...(tema ? { tema } : {}) })
+  it('aplica o tema da lista (inclusive nas que já estavam no banco) e cria os que faltam', async () => {
+    h.dados.temas = [{ id: 'hm', area: 'cirurgia', especialidade: 'Anestesiologia', nome: 'Hipertermia maligna' }]
+    h.dados.banco_questoes = [] // a busca por hash devolve vazio no mock: simula ids com a lista abaixo
+    h.dados.banco_questoes = [{ id: Q1, hash: 'x' }]
+    const r = await importarNoBanco({ questoes: [q('Um', 'ANESTESIOLOGIA > hipertermia maligna'), q('Dois', 'Anestesiologia > Via aérea difícil')] }, null, { criarTemas: true })
+    expect(r.ok).toBe(true)
+    const ins = h.ops.find(o => o.t === 'temas' && o.tipo === 'insert')!
+    expect(ins.dados).toEqual([{ especialidade: 'Anestesiologia', nome: 'Via aérea difícil', area: expect.anything() }])
+    expect(h.filtros.some(f => f.startsWith('banco_questoes.in(hash,'))).toBe(true)
+  })
+  it('sem "criar": os temas que não estão na lista ficam de fora', async () => {
+    h.dados.temas = []
+    await importarNoBanco({ questoes: [q('Um', 'Anestesiologia > Nova')] }, null, { criarTemas: false })
+    expect(h.ops.some(o => o.t === 'temas' && o.tipo === 'insert')).toBe(false)
+  })
+  it('estudante: o tema do arquivo é ignorado (e a importação nem acontece)', async () => {
+    h.admin = false
+    expect(await importarNoBanco({ questoes: [q('Um', 'A > B')] })).toMatchObject({ ok: false })
+  })
+  it('exportar: pacote .json com as questões dos filtros; estudante não exporta', async () => {
+    h.dados.banco_questoes = [{ id: Q1, blocos: [{ tipo: 'texto', texto: 'Enunciado' }], alternativas: [{ letra: 'A', texto: 'a' }, { letra: 'B', texto: 'b' }], gabarito: 'B', anulada: false, banca: 'UFMA', ano: 2020, assunto: 'Anestesiologia', discipline_id: DISC }]
+    h.dados.disciplines = [{ id: DISC, nome: 'Anestesiologia' }]
+    const res = await exportar(new Request('http://x/banco/exportar?banca=UFMA'))
+    expect(res.headers.get('content-disposition')).toContain('attachment')
+    const p = await res.json()
+    expect(p.formato).toBe('residencia-os/banco'); expect(p.questoes[0]).toMatchObject({ enunciado: ['Enunciado'], alternativas: ['a', 'b'], gabarito: 'B', banca: 'UFMA', disciplina: 'Anestesiologia' })
+    expect(h.filtros).toContain('banco_questoes.eq(banca,UFMA)')
+    h.admin = false
+    expect((await exportar(new Request('http://x/banco/exportar'))).status).toBe(403)
   })
 })

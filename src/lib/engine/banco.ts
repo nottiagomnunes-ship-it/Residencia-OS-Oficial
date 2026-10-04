@@ -7,6 +7,16 @@ export type QuestaoDoBanco = {
   blocos: Bloco[]; alternativas: Alternativa[]; gabarito: Letra | null; gabarito_origem: 'oficial' | 'ia' | null; anulada: boolean
   comentario: string | null; area: Area | null; discipline_id: string | null; topic_id: string | null; assunto: string | null
   banca: string | null; ano: number | null; fonte: string | null
+  tema?: TemaEscrito | null // tema da lista geral pelo nome (só a conta administradora aplica)
+}
+/** Um tema pelo nome: "Anestesiologia > Via aérea difícil". */
+export type TemaEscrito = { especialidade: string; nome: string }
+/** "Anestesiologia > Via aérea difícil" (também com ›, ; ou |) → tema; só o nome usa a especialidade padrão (a disciplina da questão ou do pacote). */
+export function lerTemaEscrito(v: unknown, especialidadePadrao: string | null = null): TemaEscrito | null {
+  if (typeof v !== 'string' || !v.trim()) return null
+  const p = v.split(/\s*(?:›|»|>|;|\|)\s*/).map(x => x.trim()).filter(Boolean)
+  const nome = p.at(-1)?.slice(0, 120), esp = (p.length >= 2 ? p.at(-2) : especialidadePadrao)?.slice(0, 80)
+  return nome && esp ? { especialidade: esp, nome } : null
 }
 
 /** O texto que identifica a questão (sem acentos, maiúsculas, espaços nem pontuação): a mesma questão importada de novo dá o mesmo texto. */
@@ -21,13 +31,14 @@ export const textoParaHash = (blocos: Bloco[], alternativas: Alternativa[]) =>
  *   "formato": "residencia-os/banco", "versao": 1, "fonte": "Anestesiologia — lote 1", "disciplina": "Anestesiologia",
  *   "questoes": [{ "enunciado": "texto" | ["parágrafo", {"imagem": "fig1.png"}], "alternativas": ["texto A", "texto B"] | [{"letra": "A", "texto": "..."}],
  *                  "gabarito": "C", "gabarito_origem": "oficial" | "ia", "anulada": false, "comentario": "...",
- *                  "disciplina": "...", "assunto": "...", "area": "cirurgia", "banca": "UFMA", "ano": 2018 }],
+ *                  "disciplina": "...", "assunto": "...", "tema": "Anestesiologia > Via aérea difícil", "area": "cirurgia", "banca": "UFMA", "ano": 2018 }],
  *   "imagens": { "fig1.png": "data:image/png;base64,..." }
  * }
  */
 export type ItemLido = {
   questao: QuestaoLida; gabarito: Letra | null; gabarito_origem: 'oficial' | 'ia' | null; anulada: boolean; comentario: string | null
   disciplina: string | null; assunto: string | null; area: Area | null; banca: string | null; ano: number | null
+  tema?: TemaEscrito | null
 }
 export type LoteLido = { itens: ItemLido[]; imagens: Record<string, string>; fonte: string | null; disciplina: string | null; avisos: string[] }
 
@@ -62,6 +73,7 @@ export function lerPacote(json: unknown): LoteLido {
       questao: { numero: n, blocos, alternativas }, gabarito, gabarito_origem: gabarito ? (q.gabarito_origem === 'ia' ? 'ia' : 'oficial') : null,
       anulada: q.anulada === true || g === 'X', comentario: str(q.comentario, 5000), disciplina: str(q.disciplina, 120), assunto: str(q.assunto, 120),
       area: lerArea(q.area), banca: str(q.banca, 60), ano: Number.isInteger(ano) && ano > 1980 && ano < 2100 ? ano : null,
+      tema: lerTemaEscrito(q.tema, str(q.disciplina, 120) ?? str(p.disciplina, 120)),
     })
   })
   return { itens, imagens, fonte: str(p.fonte, 120), disciplina: str(p.disciplina, 120), avisos }
@@ -126,6 +138,7 @@ export function validarLote(v: unknown, uid: string): { ok: true; questoes: Ques
       comentario: str(b.comentario, 5000), area: ehArea(b.area) ? b.area : null,
       discipline_id: ehUuid(b.discipline_id) ? b.discipline_id : null, topic_id: ehUuid(b.topic_id) ? b.topic_id : null,
       assunto: str(b.assunto, 120), banca: str(b.banca, 60), ano: ano !== null && Number.isInteger(ano) && ano > 1980 && ano < 2100 ? ano : null, fonte: str(b.fonte, 120),
+      tema: lerTemaEscrito(b.tema),
     })
   }
   return { ok: true, questoes: out }
@@ -229,4 +242,22 @@ export function assuntoParecido<T extends { nome: string; discipline_id: string 
     if (!melhor || nota > melhor.nota) melhor = { t, nota }
   }
   return melhor?.t ?? null
+}
+
+/**
+ * Exporta questões do banco como pacote .json (o mesmo formato que o importador lê), para classificar fora do app e importar de volta:
+ * as que já estão no banco não se repetem (o texto é o mesmo) e só recebem o tema. Figuras não vão (só o lugar delas); o comentário vai.
+ */
+export function pacoteDoBanco(qs: { blocos: Bloco[]; alternativas: Alternativa[]; gabarito: string | null; gabarito_origem?: string | null; anulada: boolean; comentario?: string | null
+  area?: string | null; disciplina?: string | null; assunto?: string | null; tema?: string | null; banca: string | null; ano: number | null }[], fonte: string) {
+  return {
+    formato: 'residencia-os/banco', versao: 1, fonte,
+    questoes: qs.map(q => ({
+      // a figura não vai (só o lugar dela): sem ela, o texto e a impressão digital ficam iguais
+      enunciado: q.blocos.map((b, k) => (b.tipo === 'texto' ? b.texto : { imagem: `figura-${k + 1}` })), alternativas: q.alternativas.map(a => a.texto),
+      gabarito: q.anulada ? 'X' : q.gabarito, ...(q.gabarito_origem === 'ia' ? { gabarito_origem: 'ia' } : {}), ...(q.comentario ? { comentario: q.comentario } : {}),
+      ...(q.area ? { area: q.area } : {}), ...(q.disciplina ? { disciplina: q.disciplina } : {}), ...(q.assunto ? { assunto: q.assunto } : {}), ...(q.tema ? { tema: q.tema } : {}),
+      ...(q.banca ? { banca: q.banca } : {}), ...(q.ano ? { ano: q.ano } : {}),
+    })),
+  }
 }

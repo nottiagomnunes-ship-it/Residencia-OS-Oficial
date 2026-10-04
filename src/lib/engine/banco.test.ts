@@ -187,3 +187,22 @@ describe('assunto parecido (ligar assuntos)', () => {
     expect(assuntoParecido('Farmacologia geral', ts)).toBeNull(); expect(assuntoParecido('de', ts)).toBeNull()
   })
 })
+
+import { lerTemaEscrito, pacoteDoBanco, lerPacote as lerPacote2, textoParaHash as hash2 } from './banco'
+describe('tema escrito e exportar/importar de volta', () => {
+  it('lê "Especialidade > Tema"; só o nome usa a especialidade padrão', () => {
+    expect(lerTemaEscrito('Anestesiologia > Via aérea difícil')).toEqual({ especialidade: 'Anestesiologia', nome: 'Via aérea difícil' })
+    expect(lerTemaEscrito('Cirurgia › Anestesiologia › Via aérea')).toEqual({ especialidade: 'Anestesiologia', nome: 'Via aérea' })
+    expect(lerTemaEscrito('Via aérea', 'Anestesiologia')).toEqual({ especialidade: 'Anestesiologia', nome: 'Via aérea' })
+    expect(lerTemaEscrito('Via aérea')).toBeNull(); expect(lerTemaEscrito('')).toBeNull()
+  })
+  it('exportar e ler de volta dá a mesma impressão digital (com figura), e o tema volta', () => {
+    const blocos = [{ tipo: 'texto' as const, texto: 'Paciente com rigidez de masseter.' }, { tipo: 'imagem' as const, caminho: 'u/banco/x.png' }, { tipo: 'texto' as const, texto: 'Qual a conduta?' }]
+    const alternativas = [{ letra: 'A' as const, texto: 'Dantrolene' }, { letra: 'B' as const, texto: 'Esperar' }]
+    const p = pacoteDoBanco([{ blocos, alternativas, gabarito: 'A', anulada: false, comentario: 'meu', banca: 'UFMA', ano: 2020, disciplina: 'Anestesiologia', assunto: 'Anestesiologia' }], 'teste')
+    const json = JSON.parse(JSON.stringify(p)); json.questoes[0].tema = 'Anestesiologia > Hipertermia maligna' // o que o Claude acrescenta
+    const lido = lerPacote2(json)
+    expect(hash2(lido.itens[0].questao.blocos, lido.itens[0].questao.alternativas)).toBe(hash2(blocos, alternativas))
+    expect(lido.itens[0]).toMatchObject({ gabarito: 'A', banca: 'UFMA', ano: 2020, comentario: 'meu', tema: { especialidade: 'Anestesiologia', nome: 'Hipertermia maligna' } })
+  })
+})

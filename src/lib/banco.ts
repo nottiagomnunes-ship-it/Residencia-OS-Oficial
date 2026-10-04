@@ -56,8 +56,8 @@ export async function criarDisciplinaDoBanco(nome: string): Promise<{ id?: strin
 }
 
 /** Grava o lote: confere, calcula a impressão digital de cada questão e deixa o banco ignorar as repetidas. */
-export async function importarNoBanco(dados: unknown, publicar: { colecao: string | null } | null = null):
-  Promise<{ ok: true; novas: number; repetidas: number; publicacao?: string; erroPublicacao?: string } | { ok: false; erro: string }> {
+export async function importarNoBanco(dados: unknown, publicar: { colecao: string | null } | null = null, opcoes: { criarTemas?: boolean } = {}):
+  Promise<{ ok: true; novas: number; repetidas: number; publicacao?: string; erroPublicacao?: string; temas?: string } | { ok: false; erro: string }> {
   const { sb, uid } = await ctx()
   if (!(await podeOrganizar(sb))) return { ok: false, erro: SO_ADMIN }
   const v = validarLote(dados, uid)
@@ -70,16 +70,19 @@ export async function importarNoBanco(dados: unknown, publicar: { colecao: strin
     novas += Number(data ?? 0)
   }
   refresh()
-  if (!publicar) return { ok: true, novas, repetidas: itens.length - novas }
-  // "Publicar também no banco geral": as deste arquivo (novas e as que já estavam no banco), achadas pela impressão digital
-  const ids: string[] = []
-  for (let i = 0; i < itens.length; i += 200) {
-    const { data } = await sb.from('banco_questoes').select('id').in('hash', itens.slice(i, i + 200).map(q => q.hash))
-    ids.push(...(data ?? []).map((q: { id: string }) => q.id))
+  // as deste arquivo no banco (novas e as que já estavam), pela impressão digital
+  const idPorHash = new Map<string, string>()
+  if (publicar || itens.some(q => q.tema)) for (let i = 0; i < itens.length; i += 200) {
+    const { data } = await sb.from('banco_questoes').select('id,hash').in('hash', itens.slice(i, i + 200).map(q => q.hash))
+    for (const q of (data ?? []) as { id: string; hash: string }[]) idPorHash.set(q.hash, q.id)
   }
+  const temas = itens.some(q => q.tema) ? await aplicarTemasDoLote(sb, itens, idPorHash, !!opcoes.criarTemas) : undefined
+  if (!publicar) return { ok: true, novas, repetidas: itens.length - novas, ...(temas ? { temas } : {}) }
+  // "Publicar também no banco geral" (depois dos temas, para o tema ir junto)
+  const ids = [...new Set(idPorHash.values())]
   const r = await publicarIds(sb, ids, publicar.colecao?.trim().slice(0, 120) || null)
-  return r.ok ? { ok: true, novas, repetidas: itens.length - novas, publicacao: resumoDaPublicacao(r) }
-    : { ok: true, novas, repetidas: itens.length - novas, erroPublicacao: `As questões entraram no seu banco, mas a publicação falhou: ${r.erro} Publique pelo Banco → Organizar.` }
+  return r.ok ? { ok: true, novas, repetidas: itens.length - novas, publicacao: resumoDaPublicacao(r), ...(temas ? { temas } : {}) }
+    : { ok: true, novas, repetidas: itens.length - novas, ...(temas ? { temas } : {}), erroPublicacao: `As questões entraram no seu banco, mas a publicação falhou: ${r.erro} Publique pelo Banco → Organizar.` }
 }
 
 /** Sorteia as questões que batem com os filtros e abre a lista na tela de prova. */
@@ -436,4 +439,34 @@ export async function sugerirTemasPeloTexto(fd: FormData) {
   redirect(comAviso(volta, n ? 'ok' : 'erro', n ? `Tema encontrado para ${n} ${n === 1 ? 'questão' : 'questões'}${sem ? `; ${sem} ${sem === 1 ? 'ficou' : 'ficaram'} sem tema (escolha à mão)` : ''}. Confira e publique de novo.`
     : (qs ?? []).length ? `Não achei o tema de nenhuma das ${(qs ?? []).length} questões sem tema. Dê palavras-chave aos temas (Lista de temas: remédios, exames, achados típicos) e tente de novo, ou escolha à mão.`
       : 'Nenhuma questão sem tema para sugerir (nas marcadas ou nos filtros).'))
+}
+
+/**
+ * Importação com tema (pacote classificado): liga cada questão ao tema da Lista de temas pelo nome (especialidade + tema, sem ligar para
+ * acento e maiúscula), criando os que faltam se `criar`. Vale também para as que já estavam no banco (mesmo texto). Só a administradora.
+ * Devolve a frase do resultado.
+ */
+async function aplicarTemasDoLote(sb: Awaited<ReturnType<typeof supabaseServer>>, itens: { hash: string; tema?: { especialidade: string; nome: string } | null }[],
+  idPorHash: Map<string, string>, criar: boolean): Promise<string> {
+  if (!(await ehAdmin(sb))) return 'Os temas do arquivo foram ignorados: só a conta administradora aplica temas.'
+  let lista = await carregarTemas(sb)
+  const chave = (t: { especialidade: string; nome: string }) => normalizar(t.especialidade) + '|' + normalizar(t.nome)
+  const porChave = () => new Map(lista.map(t => [chave(t), t]))
+  let mapa = porChave()
+  const faltam = [...new Map(itens.flatMap(i => (i.tema && !mapa.has(chave(i.tema)) ? [[chave(i.tema), i.tema] as const] : []))).values()]
+  let criados = 0
+  if (faltam.length && criar) {
+    const { error } = await sb.from('temas').insert(faltam.map(t => ({ especialidade: t.especialidade, nome: t.nome, area: sugerirArea(t.especialidade) })))
+    if (!error) { criados = faltam.length; lista = await carregarTemas(sb); mapa = porChave() }
+  }
+  const grupos = new Map<string, string[]>()
+  for (const i of itens) {
+    const t = i.tema ? mapa.get(chave(i.tema)) : undefined, id = idPorHash.get(i.hash)
+    if (t && id) grupos.set(t.id, [...(grupos.get(t.id) ?? []), id])
+  }
+  let n = 0
+  for (const [tid, ids] of grupos) n += (await gravarTema(sb, [...new Set(ids)], lista.find(t => t.id === tid)!)).n
+  const sem = itens.filter(i => i.tema).length - n
+  return `Tema aplicado em ${n} ${n === 1 ? 'questão' : 'questões'}` + (criados ? ` (${criados} ${criados === 1 ? 'tema novo criado' : 'temas novos criados'} na lista)` : '') +
+    (sem > 0 ? `; ${sem} ${sem === 1 ? 'ficou' : 'ficaram'} sem tema${faltam.length && !criar ? ' (temas que não estão na lista)' : ''}` : '') + '.'
 }

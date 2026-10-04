@@ -169,6 +169,7 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
                 <button formAction={sugerirTemasPeloTexto} className="rounded-xl border border-line px-4 py-2 hover:border-brand">Sugerir tema pelo texto</button>
               </div> : <p className="text-muted">A lista de temas está vazia.</p>}
               <p className="text-xs text-muted">"Sugerir tema pelo texto" age nas marcadas (ou, sem nenhuma marcada, em todas as questões sem tema) e procura o nome dos temas no enunciado. <Link href="/banco/temas" className="text-brand hover:underline">Lista de temas ({temas.length}) →</Link></p>
+              <p className="text-xs text-muted">Classificar fora do app: <a href={`/banco/exportar${filtrosParaUrl(f) ? `?${filtrosParaUrl(f)}` : ''}`} className="text-brand hover:underline">exportar estas {total} questões (.json)</a>, mandar o arquivo para o Claude e importar de volta o arquivo com os temas (Importar questões). As que já estão no banco não se repetem: só recebem o tema.</p>
             </div>}
             <details open={!admin} className={admin ? 'border-t border-line pt-3' : ''}>
               <summary className="cursor-pointer font-medium">Assunto das suas Matérias{admin ? <span className="font-normal text-muted"> · só para o seu Desempenho</span> : ''}</summary>

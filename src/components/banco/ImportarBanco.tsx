@@ -23,14 +23,14 @@ const palpiteDisciplina = (arquivo: string) => {
 }
 
 /** Importar questões para o banco: lê PDF, .docx ou pacote .json, mostra a prévia e grava sem repetir as que já existem. */
-export default function ImportarBanco({ disciplinas, assuntos, admin = false }: { disciplinas: Disc[]; assuntos: Assunto[]; admin?: boolean }) {
+export default function ImportarBanco({ disciplinas, assuntos, admin = false, temasLista = [] }: { disciplinas: Disc[]; assuntos: Assunto[]; admin?: boolean; temasLista?: { especialidade: string; nome: string }[] }) {
   const router = useRouter()
   const [lido, setLido] = useState<Lido | null>(null), [erro, setErro] = useState<string | null>(null), [lendo, setLendo] = useState(false)
   const [disc, setDisc] = useState(''), [novaDisc, setNovaDisc] = useState(''), [fonte, setFonte] = useState('')
   const [salvando, setSalvando] = useState<string | null>(null), [aberta, setAberta] = useState<number | null>(null)
-  const [resultado, setResultado] = useState<{ novas: number; repetidas: number; publicacao?: string; erroPublicacao?: string } | null>(null)
+  const [resultado, setResultado] = useState<{ novas: number; repetidas: number; publicacao?: string; erroPublicacao?: string; temas?: string } | null>(null)
   // administrador: publicar no banco geral junto com a importação (já vai para todas as contas)
-  const [publicar, setPublicar] = useState(true), [colecao, setColecao] = useState('')
+  const [publicar, setPublicar] = useState(true), [colecao, setColecao] = useState(''), [criarTemas, setCriarTemas] = useState(true)
   // assunto: '' = o que veio no arquivo (ou a sugestão); 't:<id>' = um assunto de Matérias; 'nenhum'; 'outro' = o nome escrito em textoTodas
   const [assuntoTodas, setAssuntoTodas] = useState(''), [textoTodas, setTextoTodas] = useState(''), [sugerir, setSugerir] = useState(true)
   const [porQuestao, setPorQuestao] = useState<Record<number, string>>({})
@@ -91,7 +91,10 @@ export default function ImportarBanco({ disciplinas, assuntos, admin = false }: 
   const resumo = lido && {
     total: lido.itens.length, comGabarito: lido.itens.filter(i => i.gabarito && !i.anulada).length,
     anuladas: lido.itens.filter(i => i.anulada).map(i => i.questao.numero), semGabarito: lido.itens.filter(i => !i.gabarito && !i.anulada).map(i => i.questao.numero),
-    ia: lido.itens.filter(i => i.gabarito_origem === 'ia').length, comAssunto: classificados.filter(i => i.topic_id).length, sugeridos: classificados.filter(i => i.sugerido).length, semAssunto: classificados.filter(i => !i.assunto).length,
+    ia: lido.itens.filter(i => i.gabarito_origem === 'ia').length,
+    comTema: lido.itens.filter(i => i.tema).length,
+    temasNovos: [...new Set(lido.itens.flatMap(i => (i.tema && !temasLista.some(t => normalizar(t.especialidade) === normalizar(i.tema!.especialidade) && normalizar(t.nome) === normalizar(i.tema!.nome)) ? [`${i.tema.especialidade} › ${i.tema.nome}`] : [])))],
+    comAssunto: classificados.filter(i => i.topic_id).length, sugeridos: classificados.filter(i => i.sugerido).length, semAssunto: classificados.filter(i => !i.assunto).length,
   }
 
   async function salvar() {
@@ -122,12 +125,13 @@ export default function ImportarBanco({ disciplinas, assuntos, admin = false }: 
       const questoes = lista.map(i => ({
         blocos: i.questao.blocos.map((b): Bloco => (b.tipo === 'texto' ? b : destino[b.caminho] ? { tipo: 'imagem', caminho: destino[b.caminho] } : { tipo: 'texto', texto: '[Figura que não pôde ser importada]' })),
         alternativas: i.questao.alternativas, gabarito: i.anulada ? null : i.gabarito, gabarito_origem: i.anulada ? null : i.gabarito_origem, anulada: i.anulada,
-        comentario: i.comentario, area: i.area, discipline_id: i.discipline_id, topic_id: i.topic_id, assunto: i.assunto, banca: i.banca, ano: i.ano, fonte: fonte.trim() || null,
+        comentario: i.comentario, area: i.area, discipline_id: i.discipline_id, topic_id: i.topic_id, assunto: i.tema?.nome ?? i.assunto, banca: i.banca, ano: i.ano, fonte: fonte.trim() || null,
+        tema: i.tema ? `${i.tema.especialidade} > ${i.tema.nome}` : null,
       }))
       if (admin && publicar) setSalvando('Gravando e publicando no banco geral…')
-      const r = await importarNoBanco({ questoes }, admin && publicar ? { colecao: colecao.trim() || fonte.trim() || null } : null)
+      const r = await importarNoBanco({ questoes }, admin && publicar ? { colecao: colecao.trim() || fonte.trim() || null } : null, { criarTemas })
       if (!r.ok) throw new Error(r.erro)
-      setResultado({ novas: r.novas, repetidas: r.repetidas, publicacao: r.publicacao, erroPublicacao: r.erroPublicacao }); setLido(null); setSalvando(null)
+      setResultado({ novas: r.novas, repetidas: r.repetidas, publicacao: r.publicacao, erroPublicacao: r.erroPublicacao, temas: r.temas }); setLido(null); setSalvando(null)
       router.refresh()
     } catch (e) {
       if (enviados.length) await sb.storage.from('provas').remove(enviados).catch(() => {})
@@ -147,6 +151,7 @@ export default function ImportarBanco({ disciplinas, assuntos, admin = false }: 
       {erro && <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 p-3 text-sm text-danger">{erro}</p>}
       {resultado && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-3 text-sm">
         {resultado.novas} {resultado.novas === 1 ? 'questão nova entrou' : 'questões novas entraram'} no banco.{resultado.repetidas ? ` ${resultado.repetidas} já ${resultado.repetidas === 1 ? 'estava' : 'estavam'} lá e não ${resultado.repetidas === 1 ? 'foi repetida' : 'foram repetidas'}.` : ''} <a href="/banco/questoes" className="text-brand underline">Ver no Banco</a> · <a href="/banco" className="text-brand underline">Praticar</a>
+        {resultado.temas && <span className="mt-1 block">{resultado.temas}</span>}
         {resultado.publicacao && <span className="mt-1 block">{resultado.publicacao}</span>}</p>}
       {resultado?.erroPublicacao && <p role="alert" className="rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm text-warn">{resultado.erroPublicacao}</p>}
 
@@ -192,7 +197,7 @@ export default function ImportarBanco({ disciplinas, assuntos, admin = false }: 
               <li key={k} className="py-2">
                 <button type="button" onClick={() => setAberta(aberta === k ? null : k)} aria-expanded={aberta === k} className="w-full text-left text-sm hover:text-brand">
                   <b>{i.questao.numero}.</b> {i.banca ? <span className="text-muted">{i.banca}{i.ano ? ` ${i.ano}` : ''} · </span> : null}{textoDosBlocos(i.questao.blocos).slice(0, 140)}
-                  <span className="ml-2 text-xs text-muted">{i.anulada ? 'anulada' : i.gabarito ? `gab. ${i.gabarito}` : 'sem gabarito'}{i.area ? ` · ${SIGLA_AREA[i.area]}` : ''}{i.assunto ? ` · ${i.assunto}${i.sugerido ? ' (sugerido)' : ''}` : ''}</span></button>
+                  <span className="ml-2 text-xs text-muted">{i.anulada ? 'anulada' : i.gabarito ? `gab. ${i.gabarito}` : 'sem gabarito'}{i.area ? ` · ${SIGLA_AREA[i.area]}` : ''}{i.tema ? ` · tema: ${i.tema.nome}` : i.assunto ? ` · ${i.assunto}${i.sugerido ? ' (sugerido)' : ''}` : ''}</span></button>
                 {aberta === k && <div className="mt-3 space-y-3 rounded-xl border border-line p-3 text-sm">
                   <Enunciado blocos={blocosNaTela(i.questao.blocos)} numero={i.questao.numero} />
                   <ul className="space-y-1">{i.questao.alternativas.map(a => <li key={a.letra} className={a.letra === i.gabarito ? 'text-brand' : ''}><b>{a.letra})</b> {a.texto}</li>)}</ul>
@@ -207,6 +212,11 @@ export default function ImportarBanco({ disciplinas, assuntos, admin = false }: 
               </li>))}</ul>
           </details>
         </section>
+        {admin && resumo.comTema > 0 && <section className={`${card} space-y-2 text-sm`}>
+          <p><b className="font-medium">{resumo.comTema} {resumo.comTema === 1 ? 'questão vem' : 'questões vêm'} com tema.</b> <span className="text-muted">Ao adicionar, o tema é aplicado nelas, inclusive nas que já estão no seu banco (essas não se repetem: só recebem o tema).</span></p>
+          {resumo.temasNovos.length > 0 && <label className="flex items-start gap-2"><input type="checkbox" checked={criarTemas} onChange={e => setCriarTemas(e.target.checked)} className="mt-0.5 size-4 accent-brand" />
+            <span>Criar na Lista de temas os {resumo.temasNovos.length} que ainda não existem <span className="text-muted">({resumo.temasNovos.slice(0, 6).join('; ')}{resumo.temasNovos.length > 6 ? '…' : ''}). Sem marcar, as questões desses temas ficam sem tema.</span></span></label>}
+        </section>}
         {admin && <section className={`${card} space-y-2 text-sm`}>
           <label className="flex items-start gap-2"><input type="checkbox" checked={publicar} onChange={e => setPublicar(e.target.checked)} className="mt-0.5 size-4 accent-brand" />
             <span><b className="font-medium">Publicar também no banco geral</b> <span className="text-muted">— todas as contas recebem estas questões (enunciado, figuras, alternativas, gabarito, disciplina e assunto; o comentário não vai).</span></span></label>

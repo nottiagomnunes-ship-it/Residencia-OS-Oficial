@@ -1,0 +1,34 @@
+import { supabaseServer } from '@/lib/supabase/server'
+import { aplicarFiltros, assuntoDoFiltro, podeOrganizar } from '@/lib/banco-data'
+import { lerFiltros, pacoteDoBanco } from '@/lib/engine/banco'
+import type { Alternativa, Bloco } from '@/lib/engine/provas'
+import { hojeBR } from '@/lib/dates'
+
+/**
+ * Exporta as questões dos filtros como pacote .json (formato do importador), para classificar fora do app (ex.: mandar ao Claude) e importar de
+ * volta: as que já estão no banco não se repetem, só recebem o tema. Só quem organiza o banco.
+ */
+export async function GET(req: Request) {
+  const sb = await supabaseServer()
+  const { data: { user } } = await sb.auth.getUser()
+  if (!user) return new Response('Entre na sua conta.', { status: 401 })
+  if (!(await podeOrganizar(sb))) return new Response('Só a conta administradora exporta o banco.', { status: 403 })
+  const f = lerFiltros(Object.fromEntries(new URL(req.url).searchParams))
+  const { data, error } = await aplicarFiltros(sb.from('banco_questoes').select('id,blocos,alternativas,gabarito,gabarito_origem,anulada,comentario,area,discipline_id,assunto,banca,ano'), f, await assuntoDoFiltro(sb, f))
+    .order('criada_em').limit(3000)
+  if (error) return new Response('Não foi possível ler o banco.', { status: 500 })
+  const qs = (data ?? []) as any[]
+  const [{ data: ds }, { data: comTema }] = await Promise.all([
+    sb.from('disciplines').select('id,nome'),
+    sb.from('banco_questoes').select('id,temas(especialidade,nome)').in('id', qs.map(q => q.id).slice(0, 3000)).not('tema_id', 'is', null), // sem a 0040: nada
+  ])
+  const disc = new Map((ds ?? []).map(d => [d.id as string, d.nome as string]))
+  const tema = new Map(((comTema ?? []) as any[]).filter(q => q.temas).map(q => [q.id as string, `${q.temas.especialidade} > ${q.temas.nome}`]))
+  const pacote = pacoteDoBanco(qs.map(q => ({
+    blocos: (q.blocos ?? []) as Bloco[], alternativas: (q.alternativas ?? []) as Alternativa[], gabarito: q.gabarito, gabarito_origem: q.gabarito_origem, anulada: q.anulada,
+    comentario: q.comentario, area: q.area, disciplina: q.discipline_id ? disc.get(q.discipline_id) ?? null : null, assunto: q.assunto, tema: tema.get(q.id) ?? null, banca: q.banca, ano: q.ano,
+  })), `Exportado do banco em ${hojeBR()}`)
+  return new Response(JSON.stringify(pacote, null, 1), { headers: {
+    'content-type': 'application/json; charset=utf-8', 'content-disposition': `attachment; filename="banco-${hojeBR()}-${qs.length}-questoes.json"`, 'cache-control': 'no-store',
+  } })
+}
