@@ -150,6 +150,7 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
             <span className="text-xs text-muted">{topicos.length ? 'Procura o nome dos seus assuntos de Matérias no texto das questões sem assunto (da mesma disciplina) e liga quando acha.' : 'Cadastre os assuntos em Matérias → Assuntos para usar a sugestão.'}</span>
           </form>}
           <form id="lote" action={definirAssuntoEmLote} className="grid gap-2 border-t border-line pt-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+            <input type="hidden" name="filtros" value={filtrosParaUrl(f)} />
             <input type="hidden" name="volta" value={volta} />
             <label className="text-muted">Dar às marcadas o assunto<select name="alvo" defaultValue="" className={sel}>
               <option value="">Escolha… (ou escreva ao lado)</option>
@@ -163,12 +164,10 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
             {admin && <div className="space-y-2 border-t border-line pt-3 sm:col-span-3">
               <h3 className="font-medium">Banco geral <span className="font-normal text-muted">(só a conta administradora vê isto)</span></h3>
               <p className="text-xs text-muted">Publicar manda para todas as contas o enunciado, as figuras, as alternativas, o gabarito (a letra), a disciplina e o assunto. O comentário <b>não</b> vai: fica só no seu banco. Publicar de novo uma questão atualiza a cópia das outras contas (sem mexer no histórico nem no assunto delas).</p>
-              <input type="hidden" name="filtros" value={filtrosParaUrl(f)} />
               <div className="flex flex-wrap items-end gap-2">
                 <label className="min-w-48 flex-1 text-muted">Coleção (opcional)<input name="colecao" list="colecoes" maxLength={120} placeholder="Ex.: Anestesiologia – UFMA" className={sel} /></label>
                 <datalist id="colecoes">{nomesColecoes.map(c => <option key={c} value={c} />)}</datalist>
                 <button formAction={publicarNoBancoGeral} className="rounded-xl border border-brand px-4 py-2 text-brand">Publicar as marcadas</button>
-                <button formAction={publicarNoBancoGeral} name="todas" value="1" className="rounded-xl border border-line px-4 py-2 hover:border-brand">Publicar todas {filtrado ? 'destes filtros' : 'do banco'} ({Math.min(total, 1000)})</button>
                 <button formAction={retirarDoBancoGeral} className="rounded-xl px-3 py-2 text-danger hover:underline">Tirar as marcadas do banco geral</button>
               </div>
             </div>}
@@ -177,7 +176,7 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
         </>}
 
         <section className="space-y-3">
-          {org && linhas.length > 0 && <MarcarTodas form="lote" />}
+          {org && linhas.length > 0 && <MarcarTodas form="lote" total={total} naPagina={linhas.length} />}
           {!total && <p className="rounded-2xl border border-dashed border-line p-6 text-center text-muted">Nenhuma questão com esses filtros.</p>}
           <ul className="space-y-2">{linhas.map(q => {
             const lb = lerArea(q.area)

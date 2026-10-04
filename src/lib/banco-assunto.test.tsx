@@ -28,6 +28,7 @@ vi.mock('next/navigation', () => ({ redirect: (u: string) => { h.redirects.push(
 
 import { definirAssuntoDoBanco, definirAssuntoEmLote, sugerirAssuntosDoBanco, ligarAssunto } from './banco'
 import AssuntoDaQuestao from '@/components/banco/AssuntoDaQuestao'
+import MarcarTodas from '@/components/banco/MarcarTodas'
 import Banco from '@/app/(app)/banco/questoes/page'
 import PraticarInicio from '@/app/(app)/banco/page'
 
@@ -77,6 +78,14 @@ describe('em lote (lista do banco)', () => {
     await expect(definirAssuntoEmLote(fd({ sel: [Q1, Q2], alvo: `t:${TOP}`, volta: `/banco?disciplina=${DISC}&p=2` }))).rejects.toThrow('REDIRECT')
     expect(h.redirects[0]).toMatch(new RegExp(`^/banco\\?disciplina=${DISC}&p=2&ok=`))
     expect(decodeURIComponent(h.redirects[0])).toContain('Assunto salvo em 2 questões')
+  })
+  it('"todas destes filtros": grava em todas as questões dos filtros, não só nas 30 da página', async () => {
+    h.dados.banco_questoes = Array.from({ length: 120 }, (_, i) => ({ id: `${String(i).padStart(8, '0')}-aaaa-aaaa-aaaa-aaaaaaaaaaaa` }))
+    h.dados['topics:um'] = { id: TOP, nome: 'Via aérea', discipline_id: DISC }
+    await expect(definirAssuntoEmLote(fd({ todas: '1', filtros: 'assunto=Anestesiologia', sel: Q1, alvo: `t:${TOP}`, volta: '/banco/questoes?org=1' }))).rejects.toThrow('REDIRECT')
+    expect(h.filtros).toContain('banco_questoes.eq(assunto,Anestesiologia)')
+    expect(updates()[0].filtros[0].split('|')).toHaveLength(120)
+    expect(decodeURIComponent(h.redirects[0])).toContain('Assunto salvo em 120 questões')
   })
   it('um nome escrito vale quando nada da lista foi escolhido', async () => {
     await expect(definirAssuntoEmLote(fd({ sel: Q1, alvo: '', texto: 'Hipertermia maligna', volta: '/banco' }))).rejects.toThrow('REDIRECT')
@@ -211,5 +220,9 @@ describe('estudante (conta que não é a administradora)', () => {
   it('Praticar com o banco vazio: sem botão de importar', async () => {
     const html = renderToStaticMarkup(await PraticarInicio({ searchParams: Promise.resolve({}) }))
     expect(html).not.toContain('/banco/importar'); expect(html).toContain('assim que forem publicadas')
+  })
+  it('marcar todas: começa só com "desta página" (o "todas destes filtros" aparece depois de marcar a página)', () => {
+    const html = renderToStaticMarkup(<MarcarTodas form="lote" total={120} naPagina={30} />)
+    expect(html).toContain('Marcar todas desta página'); expect(html).not.toContain('name="todas"')
   })
 })

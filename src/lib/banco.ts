@@ -139,7 +139,8 @@ export async function definirAssuntoDoBanco(ids: string[], escolha: { topic_id?:
 
 /** Formulário da lista do banco: o assunto escolhido vai para as questões marcadas. */
 export async function definirAssuntoEmLote(fd: FormData) {
-  const ids = fd.getAll('sel').map(String), valor = String(fd.get('alvo') || ''), texto = String(fd.get('texto') || '')
+  const { sb } = await ctx()
+  const ids = await idsDoFormulario(sb, fd), valor = String(fd.get('alvo') || ''), texto = String(fd.get('texto') || '')
   const volta = voltaDoBanco(fd)
   const criar = String(fd.get('criar_em') || '') || null, sep = volta.includes('?') ? '&' : '?'
   // um nome escrito vale quando nada da lista foi escolhido (ou foi escolhido "Outro")
@@ -179,11 +180,11 @@ export async function sugerirAssuntosDoBanco(fd: FormData) {
 const comAviso = (volta: string, tipo: 'ok' | 'erro', msg: string) => `${volta}${volta.includes('?') ? '&' : '?'}${tipo}=${encodeURIComponent(msg)}`
 const SEM_GERAL = 'Falta atualizar o banco: rode supabase/migrations/0037_banco_geral.sql no SQL Editor do Supabase.'
 
-/** As questões escolhidas no formulário: as marcadas, ou (com "todas") todas as dos filtros da página, até 1000. */
+/** As questões escolhidas no formulário: as marcadas, ou (com "todas") todas as dos filtros da página, até 2000. */
 async function idsDoFormulario(sb: Awaited<ReturnType<typeof supabaseServer>>, fd: FormData) {
   if (fd.get('todas') !== '1') return fd.getAll('sel').map(String).filter(x => /^[0-9a-f-]{36}$/i.test(x))
   const f = lerFiltros(Object.fromEntries(new URLSearchParams(String(fd.get('filtros') || ''))))
-  const { data } = await aplicarFiltros(sb.from('banco_questoes').select('id'), f, await assuntoDoFiltro(sb, f)).limit(1000)
+  const { data } = await aplicarFiltros(sb.from('banco_questoes').select('id'), f, await assuntoDoFiltro(sb, f)).limit(2000)
   return (data ?? []).map((q: { id: string }) => q.id)
 }
 
@@ -199,7 +200,7 @@ export async function publicarNoBancoGeral(fd: FormData) {
   if (!ids.length) redirect(comAviso(volta, 'erro', 'Marque as questões que quer publicar.'))
   const { data: qs, error } = await sb.from('banco_questoes').select('id,blocos,gabarito,anulada').in('id', ids.slice(0, 1000))
   if (error) redirect(comAviso(volta, 'erro', 'Não foi possível ler as questões.'))
-  const semGabarito = (qs ?? []).filter(q => !q.gabarito && !q.anulada).length
+  const semGabarito = (qs ?? []).filter(q => !q.gabarito && !q.anulada).length, sobra = Math.max(0, ids.length - 1000)
   const st = sb.storage.from('provas'), copiadas: Record<string, string> = {}
   const itens = []
   for (const q of qs ?? []) {
@@ -228,7 +229,7 @@ export async function publicarNoBancoGeral(fd: FormData) {
   const novas = Number(r?.novas) || 0, atual = Number(r?.atualizadas) || 0
   redirect(comAviso(volta, 'ok', [novas ? `${novas} ${novas === 1 ? 'questão publicada' : 'questões publicadas'} no banco geral` : null,
     atual ? `${atual} já ${atual === 1 ? 'estava' : 'estavam'} lá e ${atual === 1 ? 'foi atualizada' : 'foram atualizadas'}` : null].filter(Boolean).join('; ') +
-    '. As outras contas recebem ao abrir Praticar ou Banco (sem os comentários).' + (semGabarito ? ` Atenção: ${semGabarito} sem gabarito.` : '')))
+    '. As outras contas recebem ao abrir Praticar ou Banco (sem os comentários).' + (semGabarito ? ` Atenção: ${semGabarito} sem gabarito.` : '') + (sobra ? ` Vão 1000 por vez: publique de novo para mandar as outras ${sobra}.` : '')))
 }
 
 /** Administrador: tira questões do banco geral. As cópias que as contas já receberam continuam no banco delas. */
