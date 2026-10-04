@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { supabaseServer } from '@/lib/supabase/server'
 import { montarLista, excluirDoBanco } from '@/lib/banco'
+import { aplicarFiltros, assuntoDoFiltro } from '@/lib/banco-data'
 import { lerFiltros, filtrosParaUrl, type Filtros } from '@/lib/engine/banco'
 import { textoDosBlocos, ehLetra, type Bloco } from '@/lib/engine/provas'
 import { AREAS, ROTULO_AREA, SIGLA_AREA, lerArea } from '@/lib/engine/areas'
@@ -15,17 +16,8 @@ type Linha = { id: string; blocos: Bloco[]; alternativas: { letra: string; texto
 export default async function Banco({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams, f = lerFiltros(sp), pagina = Math.max(1, Number(sp.p) || 1)
   const sb = await supabaseServer()
-  const aplicar = <T,>(q: T): T => {
-    let x = q as any
-    if (f.area) x = x.eq('area', f.area)
-    if (f.disciplina) x = x.eq('discipline_id', f.disciplina)
-    if (f.assunto) x = x.eq('assunto', f.assunto)
-    if (f.banca) x = x.eq('banca', f.banca)
-    if (f.situacao === 'nunca') x = x.eq('vezes', 0)
-    if (f.situacao === 'errei') x = x.eq('ultimo_certo', false)
-    if (f.situacao === 'acertei') x = x.eq('ultimo_certo', true)
-    return x as T
-  }
+  const topico = await assuntoDoFiltro(sb, f)
+  const aplicar = <T,>(q: T): T => aplicarFiltros(q, f, topico)
   const [{ data: todas, error }, { data: lista, count }, { data: ds }, { data: listas }] = await Promise.all([
     sb.from('banco_questoes').select('discipline_id,assunto,banca,vezes,acertos,gabarito,anulada').limit(20000),
     aplicar(sb.from('banco_questoes').select('id,blocos,alternativas,gabarito,gabarito_origem,anulada,comentario,area,discipline_id,assunto,banca,ano,vezes,acertos,ultimo_certo', { count: 'exact' }))
@@ -71,10 +63,12 @@ export default async function Banco({ searchParams }: { searchParams: Promise<Re
             <option value="todas">Todas</option><option value="nunca">Nunca fiz</option><option value="errei">Errei na última vez</option><option value="acertei">Acertei na última vez</option></select></label>
           <label className="text-sm text-muted">Quantas<select name="quantidade" defaultValue="10" className={sel}>{[5, 10, 20, 30, 50].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
           <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-6">
-            <button className="rounded-xl bg-brand px-5 py-2.5 font-medium text-black">Montar lista e começar</button>
+            <button formAction="/banco/praticar" formMethod="get" className="rounded-xl bg-brand px-5 py-2.5 font-medium text-black">Praticar</button>
+            <button className="rounded-xl border border-line px-4 py-2.5 text-sm hover:border-brand">Montar lista (como prova)</button>
             <button formAction="/banco" formMethod="get" className="rounded-xl border border-line px-4 py-2.5 text-sm hover:border-brand">Só filtrar a lista abaixo</button>
           </div>
-          <p className="text-xs text-muted sm:col-span-2 lg:col-span-6">As questões são sorteadas entre as que batem com os filtros (só as com gabarito). A lista abre na mesma tela das provas; ao entregar, os erros vão para o Caderno de Erros e o resultado para o Desempenho.</p>
+          <p className="text-xs text-muted sm:col-span-2 lg:col-span-6"><b>Praticar</b>: uma questão por vez, com a resposta na hora; pode parar quando quiser. <b>Montar lista</b>: sorteia a quantidade escolhida e corrige só no fim, como uma prova. Nos dois, os erros vão para o Caderno de Erros e o resultado para o Desempenho. Só entram questões com gabarito.</p>
+          {f.topico && <input type="hidden" name="topico" value={f.topico} />}
         </form>
 
         {(listas ?? []).length > 0 && <section className="space-y-2">
@@ -85,7 +79,7 @@ export default async function Banco({ searchParams }: { searchParams: Promise<Re
         </section>}
 
         <section className="space-y-3">
-          <h2 className="font-medium">{total} {total === 1 ? 'questão' : 'questões'}{f.area || f.disciplina || f.assunto || f.banca || f.situacao !== 'todas' ? ' com esses filtros' : ''}</h2>
+          <h2 className="font-medium">{total} {total === 1 ? 'questão' : 'questões'}{f.area || f.disciplina || f.assunto || f.topico || f.banca || f.situacao !== 'todas' ? ' com esses filtros' : ''}</h2>
           <ul className="space-y-2">{linhas.map(q => {
             const lb = lerArea(q.area)
             return (

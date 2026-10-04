@@ -119,7 +119,7 @@ describe('conferência no servidor', () => {
 describe('filtros e listas', () => {
   it('filtros vindos da URL são conferidos; a URL leva só o que está preenchido', () => {
     const f = lerFiltros({ area: 'cirurgia', disciplina: 'nao-e-uuid', situacao: 'errei', banca: ' UFMA ' })
-    expect(f).toEqual({ area: 'cirurgia', disciplina: null, assunto: null, banca: 'UFMA', situacao: 'errei', busca: '' })
+    expect(f).toEqual({ area: 'cirurgia', disciplina: null, assunto: null, topico: null, banca: 'UFMA', situacao: 'errei', busca: '' })
     expect(filtrosParaUrl(f)).toBe('area=cirurgia&banca=UFMA&situacao=errei')
     expect(lerFiltros({ area: 'x', situacao: 'y' })).toMatchObject({ area: null, situacao: 'todas' })
   })
@@ -128,5 +128,16 @@ describe('filtros e listas', () => {
     const r = sortear([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 4, rnd)
     expect(r).toHaveLength(4); expect(new Set(r).size).toBe(4); expect(sortear([1, 2], 5)).toHaveLength(2)
     expect(nomeDaLista(['Anestesiologia', null, 'UFMA'], 10)).toBe('Anestesiologia · UFMA · 10 questões'); expect(nomeDaLista([], 1)).toBe('Banco de questões · 1 questão')
+  })
+})
+
+describe('Praticar: qual é a próxima', () => {
+  const c = (id: string, vezes: number, ultimo_certo: boolean | null, ultima_em: string | null = null) => ({ id, vezes, ultimo_certo, ultima_em })
+  it('nunca feitas primeiro; depois as erradas; depois as feitas há mais tempo; vazio = null', async () => {
+    const { escolherProxima } = await import('./banco')
+    expect(escolherProxima([c('a', 2, true, '2026-10-01'), c('b', 0, null), c('c', 1, false, '2026-09-01')])?.id).toBe('b')
+    expect(escolherProxima([c('a', 2, true, '2026-10-01'), c('c', 1, false, '2026-10-02')])?.id).toBe('c')
+    expect(escolherProxima([c('a', 2, true, '2026-10-03'), c('d', 1, true, '2026-09-01')])?.id).toBe('d')
+    expect(escolherProxima([])).toBeNull()
   })
 })

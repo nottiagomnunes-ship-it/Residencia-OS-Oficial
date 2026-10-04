@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
 import { validarLote, textoParaHash, lerFiltros, sortear, nomeDaLista } from '@/lib/engine/banco'
 import { sugerirArea } from '@/lib/engine/areas'
+import { aplicarFiltros, assuntoDoFiltro } from '@/lib/banco-data'
 
 async function ctx() {
   const sb = await supabaseServer()
@@ -68,16 +69,10 @@ export async function importarNoBanco(dados: unknown): Promise<{ ok: true; novas
 export async function montarLista(fd: FormData) {
   const { sb } = await ctx()
   const campo = (k: string) => (fd.get(k) == null ? undefined : String(fd.get(k)))
-  const f = lerFiltros({ area: campo('area'), disciplina: campo('disciplina'), assunto: campo('assunto'), banca: campo('banca'), situacao: campo('situacao'), busca: campo('busca') })
+  const f = lerFiltros({ area: campo('area'), disciplina: campo('disciplina'), assunto: campo('assunto'), banca: campo('banca'), situacao: campo('situacao'), busca: campo('busca'), topico: campo('topico') })
   const qtd = Math.min(100, Math.max(1, Number(fd.get('quantidade')) || 10))
-  let q = sb.from('banco_questoes').select('id,assunto,discipline_id').eq('anulada', false).not('gabarito', 'is', null).limit(5000)
-  if (f.area) q = q.eq('area', f.area)
-  if (f.disciplina) q = q.eq('discipline_id', f.disciplina)
-  if (f.assunto) q = q.eq('assunto', f.assunto)
-  if (f.banca) q = q.eq('banca', f.banca)
-  if (f.situacao === 'nunca') q = q.eq('vezes', 0)
-  if (f.situacao === 'errei') q = q.eq('ultimo_certo', false)
-  if (f.situacao === 'acertei') q = q.eq('ultimo_certo', true)
+  const topico = await assuntoDoFiltro(sb, f)
+  const q = aplicarFiltros(sb.from('banco_questoes').select('id,assunto,discipline_id').eq('anulada', false).not('gabarito', 'is', null).limit(5000), f, topico)
   const { data, error } = await q
   const volta = `/banco?erro=`
   if (error) redirect(volta + encodeURIComponent(semTabela(error) ? SEM_TABELA : 'Não foi possível buscar as questões.'))
@@ -85,7 +80,7 @@ export async function montarLista(fd: FormData) {
   const escolhidas = sortear(data, qtd)
   let nomeDisc: string | null = null
   if (f.disciplina) { const { data: d } = await sb.from('disciplines').select('nome').eq('id', f.disciplina).maybeSingle(); nomeDisc = d?.nome ?? null }
-  const { data: tent, error: e2 } = await sb.rpc('montar_lista', { p_nome: nomeDaLista([nomeDisc, f.assunto, f.banca], escolhidas.length), p_ids: escolhidas.map(x => x.id) })
+  const { data: tent, error: e2 } = await sb.rpc('montar_lista', { p_nome: nomeDaLista([nomeDisc, f.assunto ?? topico?.nome, f.banca], escolhidas.length), p_ids: escolhidas.map(x => x.id) })
   if (e2 || !tent) redirect(volta + encodeURIComponent('Não foi possível montar a lista. Tente de novo.'))
   redirect(`/provas/tentativa/${tent}`)
 }

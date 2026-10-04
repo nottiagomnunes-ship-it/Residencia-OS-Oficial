@@ -134,17 +134,17 @@ export function validarLote(v: unknown, uid: string): { ok: true; questoes: Ques
 // ---------- Filtros e listas ----------
 
 export type Situacao = 'todas' | 'nunca' | 'errei' | 'acertei'
-export type Filtros = { area: Area | null; disciplina: string | null; assunto: string | null; banca: string | null; situacao: Situacao; busca: string }
+export type Filtros = { area: Area | null; disciplina: string | null; assunto: string | null; topico: string | null; banca: string | null; situacao: Situacao; busca: string }
 export function lerFiltros(sp: Record<string, string | undefined>): Filtros {
   const s = sp.situacao
   return {
-    area: lerArea(sp.area), disciplina: ehUuid(sp.disciplina) ? sp.disciplina : null, assunto: str(sp.assunto, 120), banca: str(sp.banca, 60),
+    area: lerArea(sp.area), disciplina: ehUuid(sp.disciplina) ? sp.disciplina : null, assunto: str(sp.assunto, 120), topico: ehUuid(sp.topico) ? sp.topico : null, banca: str(sp.banca, 60),
     situacao: s === 'nunca' || s === 'errei' || s === 'acertei' ? s : 'todas', busca: str(sp.busca, 80) ?? '',
   }
 }
 /** Para links e formulários: só os filtros preenchidos. */
 export const filtrosParaUrl = (f: Filtros) =>
-  new URLSearchParams(Object.entries({ area: f.area, disciplina: f.disciplina, assunto: f.assunto, banca: f.banca, situacao: f.situacao === 'todas' ? null : f.situacao, busca: f.busca || null })
+  new URLSearchParams(Object.entries({ area: f.area, disciplina: f.disciplina, assunto: f.assunto, topico: f.topico, banca: f.banca, situacao: f.situacao === 'todas' ? null : f.situacao, busca: f.busca || null })
     .filter(([, v]) => v) as [string, string][]).toString()
 
 /** Embaralha (Fisher–Yates) e pega n. `aleatorio` pode ser trocado nos testes. */
@@ -156,3 +156,16 @@ export function sortear<T>(xs: T[], n: number, aleatorio: () => number = Math.ra
 
 /** Nome da lista: "Anestesiologia · 10 questões" (ou o assunto, se filtrou por ele). */
 export const nomeDaLista = (partes: (string | null | undefined)[], n: number) => `${partes.filter(Boolean).join(' · ') || 'Banco de questões'} · ${n} ${n === 1 ? 'questão' : 'questões'}`
+
+/**
+ * Praticar: a próxima questão. Primeiro as que você nunca fez (ao acaso), depois as que errou na última vez (ao acaso), depois as feitas
+ * há mais tempo. As já vistas nesta sessão não voltam (o app passa a lista delas).
+ */
+export function escolherProxima<T extends { id: string; vezes: number; ultimo_certo: boolean | null; ultima_em: string | null }>(cands: T[], aleatorio: () => number = Math.random): T | null {
+  if (!cands.length) return null
+  const nunca = cands.filter(c => c.vezes === 0)
+  if (nunca.length) return sortear(nunca, 1, aleatorio)[0]
+  const errei = cands.filter(c => c.ultimo_certo === false)
+  if (errei.length) return sortear(errei, 1, aleatorio)[0]
+  return [...cands].sort((a, b) => (a.ultima_em ?? '').localeCompare(b.ultima_em ?? ''))[0]
+}
