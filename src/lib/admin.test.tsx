@@ -7,7 +7,7 @@ const h = vi.hoisted(() => ({
   ops: [] as Op[], redirects: [] as string[], rpcs: [] as { nome: string; args: any }[], admin: true,
   /** resposta de uma consulta: (tabela, filtros, campos) → { data, count, error } */
   resp: (() => ({ data: [], count: 0, error: null })) as (t: string, filtros: string[], campos: string) => any,
-  um: {} as Record<string, any>,
+  um: {} as Record<string, any>, uploads: [] as [string, string, number][],
 }))
 const cadeia = (t: string) => {
   const op: Op = { t, tipo: 'select', filtros: [], campos: '' }
@@ -25,12 +25,15 @@ const cadeia = (t: string) => {
 vi.mock('@/lib/supabase/server', () => ({ supabaseServer: async () => ({
   auth: { getUser: async () => ({ data: { user: { id: '11111111-1111-1111-1111-111111111111' } } }) }, from: (t: string) => cadeia(t),
   rpc: async (nome: string, args: any) => { h.rpcs.push({ nome, args }); return nome === 'eh_admin' ? { data: h.admin, error: null } : nome === 'publicar_no_banco_geral' ? { data: { novas: 0, atualizadas: 1 }, error: null } : { data: null, error: null } },
-  storage: { from: () => ({ createSignedUrls: async () => ({ data: [] }), copy: async () => ({ error: null }), remove: async () => ({}) }) },
+  storage: { from: () => ({ createSignedUrls: async (ps: string[]) => ({ data: ps.map(p => ({ path: p, signedUrl: `https://x/${p}` })) }), copy: async () => ({ error: null }), remove: async () => ({}),
+    upload: async (p: string, b: Buffer, o: any) => { h.uploads.push([p, o.contentType, b.length]); return { error: null } } }) },
 }) }))
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }))
 vi.mock('next/navigation', () => ({ redirect: (u: string) => { h.redirects.push(u); throw new Error('REDIRECT') }, useRouter: () => ({ refresh: () => {}, push: () => {} }) }))
 
-import { salvarQuestao, excluirQuestaoDaAdmin } from './banco'
+import { salvarQuestao, excluirQuestaoDaAdmin, importarNoBanco, lerPdfDeQuestoes } from './banco'
+import { readFileSync } from 'fs'
+import { MARCA_FIGURA } from './engine/provas-pdf'
 import { textoParaHash } from './engine/banco'
 import Pendencias from '@/app/(app)/admin/page'
 import EditarQuestao from '@/app/(app)/admin/questoes/[id]/page'
@@ -46,7 +49,7 @@ const QUESTAO = {
   banca: 'UFMA', ano: 2022, tema_id: null, explicacao: 'Porque sim.', explicacao_origem: 'ia', comentario: 'meu', origem_geral: 'g1',
 }
 const base = { id: Q1, bloco_0: 'Qual a conduta?', alt_letra: ['A', 'B'], alt_texto: ['Intubar', 'Observar'], gabarito: 'A', banca: 'UFMA', ano: '2022', tema: '', explicacao: 'Porque sim.', comentario: 'meu' }
-beforeEach(() => { Object.assign(h, { ops: [], redirects: [], rpcs: [], admin: true, um: {}, resp: () => ({ data: [], count: 0, error: null }) }) })
+beforeEach(() => { Object.assign(h, { ops: [], redirects: [], rpcs: [], admin: true, um: {}, uploads: [], resp: () => ({ data: [], count: 0, error: null }) }) })
 
 describe('salvar uma questão (Administração)', () => {
   beforeEach(() => { h.um.banco_questoes = QUESTAO })
@@ -85,6 +88,13 @@ describe('salvar uma questão (Administração)', () => {
     await expect(salvarQuestao(fd({ ...base, intencao: 'publicar', volta: `/admin/questoes/${Q1}?lista=%2Fadmin%2Fquestoes%3Fadm%3Dsem-tema` }))).rejects.toThrow('REDIRECT')
     expect(updates()).toHaveLength(1); expect(h.rpcs.find(r => r.nome === 'publicar_no_banco_geral')?.args.p_itens).toEqual([{ id: Q1, blocos: [{ tipo: 'texto', texto: 'x' }] }])
     expect(msg()).toBe(`/admin/questoes/${Q1}?lista=/admin/questoes?adm=sem-tema&ok=Salvo e atualizado no banco geral. As outras contas recebem ao abrir Praticar ou Banco.`)
+  })
+  it('figuras: tira a marcada, acrescenta a nova no lugar escolhido; caminho de outra conta é ignorado', async () => {
+    const U = '11111111-1111-1111-1111-111111111111', nova = `${U}/banco/cccccccc-cccc-cccc-cccc-cccccccccccc.png`
+    await expect(salvarQuestao(fd({ ...base, remover_figura: '1', figura_nova: [`-1|${nova}`, `0|outra-conta/banco/cccccccc-cccc-cccc-cccc-cccccccccccc.png`] }))).rejects.toThrow('REDIRECT')
+    expect(updates()[0].dados.blocos).toEqual([{ tipo: 'imagem', caminho: nova }, { tipo: 'texto', texto: 'Qual a conduta?' }])
+    await expect(salvarQuestao(fd({ ...base, figura_nova: `0|${nova}` }))).rejects.toThrow('REDIRECT')
+    expect(updates()[1].dados.blocos.map((b: any) => b.caminho ?? b.texto)).toEqual(['Qual a conduta?', nova, 'u/fig.png'])
   })
   it('estudante não edita; "volta" de fora é ignorada', async () => {
     h.admin = false
@@ -125,12 +135,37 @@ describe('telas da Administração', () => {
     const html = renderToStaticMarkup(await EditarQuestao({ params: Promise.resolve({ id: Q1 }), searchParams: Promise.resolve({ lista }) }))
     expect(html).toContain('Alterada, falta publicar'); expect(html).toMatch(/2(<!-- -->)? de (<!-- -->)?3/)
     expect(html).toContain(`href="/admin/questoes/${Q0}?lista=${encodeURIComponent(lista)}"`); expect(html).toContain(`href="/admin/questoes/${Q2}?lista=${encodeURIComponent(lista)}"`)
-    expect(html).toContain('name="bloco_0"'); expect(html).not.toContain('name="bloco_1"'); expect(html).toContain('Figura (fica como está)')
+    expect(html).toContain('name="bloco_0"'); expect(html).not.toContain('name="bloco_1"'); expect(html).toContain('name="remover_figura" value="1"'); expect(html).toContain('Acrescentar figura')
     expect(html).toContain('Salvar e atualizar no banco geral'); expect(html).toContain('escrita pela IA'); expect(html).toContain('nunca é publicado')
     expect(html).toContain(`name="volta" value="/admin/questoes/${Q1}?lista=${encodeURIComponent(lista)}"`)
   })
   it('ações em lote: escondidas até marcar alguma questão', () => {
     const html = renderToStaticMarkup(<BarraDoLote form="lote"><button>Publicar</button></BarraDoLote>)
     expect(html).toContain('Marque questões na lista'); expect(html).not.toContain('Publicar')
+  })
+})
+
+describe('importar de novo com figuras', () => {
+  it('a questão que já estava no banco SEM figura ganha as figuras do arquivo; a que já tinha figura fica como está', async () => {
+    const U = '11111111-1111-1111-1111-111111111111'
+    const q = (texto: string) => ({ blocos: [{ tipo: 'texto', texto }, { tipo: 'imagem', caminho: `${U}/banco/fig-${texto}.png` }], alternativas: [{ letra: 'A', texto: 'a' }, { letra: 'B', texto: 'b' }], gabarito: 'A' })
+    const hash = (texto: string) => createHash('sha256').update(textoParaHash([{ tipo: 'texto', texto }], [{ letra: 'A', texto: 'a' }, { letra: 'B', texto: 'b' }] as any)).digest('hex')
+    h.resp = (t, f, c) => (t === 'banco_questoes' && c === 'id,hash,blocos'
+      ? { data: [{ id: Q1, hash: hash('Um'), blocos: [{ tipo: 'texto', texto: 'Um' }] }, { id: Q2, hash: hash('Dois'), blocos: [{ tipo: 'texto', texto: 'Dois' }, { tipo: 'imagem', caminho: 'x.png' }] }], error: null }
+      : { data: [], error: null })
+    const r = await importarNoBanco({ questoes: [q('Um'), q('Dois')] })
+    expect(r).toMatchObject({ ok: true, novas: 0, repetidas: 2, figuras: '1 questão que já estava no banco ganhou a figura.' })
+    expect(updates().map(u => [u.filtros, u.dados.blocos[1].caminho])).toEqual([[[`eq(id,${Q1})`], `${U}/banco/fig-Um.png`]])
+  })
+})
+
+describe('ler o PDF com as figuras', () => {
+  it('guarda as figuras na pasta da conta (WebP) e devolve o caminho e o link para a prévia, com o texto marcado', async () => {
+    const f = new FormData(); f.set('pdf', new File([readFileSync('src/lib/__fixtures__/prova-com-figuras.pdf')], 'prova.pdf', { type: 'application/pdf' }))
+    const r = await lerPdfDeQuestoes(f)
+    expect(r.erro).toBeUndefined(); expect(Object.keys(r.figuras!)).toEqual(['pdf-p1-1', 'pdf-p2-2'])
+    expect(h.uploads.map(u => [u[0].replace(/\/banco\/[0-9a-f-]{36}/, '/banco/ID'), u[1]])).toEqual([['11111111-1111-1111-1111-111111111111/banco/ID.webp', 'image/webp'], ['11111111-1111-1111-1111-111111111111/banco/ID.webp', 'image/webp']])
+    expect(r.figuras!['pdf-p1-1']).toEqual({ caminho: h.uploads[0][0], url: `https://x/${h.uploads[0][0]}` })
+    expect(r.paginas![0]).toContain(`Observe o ECG abaixo:\n${MARCA_FIGURA}pdf-p1-1\nQual o diagnóstico?`)
   })
 })

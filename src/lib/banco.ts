@@ -6,6 +6,8 @@ import { supabaseServer } from '@/lib/supabase/server'
 import { validarLote, textoParaHash, lerFiltros, sortear, nomeDaLista, sugerirAssunto, rotuloDosAnos, SEM_ASSUNTO } from '@/lib/engine/banco'
 import { textoDosBlocos, ehLetra, type Alternativa, type Bloco } from '@/lib/engine/provas'
 import { sugerirArea, normalizar, lerArea } from '@/lib/engine/areas'
+import { lerPdfComFiguras } from '@/lib/pdf-figuras'
+import { MARCA_FIGURA } from '@/lib/engine/provas-pdf'
 import { aplicarFiltros, assuntoDoFiltro, podeOrganizar, SO_ADMIN, ehAdmin, carregarTemas, aplicarFiltroAdmin, lerFiltroAdmin, hashesReportados } from '@/lib/banco-data'
 import { lerListaDeTemas, sugerirTemas, type Tema } from '@/lib/engine/temas'
 
@@ -22,20 +24,44 @@ const semTabela = (e: { code?: string; message?: string } | null) => !!e && (e.c
 const refresh = () => ['/banco', '/questoes', '/desempenho', '/caderno-de-erros', '/inicio'].forEach(p => revalidatePath(p, 'layout'))
 
 /** O texto do PDF, página por página (o navegador monta as questões e mostra a prévia). */
-export async function lerPdfDeQuestoes(fd: FormData): Promise<{ paginas?: string[]; erro?: string }> {
-  const { sb } = await ctx()
+/**
+ * Lê o PDF de questões: o texto de cada página, com as figuras no lugar. As figuras já são guardadas aqui (na pasta da conta), porque mandar
+ * todas de volta para o navegador passaria do limite de tamanho da resposta; volta o caminho e um link temporário para a prévia.
+ */
+export async function lerPdfDeQuestoes(fd: FormData): Promise<{ paginas?: string[]; figuras?: Record<string, { caminho: string; url: string | null }>; avisoFiguras?: string; erro?: string }> {
+  const { sb, uid } = await ctx()
   if (!(await podeOrganizar(sb))) return { erro: SO_ADMIN }
   const f = fd.get('pdf')
   if (!(f instanceof File) || f.size === 0) return { erro: 'Selecione um arquivo PDF.' }
   if (f.size > 4 * 1024 * 1024) return { erro: 'O PDF passa de 4 MB. Divida o arquivo em partes menores.' }
+  const dados = new Uint8Array(await f.arrayBuffer())
+  let paginas: string[], lidas: Awaited<ReturnType<typeof lerPdfComFiguras>>['figuras'] = {}, avisoFiguras: string | undefined
   try {
-    const { extractText, getDocumentProxy } = await import('unpdf')
-    const pdf = await getDocumentProxy(new Uint8Array(await f.arrayBuffer()))
-    const { text } = await extractText(pdf, { mergePages: false })
-    const paginas = (Array.isArray(text) ? text : [text]).map(t => String(t))
-    if (paginas.join('').trim().length < 50) return { erro: 'Não consegui extrair texto: o PDF parece ser uma imagem escaneada.' }
-    return { paginas }
-  } catch { return { erro: 'Não consegui ler esse PDF.' } }
+    ({ paginas, figuras: lidas } = await lerPdfComFiguras(dados.slice()))
+  } catch { // se a leitura das figuras falhar, segue só com o texto
+    try {
+      const { extractText, getDocumentProxy } = await import('unpdf')
+      const { text } = await extractText(await getDocumentProxy(dados.slice()), { mergePages: false })
+      paginas = (Array.isArray(text) ? text : [text]).map(t => String(t))
+      avisoFiguras = 'Não consegui tirar as figuras deste PDF; as questões vieram só com o texto.'
+    } catch { return { erro: 'Não consegui ler esse PDF.' } }
+  }
+  if (paginas.join('').split('\n').filter(l => !l.startsWith(MARCA_FIGURA)).join('').trim().length < 50) return { erro: 'Não consegui extrair texto: o PDF parece ser uma imagem escaneada.' }
+  const st = sb.storage.from('provas'), figuras: Record<string, { caminho: string; url: string | null }> = {}
+  const lista = Object.entries(lidas)
+  for (let i = 0; i < lista.length; i += 6) await Promise.all(lista.slice(i, i + 6).map(async ([nome, fig]) => { // 6 de cada vez
+    const caminho = `${uid}/banco/${crypto.randomUUID()}.${fig.ext}`
+    const { error } = await st.upload(caminho, fig.bytes, { contentType: fig.tipo, upsert: false })
+    if (error) avisoFiguras = 'Algumas figuras não puderam ser guardadas; essas questões vieram sem a figura.'
+    else figuras[nome] = { caminho, url: null }
+  }))
+  const caminhos = Object.values(figuras).map(x => x.caminho)
+  if (caminhos.length) {
+    const { data } = await st.createSignedUrls(caminhos, 60 * 60 * 6)
+    const url = new Map((data ?? []).map(d => [d.path, d.signedUrl]))
+    for (const x of Object.values(figuras)) x.url = url.get(x.caminho) ?? null
+  }
+  return { paginas, figuras, ...(avisoFiguras ? { avisoFiguras } : {}) }
 }
 
 /** Cria a disciplina do lote quando ela ainda não existe (com a área sugerida pelo nome). Devolve o id. */
@@ -57,7 +83,7 @@ export async function criarDisciplinaDoBanco(nome: string): Promise<{ id?: strin
 
 /** Grava o lote: confere, calcula a impressão digital de cada questão e deixa o banco ignorar as repetidas. */
 export async function importarNoBanco(dados: unknown, publicar: { colecao: string | null } | null = null, opcoes: { criarTemas?: boolean } = {}):
-  Promise<{ ok: true; novas: number; repetidas: number; publicacao?: string; erroPublicacao?: string; temas?: string; explicacoes?: string } | { ok: false; erro: string }> {
+  Promise<{ ok: true; novas: number; repetidas: number; publicacao?: string; erroPublicacao?: string; temas?: string; explicacoes?: string; figuras?: string } | { ok: false; erro: string }> {
   const { sb, uid } = await ctx()
   if (!(await podeOrganizar(sb))) return { ok: false, erro: SO_ADMIN }
   const v = validarLote(dados, uid)
@@ -78,13 +104,35 @@ export async function importarNoBanco(dados: unknown, publicar: { colecao: strin
   }
   const temas = itens.some(q => q.tema) ? await aplicarTemasDoLote(sb, itens, idPorHash, !!opcoes.criarTemas) : undefined
   const explicacoes = itens.some(q => q.explicacao) ? await aplicarExplicacoesDoLote(sb, itens, idPorHash) : undefined
-  const extras = { ...(temas ? { temas } : {}), ...(explicacoes ? { explicacoes } : {}) }
+  const figuras = novas < itens.length && itens.some(temFigura) ? await aplicarFigurasDoLote(sb, itens) : undefined
+  const extras = { ...(temas ? { temas } : {}), ...(explicacoes ? { explicacoes } : {}), ...(figuras ? { figuras } : {}) }
   if (!publicar) return { ok: true, novas, repetidas: itens.length - novas, ...extras }
   // "Publicar também no banco geral" (depois dos temas, para o tema ir junto)
   const ids = [...new Set(idPorHash.values())]
   const r = await publicarIds(sb, ids, publicar.colecao?.trim().slice(0, 120) || null)
   return r.ok ? { ok: true, novas, repetidas: itens.length - novas, publicacao: resumoDaPublicacao(r), ...extras }
     : { ok: true, novas, repetidas: itens.length - novas, ...extras, erroPublicacao: `As questões entraram no seu banco, mas a publicação falhou: ${r.erro} Publique pelo Banco → Organizar.` }
+}
+
+const temFigura = (q: { blocos: Bloco[] }) => q.blocos.some(b => b.tipo === 'imagem')
+
+/**
+ * Questões do arquivo que JÁ estavam no banco sem nenhuma figura (ex.: vieram antes de um PDF lido só como texto) e agora vêm com figura:
+ * passam a ter as figuras do arquivo (o texto é o mesmo, pela impressão digital). As que já tinham figura ficam como estão.
+ */
+async function aplicarFigurasDoLote(sb: Awaited<ReturnType<typeof supabaseServer>>, itens: { hash: string; blocos: Bloco[] }[]) {
+  const comFigura = new Map(itens.filter(temFigura).map(q => [q.hash, q.blocos]))
+  let n = 0
+  const hashes = [...comFigura.keys()]
+  for (let i = 0; i < hashes.length; i += 200) {
+    const { data } = await sb.from('banco_questoes').select('id,hash,blocos').in('hash', hashes.slice(i, i + 200))
+    for (const q of (data ?? []) as { id: string; hash: string; blocos: Bloco[] }[]) {
+      if (temFigura({ blocos: q.blocos ?? [] })) continue
+      const { error } = await sb.from('banco_questoes').update({ blocos: comFigura.get(q.hash) }).eq('id', q.id)
+      if (!error) n++
+    }
+  }
+  return n ? `${n} ${n === 1 ? 'questão que já estava no banco ganhou a figura' : 'questões que já estavam no banco ganharam as figuras'}.` : undefined
 }
 
 /** Sorteia as questões que batem com os filtros e abre a lista na tela de prova. */
@@ -536,7 +584,7 @@ const voltaDaEdicao = (fd: FormData, id: string) => {
  * Com intencao=publicar, publica (ou atualiza) no banco geral logo depois.
  */
 export async function salvarQuestao(fd: FormData) {
-  const { sb } = await ctx()
+  const { sb, uid } = await ctx()
   const id = String(fd.get('id') || '')
   if (!/^[0-9a-f-]{36}$/i.test(id)) redirect('/admin/questoes')
   const volta = voltaDaEdicao(fd, id)
@@ -545,13 +593,23 @@ export async function salvarQuestao(fd: FormData) {
   if (e0) redirect(comAviso(volta, 'erro', 'Falta atualizar o banco: rode as migrations até a 0043_admin_pendencias.sql no SQL Editor do Supabase.'))
   if (!q) redirect(comAviso('/admin/questoes', 'erro', 'Questão não encontrada.'))
 
-  // enunciado: o texto de cada bloco de texto (bloco_0, bloco_1…); as figuras ficam; um bloco de texto apagado sai
-  const blocos: Bloco[] = []
+  // enunciado: o texto de cada bloco de texto (bloco_0, bloco_1…); um bloco de texto apagado sai. Figuras: "remover_figura" = índice
+  // de uma figura que sai; "figura_nova" = "depois de qual bloco|caminho" (já enviada para o armazenamento, na pasta da conta)
+  const remover = new Set(fd.getAll('remover_figura').map(Number))
+  const novas = fd.getAll('figura_nova').map(String).map(v => { const [p, c] = v.split('|'); return { depoisDe: Number(p), caminho: c } })
+    .filter(n => Number.isInteger(n.depoisDe) && new RegExp(`^${uid}/banco/[0-9a-f-]{36}\\.(png|jpg|jpeg|gif|webp)$`).test(n.caminho ?? ''))
+  const blocos: Bloco[] = [], depois = (k: number) => novas.filter(n => n.depoisDe === k).forEach(n => blocos.push({ tipo: 'imagem', caminho: n.caminho }))
+  depois(-1)
   ;((q.blocos ?? []) as Bloco[]).forEach((b, k) => {
-    if (b.tipo !== 'texto') { blocos.push(b); return }
-    const t = fd.has(`bloco_${k}`) ? String(fd.get(`bloco_${k}`)).replace(/\r\n/g, '\n').trim().slice(0, 20000) : b.texto
-    if (t) blocos.push({ ...b, texto: t })
+    if (b.tipo !== 'texto') { if (!remover.has(k)) blocos.push(b) }
+    else {
+      const t = fd.has(`bloco_${k}`) ? String(fd.get(`bloco_${k}`)).replace(/\r\n/g, '\n').trim().slice(0, 20000) : b.texto
+      if (t) blocos.push({ ...b, texto: t })
+    }
+    depois(k)
   })
+  const ultimo = ((q.blocos ?? []) as Bloco[]).length - 1
+  novas.filter(n => n.depoisDe > ultimo).forEach(n => blocos.push({ tipo: 'imagem', caminho: n.caminho }))
   if (!blocos.some(b => b.tipo === 'texto')) redirect(comAviso(volta, 'erro', 'O enunciado não pode ficar vazio.'))
 
   // alternativas: as letras e os textos na ordem; uma alternativa sem texto sai

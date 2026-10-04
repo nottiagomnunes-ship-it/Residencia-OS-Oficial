@@ -8,6 +8,7 @@ import { lerFiltros } from '@/lib/engine/banco'
 import { LETRAS, ehLetra, type Alternativa } from '@/lib/engine/provas'
 import { inputCls, fmtData } from '@/components/ui'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
+import NovaFigura from '@/components/admin/NovaFigura'
 import AssuntoDaQuestao, { type TopicoSimples } from '@/components/banco/AssuntoDaQuestao'
 
 type Extra = { tema_id: string | null; explicacao: string | null; explicacao_origem: string | null; pendente_publicar: boolean | null }
@@ -95,8 +96,11 @@ export default async function EditarQuestao({ params, searchParams }: { params: 
           {((q.blocos ?? []) as { tipo: string; texto?: string; caminho?: string }[]).map((b, k) => b.tipo === 'texto'
             ? <textarea key={k} name={`bloco_${k}`} defaultValue={b.texto} rows={Math.min(14, Math.max(3, Math.ceil((b.texto?.length ?? 0) / 90)))} aria-label={`Texto ${k + 1} do enunciado`} className={area} />
             : <figure key={k} className="rounded-xl border border-line p-2 text-xs text-muted">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 {urlDe.get(b.caminho!) ? <img src={urlDe.get(b.caminho!)} alt={`Figura ${k + 1} do enunciado`} className="max-h-72 rounded-lg" /> : <span>[figura]</span>}
-                <figcaption className="mt-1">Figura (fica como está)</figcaption></figure>)}
+                <figcaption className="mt-1 flex items-center gap-2"><label className="flex items-center gap-2 text-danger"><input type="checkbox" name="remover_figura" value={k} className="size-4" />Tirar esta figura</label></figcaption></figure>)}
+          <NovaFigura trechos={((q.blocos ?? []) as { tipo: string; texto?: string }[]).flatMap((b, k) => (b.tipo === 'texto'
+            ? [{ indice: k, rotulo: `Depois de “${(b.texto ?? '').slice(0, 50)}${(b.texto ?? '').length > 50 ? '…' : ''}”` }] : [{ indice: k, rotulo: `Depois da figura ${k + 1}` }]))} />
           <p className="text-xs text-muted">Apagar todo o texto de um trecho tira esse trecho.</p>
         </section>
 

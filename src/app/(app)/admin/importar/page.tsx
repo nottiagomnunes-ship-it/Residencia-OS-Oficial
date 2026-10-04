@@ -5,6 +5,9 @@ import ImportarBanco from '@/components/banco/ImportarBanco'
 import { redirect } from 'next/navigation'
 import { podeOrganizar, ehAdmin, carregarTemas } from '@/lib/banco-data'
 
+/** Ler um PDF com figuras (e guardar as figuras) pode passar dos 10 s padrão do Vercel: até 60 s nas ações desta página. */
+export const maxDuration = 60
+
 export default async function ImportarAdmin() {
   const sb = await supabaseServer()
   if (!(await podeOrganizar(sb))) redirect('/banco/questoes') // só a conta administradora importa

@@ -13,9 +13,11 @@ import { Enunciado } from '@/components/provas/Enunciado'
 import type { BlocoNaTela } from '@/lib/provas-data'
 
 type Lido = { itens: ItemLido[]; avisos: string[]; figurasFaltando: number[]; semResposta: number[]; arquivo: string
-  imagens: Record<string, Blob>; urls: Record<string, string> } // imagens: nome no lote → arquivo (docx e pacote)
+  imagens: Record<string, Blob>; urls: Record<string, string> // imagens: nome no lote → arquivo (docx e pacote)
+  enviadas: Record<string, string> } // figuras do PDF: já guardadas pelo servidor (nome no lote → caminho)
 
 const NOVA = '__nova__'
+
 /** "anestesio_2.pdf" → "Anestesio"; "Cardiologia - lote 3.json" → "Cardiologia". Só um palpite para o nome da disciplina. */
 const palpiteDisciplina = (arquivo: string) => {
   const b = arquivo.replace(/\.[^.]+$/, '').replace(/[_\-]+/g, ' ').replace(/\b(lote|parte|banco|questoes|questões)\b.*$/i, '').replace(/\d+/g, '').trim()
@@ -28,7 +30,7 @@ export default function ImportarBanco({ disciplinas, assuntos, admin = false, te
   const [lido, setLido] = useState<Lido | null>(null), [erro, setErro] = useState<string | null>(null), [lendo, setLendo] = useState(false)
   const [disc, setDisc] = useState(''), [novaDisc, setNovaDisc] = useState(''), [fonte, setFonte] = useState('')
   const [salvando, setSalvando] = useState<string | null>(null), [aberta, setAberta] = useState<number | null>(null)
-  const [resultado, setResultado] = useState<{ novas: number; repetidas: number; publicacao?: string; erroPublicacao?: string; temas?: string; explicacoes?: string } | null>(null)
+  const [resultado, setResultado] = useState<{ novas: number; repetidas: number; publicacao?: string; erroPublicacao?: string; temas?: string; explicacoes?: string; figuras?: string } | null>(null)
   // administrador: publicar no banco geral junto com a importação (já vai para todas as contas)
   const [publicar, setPublicar] = useState(true), [colecao, setColecao] = useState(''), [criarTemas, setCriarTemas] = useState(true)
   // assunto: '' = o que veio no arquivo (ou a sugestão); 't:<id>' = um assunto de Matérias; 'nenhum'; 'outro' = o nome escrito em textoTodas
@@ -42,6 +44,7 @@ export default function ImportarBanco({ disciplinas, assuntos, admin = false, te
     try {
       const ext = f.name.toLowerCase().split('.').pop()
       let itens: ItemLido[] = [], avisos: string[] = [], semResposta: number[] = [], imagens: Record<string, Blob> = {}, discNome: string | null = null, fonteLote: string | null = null
+      const enviadas: Record<string, string> = {}, urlsProntas: Record<string, string> = {}
       if (ext === 'pdf') {
         const fd = new FormData(); fd.set('pdf', f)
         const r = await lerPdfDeQuestoes(fd)
@@ -49,6 +52,9 @@ export default function ImportarBanco({ disciplinas, assuntos, admin = false, te
         const prova = montarQuestoes(paragrafosDoPdf(r.paginas))
         const g = lerGabarito(prova.gabaritoTexto ?? '', prova.questoes.map(q => q.numero))
         itens = itensDeQuestoes(prova.questoes, g.respostas); avisos = prova.avisos; semResposta = g.semResposta
+        // as figuras que o servidor tirou do PDF (já guardadas): só o caminho e o link para a prévia
+        for (const [nome, x] of Object.entries(r.figuras ?? {})) { enviadas[nome] = x.caminho; if (x.url) urlsProntas[nome] = x.url }
+        if (r.avisoFiguras) avisos = [r.avisoFiguras, ...avisos]
       } else if (ext === 'docx') {
         const { paragrafos, imagens: bytes } = lerDocx(new Uint8Array(await f.arrayBuffer()))
         const prova = montarQuestoes(paragrafos)
@@ -61,9 +67,9 @@ export default function ImportarBanco({ disciplinas, assuntos, admin = false, te
         for (const [nome, d] of Object.entries(p.imagens)) imagens[nome] = await (await fetch(d)).blob()
       } else throw new ArquivoInvalido('Use um PDF, um .docx ou um pacote .json.')
       if (!itens.length) throw new ArquivoInvalido(avisos[0] ?? 'Nenhuma questão encontrada no arquivo.')
-      const urls = Object.fromEntries(Object.entries(imagens).map(([k, b]) => [k, URL.createObjectURL(b)]))
-      const figurasFaltando = ext === 'pdf' ? itens.filter(i => pareceTerFigura(i.questao)).map(i => i.questao.numero) : []
-      setLido({ itens, avisos, figurasFaltando, semResposta, arquivo: f.name, imagens, urls })
+      const urls = { ...urlsProntas, ...Object.fromEntries(Object.entries(imagens).map(([k, b]) => [k, URL.createObjectURL(b)])) }
+      const figurasFaltando = ext === 'pdf' ? itens.filter(i => pareceTerFigura(i.questao) && !i.questao.blocos.some(b => b.tipo === 'imagem')).map(i => i.questao.numero) : []
+      setLido({ itens, avisos, figurasFaltando, semResposta, arquivo: f.name, imagens, urls, enviadas })
       const nome = discNome ?? palpiteDisciplina(f.name)
       // "anestesio_2.pdf" também acha "Anestesiologia" (começo do nome, com pelo menos 5 letras)
       const achada = acharDisciplina(nome, disciplinas) ?? (nome.length >= 5 ? disciplinas.find(d => normalizar(d.nome).startsWith(normalizar(nome))) ?? null : null)
@@ -91,7 +97,7 @@ export default function ImportarBanco({ disciplinas, assuntos, admin = false, te
   const resumo = lido && {
     total: lido.itens.length, comGabarito: lido.itens.filter(i => i.gabarito && !i.anulada).length,
     anuladas: lido.itens.filter(i => i.anulada).map(i => i.questao.numero), semGabarito: lido.itens.filter(i => !i.gabarito && !i.anulada).map(i => i.questao.numero),
-    ia: lido.itens.filter(i => i.gabarito_origem === 'ia').length,
+    ia: lido.itens.filter(i => i.gabarito_origem === 'ia').length, comFigura: lido.itens.filter(i => i.questao.blocos.some(b => b.tipo === 'imagem')).length,
     comTema: lido.itens.filter(i => i.tema).length, comExplicacao: lido.itens.filter(i => i.explicacao).length,
     temasNovos: [...new Set(lido.itens.flatMap(i => (i.tema && !temasLista.some(t => normalizar(t.especialidade) === normalizar(i.tema!.especialidade) && normalizar(t.nome) === normalizar(i.tema!.nome)) ? [`${i.tema.especialidade} › ${i.tema.nome}`] : [])))],
     comAssunto: classificados.filter(i => i.topic_id).length, sugeridos: classificados.filter(i => i.sugerido).length, semAssunto: classificados.filter(i => !i.assunto).length,
@@ -112,7 +118,8 @@ export default function ImportarBanco({ disciplinas, assuntos, admin = false, te
         if (!r.id) throw new Error(r.erro ?? 'Não foi possível criar a disciplina.')
         lista = comAssunto(classificar(lido.itens, [...disciplinas, { id: r.id, nome: novaDisc, area: null }], assuntos, { id: r.id, nome: novaDisc, area: null }))
       }
-      const destino: Record<string, string> = {}
+      const destino: Record<string, string> = { ...lido.enviadas }
+      enviados.push(...Object.values(lido.enviadas)) // se a importação falhar, saem também
       const usadas = [...new Set(lista.flatMap(i => i.questao.blocos.flatMap(b => (b.tipo === 'imagem' ? [b.caminho] : []))))].filter(c => lido.imagens[c])
       for (const [k, c] of usadas.entries()) {
         setSalvando(`Enviando figuras (${k + 1} de ${usadas.length})…`)
@@ -123,7 +130,9 @@ export default function ImportarBanco({ disciplinas, assuntos, admin = false, te
       }
       setSalvando('Gravando as questões…')
       const questoes = lista.map(i => ({
-        blocos: i.questao.blocos.map((b): Bloco => (b.tipo === 'texto' ? b : destino[b.caminho] ? { tipo: 'imagem', caminho: destino[b.caminho] } : { tipo: 'texto', texto: '[Figura que não pôde ser importada]' })),
+        // figura que não veio: sai (um texto no lugar mudaria a impressão digital e a questão duplicaria ao importar de novo com a figura)
+        blocos: i.questao.blocos.flatMap((b): Bloco[] => (b.tipo === 'texto' ? [b] : destino[b.caminho] ? [{ tipo: 'imagem', caminho: destino[b.caminho] }] : []))
+          .concat(i.questao.blocos.some(b => b.tipo === 'texto') ? [] : [{ tipo: 'texto', texto: '[Figura que não pôde ser importada]' }]),
         alternativas: i.questao.alternativas, gabarito: i.anulada ? null : i.gabarito, gabarito_origem: i.anulada ? null : i.gabarito_origem, anulada: i.anulada,
         comentario: i.comentario, area: i.area, discipline_id: i.discipline_id, topic_id: i.topic_id, assunto: i.tema?.nome ?? i.assunto, banca: i.banca, ano: i.ano, fonte: fonte.trim() || null,
         tema: i.tema ? `${i.tema.especialidade} > ${i.tema.nome}` : null,
@@ -132,7 +141,7 @@ export default function ImportarBanco({ disciplinas, assuntos, admin = false, te
       if (admin && publicar) setSalvando('Gravando e publicando no banco geral…')
       const r = await importarNoBanco({ questoes }, admin && publicar ? { colecao: colecao.trim() || fonte.trim() || null } : null, { criarTemas })
       if (!r.ok) throw new Error(r.erro)
-      setResultado({ novas: r.novas, repetidas: r.repetidas, publicacao: r.publicacao, erroPublicacao: r.erroPublicacao, temas: r.temas, explicacoes: r.explicacoes }); setLido(null); setSalvando(null)
+      setResultado({ novas: r.novas, repetidas: r.repetidas, publicacao: r.publicacao, erroPublicacao: r.erroPublicacao, temas: r.temas, explicacoes: r.explicacoes, figuras: r.figuras }); setLido(null); setSalvando(null)
       router.refresh()
     } catch (e) {
       if (enviados.length) await sb.storage.from('provas').remove(enviados).catch(() => {})
@@ -154,6 +163,7 @@ export default function ImportarBanco({ disciplinas, assuntos, admin = false, te
         {resultado.novas} {resultado.novas === 1 ? 'questão nova entrou' : 'questões novas entraram'} no banco.{resultado.repetidas ? ` ${resultado.repetidas} já ${resultado.repetidas === 1 ? 'estava' : 'estavam'} lá e não ${resultado.repetidas === 1 ? 'foi repetida' : 'foram repetidas'}.` : ''} <a href="/admin/questoes" className="text-brand underline">Ver as questões</a> · <a href="/banco" className="text-brand underline">Praticar</a>
         {resultado.temas && <span className="mt-1 block">{resultado.temas}</span>}
         {resultado.explicacoes && <span className="mt-1 block">{resultado.explicacoes}</span>}
+        {resultado.figuras && <span className="mt-1 block">{resultado.figuras}</span>}
         {resultado.publicacao && <span className="mt-1 block">{resultado.publicacao}</span>}</p>}
       {resultado?.erroPublicacao && <p role="alert" className="rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm text-warn">{resultado.erroPublicacao}</p>}
 
@@ -161,12 +171,13 @@ export default function ImportarBanco({ disciplinas, assuntos, admin = false, te
         <section className={`${card} space-y-3`}>
           <h2 className="font-medium">Prévia</h2>
           <p className="text-sm">{resumo.total} questões · {resumo.comGabarito} com gabarito{resumo.ia ? ` (${resumo.ia} sugerido pela IA)` : ''}
+            {resumo.comFigura > 0 && ` · ${resumo.comFigura} com figura`}
             {resumo.anuladas.length > 0 && ` · anuladas: ${faixas(resumo.anuladas)}`}</p>
           {(lido.avisos.length > 0 || resumo.semGabarito.length > 0 || lido.figurasFaltando.length > 0) && (
             <ul className="space-y-1 rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm text-warn">
               {lido.avisos.slice(0, 8).map(a => <li key={a}>{a}</li>)}
               {resumo.semGabarito.length > 0 && <li>Sem gabarito (entram no banco, mas ficam fora das listas): {faixas(resumo.semGabarito)}.</li>}
-              {lido.figurasFaltando.length > 0 && <li>O PDF não traz as figuras para o app. Estas questões parecem depender de uma: {faixas(lido.figurasFaltando)}.</li>}
+              {lido.figurasFaltando.length > 0 && <li>Estas questões falam de uma figura, mas nenhuma veio do PDF (pode ser um desenho feito no próprio PDF, que não dá para copiar): {faixas(lido.figurasFaltando)}. Depois de importar, acrescente a figura em Administração → Questões → Editar (dá para colar um print).</li>}
             </ul>)}
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-sm text-muted">Disciplina destas questões
