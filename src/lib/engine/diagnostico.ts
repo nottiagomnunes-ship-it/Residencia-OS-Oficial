@@ -11,3 +11,17 @@ export function avaliarVariavel(nome: string, valor: string | undefined): Situac
   if (nome === 'CRON_SECRET' && valor.length < 16) return { nome, estado: 'atencao', detalhe: 'Curto demais. Use um texto aleatório com 20 ou mais caracteres.' }
   return { nome, estado: 'ok', detalhe: `Configurada (${valor.length} caracteres).` }
 }
+
+/** Mediana de uma lista de medições (ms), arredondada. */
+export const mediana = (xs: number[]) => {
+  if (!xs.length) return null
+  const o = [...xs].sort((a, b) => a - b), m = Math.floor(o.length / 2)
+  return Math.round(o.length % 2 ? o[m] : (o[m - 1] + o[m]) / 2)
+}
+/** O que o tempo de UMA consulta ao banco (ida e volta, a partir do servidor) quer dizer. Cada página faz algumas, em paralelo. */
+export function avaliarLatencia(ms: number | null): { estado: 'ok' | 'atencao' | 'ausente'; detalhe: string } {
+  if (ms === null) return { estado: 'ausente', detalhe: 'Não foi possível medir (o banco não respondeu).' }
+  if (ms <= 15) return { estado: 'ok', detalhe: 'Servidor e banco estão perto um do outro.' }
+  if (ms <= 50) return { estado: 'atencao', detalhe: 'Razoável, mas o servidor e o banco provavelmente estão em regiões diferentes.' }
+  return { estado: 'atencao', detalhe: 'Lento: o servidor está longe do banco. Confira a região das funções na Vercel.' }
+}

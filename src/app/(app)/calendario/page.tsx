@@ -17,17 +17,17 @@ export default async function Calendario({ searchParams }: { searchParams: Promi
   const ancora = /^\d{4}-\d{2}-\d{2}$/.test(sp.d ?? '') ? sp.d! : hoje
   const dias = diasDaVisao(v, ancora)
   const sb = await supabaseServer()
-  const { data } = await sb.from('schedule_items').select('id,tipo,titulo,data,hora_ini,hora_fim,duracao_min,qtd_questoes,status,origem,review_id,topic_id')
-    .gte('data', dias[0]).lte('data', dias[dias.length - 1]).order('hora_ini', { nullsFirst: false }).order('ordem_dia', { nullsFirst: false }).order('titulo')
-  const comTopico = new Set((data ?? []).map((i: any) => i.topic_id).filter(Boolean))
-  const [{ data: et }, modelos] = await Promise.all([
+  // as tarefas, as etapas, os modelos e a agenda ao mesmo tempo; só as etapas das revisões dependem das tarefas
+  const [{ data }, { data: et }, modelos, { ocupados, livres }] = await Promise.all([
+    sb.from('schedule_items').select('id,tipo,titulo,data,hora_ini,hora_fim,duracao_min,qtd_questoes,status,origem,review_id,topic_id')
+      .gte('data', dias[0]).lte('data', dias[dias.length - 1]).order('hora_ini', { nullsFirst: false }).order('ordem_dia', { nullsFirst: false }).order('titulo'),
     sb.from('topic_tasks').select('id,topic_id,tipo,titulo,qtd_questoes,concluida').order('ordem').order('created_at').limit(5000), carregarModelos(sb),
+    agendaDosDias(sb, dias[0], dias[dias.length - 1]), // agenda pessoal (internato, academia...): só aparece junto, com o tempo livre do dia
   ])
+  const comTopico = new Set((data ?? []).map((i: any) => i.topic_id).filter(Boolean))
   const etapasRev = await etapasDasRevisoes(sb, (data ?? []).filter((i: any) => i.review_id && i.status !== 'concluido').map((i: any) => i.review_id))
   const etapas: Record<string, Etapa[]> = {}
   for (const e of et ?? []) if (comTopico.has(e.topic_id)) (etapas[e.topic_id] ??= []).push(e as Etapa)
-  // agenda pessoal (internato, academia...): só aparece junto, com o tempo livre do dia; o estudo continua sem horário
-  const { ocupados, livres } = await agendaDosDias(sb, dias[0], dias[dias.length - 1])
   const link = (view: string, d: string) => `/calendario?v=${view}&d=${d}`
   const fmt = (d: string, o: Intl.DateTimeFormatOptions) => new Date(d + 'T12:00:00Z').toLocaleDateString('pt-BR', { ...o, timeZone: 'UTC' })
   const titulo = v === 'mes' ? fmt(ancora, { month: 'long', year: 'numeric' }) : v === 'dia' ? fmt(ancora, { weekday: 'long', day: 'numeric', month: 'long' })

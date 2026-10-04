@@ -28,11 +28,11 @@ export async function carregarCores(sb: SupabaseClient): Promise<{ disponivel: b
 
 /** Os blocos da agenda em cada dia do intervalo (o dia anterior entra para o plantão que vira a noite) e o tempo livre de cada dia. */
 export async function agendaDosDias(sb: SupabaseClient, de: string, ate: string) {
-  const [ag, { data: p }, { cores }] = await Promise.all([carregarAgenda(sb), sb.from('profiles').select('janela_ini,janela_fim,folga_min').single(), carregarCores(sb)])
+  const [ag, { data: p }, { cores, disponivel: coresDisponivel }] = await Promise.all([carregarAgenda(sb), sb.from('profiles').select('janela_ini,janela_fim,folga_min').single(), carregarCores(sb)])
   const ocupados: Record<string, Intervalo[]> = {}, livres: Record<string, string> = {}
   /** Só nos dias com algo na agenda: o tempo livre (min), em texto curto, e a sugestão de estudo. */
   const sugestoes: Record<string, { livre: number; texto: string; sugestao: number }> = {}
-  if (!ag.disponivel || !ag.linhas.length) return { disponivel: ag.disponivel, ocupados, livres, sugestoes, linhas: ag.linhas, cores }
+  if (!ag.disponivel || !ag.linhas.length) return { disponivel: ag.disponivel, ocupados, livres, sugestoes, linhas: ag.linhas, cores, coresDisponivel }
   const todos = ocupadosPorData(ag.linhas.map(paraCompromisso), addDays(de, -1), ate)
   const janela = janelaDoPerfil(p?.janela_ini, p?.janela_fim), folga = p?.folga_min ?? 30
   for (let d = de; d <= ate; d = addDays(d, 1)) {
@@ -42,5 +42,5 @@ export async function agendaDosDias(sb: SupabaseClient, de: string, ate: string)
     livres[d] = l.minutos ? `Livre: ${descreverJanelas(l.janelas)} (${formatarMinutos(l.minutos)})` : 'Sem tempo livre'
     sugestoes[d] = { livre: l.minutos, texto: l.minutos ? `${formatarMinutos(l.minutos)} livres (${descreverJanelas(l.janelas)})` : 'nenhum tempo livre', sugestao: sugestaoDeEstudo(l.minutos) }
   }
-  return { disponivel: true, ocupados, livres, sugestoes, linhas: ag.linhas, cores }
+  return { disponivel: true, ocupados, livres, sugestoes, linhas: ag.linhas, cores, coresDisponivel }
 }

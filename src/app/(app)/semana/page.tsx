@@ -11,11 +11,12 @@ import { agendaDosDias } from '@/lib/agenda-data'
 
 export default async function Semana() {
   const sb = await supabaseServer(), hoje = hojeBR(), seg = weekStart(hoje), prox = addDays(seg, 7)
-  const [{ data: p }, { data: caps }, { count: antigos }, { data: pp }] = await Promise.all([
+  const [{ data: p }, { data: caps }, { count: antigos }, { data: pp }, ag] = await Promise.all([
     sb.from('profiles').select('daily_minutes,available_weekdays').single(),
     sb.from('capacidade_dia').select('data,minutos').gte('data', seg).lte('data', addDays(prox, 6)),
     sb.from('commitments').select('id', { count: 'exact', head: true }).eq('agenda', false),
     sb.from('profiles').select('plano_gerado_em,capacidade_alterada_em').single(),
+    agendaDosDias(sb, hoje, addDays(prox, 6)), // a agenda só SUGERE o tempo de cada dia
   ])
   const informados = Object.fromEntries((caps ?? []).map(c => [c.data as string, c.minutos as number]))
   const padrao = p?.daily_minutes ?? 120, disponiveis = p?.available_weekdays ?? [1, 2, 3, 4, 5]
@@ -26,7 +27,6 @@ export default async function Semana() {
       padroes: Object.fromEntries(dias.map(d => [d, capacidadeDoDia(d, {}, padrao, disponiveis).minutos])),
     }
   }
-  const ag = await agendaDosDias(sb, hoje, addDays(prox, 6)) // a agenda só SUGERE o tempo de cada dia
   const a = semana(seg), b = semana(prox)
   return (
     <div className="max-w-4xl space-y-6">

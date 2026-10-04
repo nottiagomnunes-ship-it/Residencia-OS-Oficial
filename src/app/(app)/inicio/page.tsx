@@ -25,40 +25,36 @@ function Card({ titulo, valor, detalhe, cor = 'text-brand' }: { titulo: string; 
 }
 
 export default async function Inicio() {
-  const sb = await supabaseServer()
-  const { data: { user } } = await sb.auth.getUser()
-  const hoje = hojeBR()
-  const [{ data: p }, hojeQ, atrasQ] = await Promise.all([
-    sb.from('profiles').select('nome').eq('id', user!.id).single(),
+  const sb = await supabaseServer() // o layout já conferiu o login; aqui a RLS garante que só vêm os seus dados
+  const hoje = hojeBR(), segProx = addDays(weekStart(hoje), 7)
+  // tudo ao mesmo tempo: antes eram ~12 idas ao banco em fila
+  const [{ data: p }, hojeQ, atrasQ, des, metas, gam, { data: itensHoje }, { count: concluidasHoje }, { data: capHoje }, { data: perfilTempo }, agenda,
+    { data: capsSemana }, { data: perfilPlano }, { data: adi }, { data: feitosHoje }, modoRitmo, ritmoCalc] = await Promise.all([
+    sb.from('profiles').select('nome').single(),
     sb.from('reviews').select('id', { count: 'exact', head: true }).eq('status', 'pendente').eq('due_date', hoje),
     sb.from('reviews').select('id', { count: 'exact', head: true }).eq('status', 'pendente').lt('due_date', hoje),
-  ])
-  const des = await carregarDesempenho(sb, hoje)
-  const totQ = des.total, acQ = des.acertos
-  const metasSem = (await carregarMetas(sb, hoje)).filter(m => m.periodo === 'semana')
-  const progSem = metasSem.length ? Math.round(metasSem.reduce((n, m) => n + Math.min(100, m.pct), 0) / metasSem.length) : null
-  const gam = await carregarGamificacao(sb, hoje)
-  const { data: itensHoje } = await sb.from('schedule_items').select('id,tipo,titulo,data,hora_ini,hora_fim,duracao_min,topic_id,qtd_questoes').lte('data', hoje).neq('status', 'concluido').order('data').order('ordem_dia', { nullsFirst: false }).order('hora_ini', { nullsFirst: false }).limit(60)
-  const { count: concluidasHoje } = await sb.from('schedule_items').select('id', { count: 'exact', head: true }).eq('data', hoje).eq('status', 'concluido')
-  const [{ data: capHoje }, { data: perfilTempo }] = await Promise.all([
+    carregarDesempenho(sb, hoje), carregarMetas(sb, hoje), carregarGamificacao(sb, hoje),
+    sb.from('schedule_items').select('id,tipo,titulo,data,hora_ini,hora_fim,duracao_min,topic_id,qtd_questoes').lte('data', hoje).neq('status', 'concluido').order('data').order('ordem_dia', { nullsFirst: false }).order('hora_ini', { nullsFirst: false }).limit(60),
+    sb.from('schedule_items').select('id', { count: 'exact', head: true }).eq('data', hoje).eq('status', 'concluido'),
     sb.from('capacidade_dia').select('minutos').eq('data', hoje).maybeSingle(), sb.from('profiles').select('daily_minutes,available_weekdays').single(),
-  ])
-  const agendaHoje = (await agendaDosDias(sb, hoje, hoje)).sugestoes[hoje] ?? null // só sugere; o tempo muda com um toque
-  const tempoHoje = capacidadeDoDia(hoje, capHoje ? { [hoje]: capHoje.minutos } : {}, perfilTempo?.daily_minutes ?? 120, perfilTempo?.available_weekdays ?? [1, 2, 3, 4, 5])
-  const segProx = addDays(weekStart(hoje), 7)
-  const [{ data: capsSemana }, { data: perfilPlano }, { data: adi }, { data: feitosHoje }] = await Promise.all([
+    agendaDosDias(sb, hoje, hoje),
     sb.from('capacidade_dia').select('data,minutos').gte('data', hoje).lte('data', addDays(segProx, 6)),
     sb.from('profiles').select('plano_gerado_em,capacidade_alterada_em,semana_aviso').single(),
     sb.from('schedule_items').select('id,titulo,data,duracao_min').gt('data', hoje).lte('data', addDays(hoje, 14)).neq('status', 'concluido').in('tipo', ['estudo', 'questoes', 'flashcards']).order('data').order('ordem_dia', { nullsFirst: false }).limit(12),
     sb.from('schedule_items').select('duracao_min').eq('data', hoje).eq('status', 'concluido'),
+    carregarModoRitmo(sb), carregarRitmo(sb, hoje),
   ])
+  const totQ = des.total, acQ = des.acertos
+  const metasSem = metas.filter(m => m.periodo === 'semana')
+  const progSem = metasSem.length ? Math.round(metasSem.reduce((n, m) => n + Math.min(100, m.pct), 0) / metasSem.length) : null
+  const agendaHoje = agenda.sugestoes[hoje] ?? null // só sugere; o tempo muda com um toque
+  const tempoHoje = capacidadeDoDia(hoje, capHoje ? { [hoje]: capHoje.minutos } : {}, perfilTempo?.daily_minutes ?? 120, perfilTempo?.available_weekdays ?? [1, 2, 3, 4, 5])
   const recursos = !!perfilPlano // a migração 0021 foi aplicada (sem ela, só os avisos e os botões novos ficam de fora)
   const alvoSemana = recursos ? semanaAAvisar(hoje, Object.fromEntries((capsSemana ?? []).map(c => [c.data as string, c.minutos as number]))) : null
   const semanaAviso = alvoSemana && perfilPlano?.semana_aviso !== alvoSemana ? alvoSemana : null
   const desatualizado = recursos && planoDesatualizado(perfilPlano?.capacidade_alterada_em, perfilPlano?.plano_gerado_em)
   const minutosFeitos = (feitosHoje ?? []).reduce((s, x) => s + (x.duracao_min ?? 30), 0)
-  const modoRitmo = await carregarModoRitmo(sb)
-  const ritmo = modoRitmo === 'oculto' ? null : await carregarRitmo(sb, hoje)
+  const ritmo = modoRitmo === 'oculto' ? null : ritmoCalc
   const alerta = des.foco[0]?.nivel === 'alta' ? { titulo: '🔴 Alta prioridade', texto: des.foco[0].frase } : des.recomendacoes[0] ? { titulo: '🟡 Atenção', texto: des.recomendacoes[0].texto } : null
   const h = Number(new Intl.DateTimeFormat('pt-BR', { hour: 'numeric', hourCycle: 'h23', timeZone: 'America/Sao_Paulo' }).format(new Date()))
   const saudacao = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'

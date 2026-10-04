@@ -14,7 +14,7 @@
    Clique em Deploy.
 5. **Supabase → Authentication → URL Configuration:** coloque o endereço da Vercel (`https://SEU-APP.vercel.app`) em *Site URL* e `https://SEU-APP.vercel.app/**` em *Redirect URLs*.
 6. **Celular:** abra o endereço, entre com seu e-mail e senha e use "Adicionar à tela inicial" (Chrome: menu ⋮; Safari: Compartilhar).
-7. **Opcional:** em Vercel → Settings → Functions, escolha a região mais próxima do seu projeto Supabase (ex.: São Paulo).
+7. **Região:** o `vercel.json` fixa as funções em `yul1` (Montréal), a mesma região do Supabase deste projeto (ca-central-1). Se o Supabase mudar de região, troque esse código (São Paulo = `gru1`; lista em vercel.com/docs/regions). A página /diagnostico mostra a região e o tempo de uma consulta ao banco.
 
 Problemas comuns: build falha (leia o log da Vercel); tela de login em loop (variáveis de ambiente ausentes ou com valor errado); app lento (regiões distantes entre Vercel e Supabase); projeto Supabase gratuito pausa após 7 dias sem uso (reative no painel).
 

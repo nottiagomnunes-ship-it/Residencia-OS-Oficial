@@ -12,7 +12,6 @@ import AgendaForm from '@/components/AgendaForm'
 import BlocoAgenda from '@/components/BlocoAgenda'
 import EscalaRapida from '@/components/EscalaRapida'
 import CoresAgenda from '@/components/CoresAgenda'
-import { carregarCores } from '@/lib/agenda-data'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
 import { fmtData, inputCls } from '@/components/ui'
 
@@ -25,7 +24,7 @@ export default async function Agenda({ searchParams }: { searchParams: Promise<{
     sb.from('profiles').select('janela_ini,janela_fim,folga_min').single(),
     sb.from('commitments').select('id', { count: 'exact', head: true }).eq('agenda', false),
   ])
-  const coresDisp = (await carregarCores(sb)).disponivel
+  const coresDisp = ag.coresDisponivel
   const nomeDia = (d: string) => new Date(d + 'T12:00:00Z').toLocaleDateString('pt-BR', { weekday: 'long', timeZone: 'UTC' }).replace('-feira', '')
   const hora = (m: number) => (m >= 1440 ? '24:00' : minParaHhmm(m))
   const daSemana = ag.linhas.filter(l => l.tipo === 'pontual' && l.data && l.data >= seg && l.data <= dias[6]).map(l => ({ data: l.data!, hora_ini: l.hora_ini, hora_fim: l.hora_fim, titulo: l.titulo }))

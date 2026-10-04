@@ -83,7 +83,7 @@ describe('junção com o calendário', () => {
   })
   it('sem a 0029: nada aparece e nada quebra', async () => {
     h.dados['commitments:erro'] = { message: 'column commitments.agenda does not exist' }
-    expect(await agendaDosDias({ from: (t: string) => cadeia(t) } as any, '2026-10-06', '2026-10-08')).toEqual({ disponivel: false, ocupados: {}, livres: {}, sugestoes: {}, linhas: [], cores: {} })
+    expect(await agendaDosDias({ from: (t: string) => cadeia(t) } as any, '2026-10-06', '2026-10-08')).toEqual({ disponivel: false, ocupados: {}, livres: {}, sugestoes: {}, linhas: [], cores: {}, coresDisponivel: true })
   })
 })
 

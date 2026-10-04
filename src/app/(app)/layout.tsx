@@ -16,15 +16,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const sb = await supabaseServer()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) redirect('/login')
-  const { data: p } = await sb.from('profiles').select('onboarded').eq('id', user.id).single()
+  // tudo ao mesmo tempo (antes eram 6 idas ao banco em fila, em todas as páginas). O tutorial fica em consulta à parte: sem a 0031, dá erro e não aparece.
+  const [{ data: p }, { data: nv }, { data: gp }, assuntos, cron, { data: tut, error: semTutorial }, jar] = await Promise.all([
+    sb.from('profiles').select('onboarded').eq('id', user.id).single(),
+    sb.from('achievements').select('codigo').eq('visto', false),
+    sb.from('profiles').select('xp,rank_visto,nivel_visto').single(),
+    contarAssuntos(sb), carregarCronometro(sb),
+    sb.from('profiles').select('tutorial_visto_em').eq('id', user.id).single(),
+    cookies(),
+  ])
   if (!p?.onboarded) redirect('/onboarding')
-  const { data: nv } = await sb.from('achievements').select('codigo').eq('visto', false)
-  const [{ data: gp }, assuntos] = await Promise.all([sb.from('profiles').select('xp,rank_visto,nivel_visto').single(), contarAssuntos(sb)])
-  const cron = await carregarCronometro(sb)
-  // tutorial: só para conta nova que ainda não o viu (consulta à parte: sem a 0031 do banco, dá erro e não aparece)
-  const { data: tut, error: semTutorial } = await sb.from('profiles').select('tutorial_visto_em').eq('id', user.id).single()
   const primeiraVez = !semTutorial && !!tut && !tut.tutorial_visto_em
-  const menuRecolhido = (await cookies()).get('menu')?.value === 'recolhido' // escolha deste aparelho: menu lateral recolhido
+  const menuRecolhido = jar.get('menu')?.value === 'recolhido' // escolha deste aparelho: menu lateral recolhido
   const promo = gp ? promocoes({ passo: passoDoRank(assuntos.concluidos, assuntos.total), rankVisto: gp.rank_visto ?? 0, nivel: levelFor(gp.xp ?? 0), nivelVisto: gp.nivel_visto ?? 1 }) : { rank: null, titulo: null }
   return (
     <AvisosProvider>

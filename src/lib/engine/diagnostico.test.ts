@@ -15,3 +15,10 @@ it('formato esperado de cada chave e o valor nunca aparece', () => {
   expect(avaliarVariavel('CRON_SECRET', 'curto').estado).toBe('atencao'); expect(avaliarVariavel('CRON_SECRET', 'a'.repeat(32)).estado).toBe('ok')
   expect(JSON.stringify(avaliarVariavel('RESEND_API_KEY', 're_SEGREDO_MUITO_SECRETO'))).not.toMatch(/SEGREDO/)
 })
+
+import { mediana, avaliarLatencia } from './diagnostico'
+it('latência: mediana e leitura', () => {
+  expect(mediana([30, 2, 5, 3, 4])).toBe(4); expect(mediana([2, 4])).toBe(3); expect(mediana([])).toBeNull()
+  expect(avaliarLatencia(3).estado).toBe('ok'); expect(avaliarLatencia(25).estado).toBe('atencao'); expect(avaliarLatencia(120).detalhe).toMatch(/longe/)
+  expect(avaliarLatencia(null).estado).toBe('ausente')
+})
