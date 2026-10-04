@@ -119,9 +119,17 @@ describe('conferência no servidor', () => {
 describe('filtros e listas', () => {
   it('filtros vindos da URL são conferidos; a URL leva só o que está preenchido', () => {
     const f = lerFiltros({ area: 'cirurgia', disciplina: 'nao-e-uuid', situacao: 'errei', banca: ' UFMA ' })
-    expect(f).toEqual({ area: 'cirurgia', disciplina: null, assunto: null, topico: null, banca: 'UFMA', situacao: 'errei', busca: '' })
+    expect(f).toEqual({ area: 'cirurgia', disciplina: null, assunto: null, topico: null, banca: 'UFMA', situacao: 'errei', busca: '', anoDe: null, anoAte: null })
     expect(filtrosParaUrl(f)).toBe('area=cirurgia&banca=UFMA&situacao=errei')
     expect(lerFiltros({ area: 'x', situacao: 'y' })).toMatchObject({ area: null, situacao: 'todas' })
+  })
+  it('ano da prova: de/até conferidos, trocados se vierem invertidos, e rótulo para títulos', () => {
+    expect(lerFiltros({ de: '2024', ate: '2020' })).toMatchObject({ anoDe: 2020, anoAte: 2024 })
+    expect(lerFiltros({ de: '20', ate: 'abc' })).toMatchObject({ anoDe: null, anoAte: null })
+    expect(filtrosParaUrl(lerFiltros({ banca: 'UFMA', de: '2020' }))).toBe('banca=UFMA&de=2020')
+    expect(rotuloDosAnos({ anoDe: 2020, anoAte: 2024 })).toBe('2020–2024'); expect(rotuloDosAnos({ anoDe: 2022, anoAte: 2022 })).toBe('2022')
+    expect(rotuloDosAnos({ anoDe: 2020, anoAte: null })).toBe('desde 2020'); expect(rotuloDosAnos({ anoDe: null, anoAte: 2018 })).toBe('até 2018')
+    expect(rotuloDosAnos({ anoDe: null, anoAte: null })).toBeNull()
   })
   it('sorteio sem repetir e no tamanho pedido; nome da lista', () => {
     let s = 1; const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647)
@@ -156,7 +164,7 @@ describe('assunto pelo texto', () => {
   })
 })
 
-import { assuntoParecido } from './banco'
+import { assuntoParecido, rotuloDosAnos } from './banco'
 describe('assunto parecido (ligar assuntos)', () => {
   const ts = [{ id: '1', nome: 'Via aérea difícil', discipline_id: 'A' }, { id: '2', nome: 'Anestésicos locais', discipline_id: 'A' },
     { id: '3', nome: 'Via aérea', discipline_id: 'B' }, { id: '4', nome: 'Hipertermia maligna', discipline_id: 'A' }]

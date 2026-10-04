@@ -101,13 +101,13 @@ describe('telas', () => {
   }
   it('administradora: vê o bloco do banco geral; questões publicadas têm a marca', async () => {
     banco(); h.rpcRes.eh_admin = { data: true, error: null }
-    const html = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({}) }))
+    const html = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({ org: '1' }) }))
     expect(html).toContain('Publicar as marcadas'); expect(html).toContain('O comentário <b>não</b> vai')
     expect(html).toContain('· banco geral'); expect(html).toContain('5 questões novas do banco geral entraram no seu banco.')
   })
   it('conta comum: sem o bloco de publicar', async () => {
     banco(); h.rpcRes.eh_admin = { data: false, error: null }
-    const html = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({}) }))
+    const html = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({ org: '1' }) }))
     expect(html).not.toContain('Publicar as marcadas'); expect(html).toContain('· banco geral')
   })
   it('Praticar sincroniza antes de contar', async () => {

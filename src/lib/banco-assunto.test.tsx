@@ -7,7 +7,7 @@ const cadeia = (t: string) => {
   const op: Op = { t, tipo: 'select', filtros: [] }
   const r: any = {}
   for (const m of ['select', 'order', 'limit', 'range', 'not', 'neq', 'or']) r[m] = () => r
-  for (const m of ['eq', 'in', 'is']) r[m] = (...a: any[]) => { op.filtros.push(`${m}(${a.map(x => (Array.isArray(x) ? x.join('|') : String(x))).join(',')})`); h.filtros.push(`${t}.${op.filtros.at(-1)}`); return r }
+  for (const m of ['eq', 'in', 'is', 'gte', 'lte']) r[m] = (...a: any[]) => { op.filtros.push(`${m}(${a.map(x => (Array.isArray(x) ? x.join('|') : String(x))).join(',')})`); h.filtros.push(`${t}.${op.filtros.at(-1)}`); return r }
   r.update = (d: any) => { op.tipo = 'update'; op.dados = d; h.ops.push(op); return r }
   r.insert = (d: any) => { op.tipo = 'insert'; op.dados = d; h.ops.push(op); return r }
   r.delete = () => { op.tipo = 'delete'; h.ops.push(op); return r }
@@ -117,7 +117,7 @@ describe('ligar assuntos', () => {
       { id: Q2, blocos: [], alternativas: [], discipline_id: DISC, topic_id: null, assunto: 'Via aerea', vezes: 0, acertos: 0 }]
     h.dados.disciplines = [{ id: DISC, nome: 'Anestesiologia' }]
     h.dados.topics = [{ id: TOP, nome: 'Via aérea difícil', discipline_id: DISC }]
-    const html = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({}) }))
+    const html = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({ org: '1' }) }))
     expect(html).toContain('Ligar assuntos'); expect(html).toMatch(/<b class="font-medium">Via aerea<\/b> <span class="text-muted">· (<!-- -->)?2(<!-- -->)? (<!-- -->)?questões/)
     expect(html).toContain(`<option value="t:${TOP}" selected="">Via aérea difícil</option>`)
   })
@@ -158,9 +158,9 @@ describe('telas', () => {
       discipline_id: DISC, topic_id: null, assunto: null, vezes: 0, acertos: 0, ultimo_certo: null }]
     h.dados.disciplines = [{ id: DISC, nome: 'Anestesiologia' }]
     h.dados.topics = [{ id: TOP, nome: 'Anestésicos locais', discipline_id: DISC }]
-    const html = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({ ok: 'Assunto salvo em 1 questão.' }) }))
+    const html = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({ ok: 'Assunto salvo em 1 questão.', org: '1' }) }))
     expect(html).toMatch(new RegExp(`<input type="checkbox" form="lote"[^>]*name="sel" value="${Q1}"`))
-    expect(html).toContain('name="volta" value="/banco/questoes"')
+    expect(html).toContain('name="volta" value="/banco/questoes?org=1"')
     expect(html).toContain('id="lote"'); expect(html).toContain('Sugerir pelo texto'); expect(html).toContain('1 questão sem assunto')
     expect(html).toContain('Mudar assunto')
   })
@@ -179,5 +179,15 @@ describe('telas', () => {
   it('Praticar com o banco vazio: leva a importar', async () => {
     const html = renderToStaticMarkup(await PraticarInicio({ searchParams: Promise.resolve({}) }))
     expect(html).toContain('href="/banco/importar"'); expect(html).not.toContain('O que você quer praticar?')
+  })
+  it('busca simples: banca, assunto e ano à vista; sem "Organizar", nada de caixinhas nem ferramentas', async () => {
+    h.dados.banco_questoes = [{ id: Q1, blocos: [{ tipo: 'texto', texto: 'Enunciado' }], alternativas: [], gabarito: 'A', anulada: false, discipline_id: DISC, topic_id: null,
+      assunto: 'Via aérea', banca: 'UFMA', ano: 2022, vezes: 0, acertos: 0 }, { id: Q2, blocos: [], alternativas: [], banca: 'UFMA', ano: 2019, assunto: null, vezes: 0, acertos: 0 }]
+    const html = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({ banca: 'UFMA', de: '2020', ate: '2024' }) }))
+    expect(h.filtros).toEqual(expect.arrayContaining(['banco_questoes.eq(banca,UFMA)', 'banco_questoes.gte(ano,2020)', 'banco_questoes.lte(ano,2024)']))
+    expect(html).toContain('<option value="UFMA" selected="">UFMA (2)</option>'); expect(html).toContain('<option value="2022">2022</option>')
+    expect(html).toContain('href="/banco/praticar?banca=UFMA&amp;de=2020&amp;ate=2024"')
+    expect(html).not.toContain('name="sel"'); expect(html).not.toContain('Ligar assuntos'); expect(html).not.toContain('Sugerir pelo texto')
+    expect(html).toContain('href="/banco/questoes?banca=UFMA&amp;de=2020&amp;ate=2024&amp;org=1"')
   })
 })

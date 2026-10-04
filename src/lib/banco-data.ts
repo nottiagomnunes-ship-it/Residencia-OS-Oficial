@@ -19,6 +19,8 @@ export function aplicarFiltros<Q>(q: Q, f: Filtros, topico: { id: string; nome: 
   else if (f.assunto) x = x.eq('assunto', f.assunto)
   if (topico) x = x.or(`topic_id.eq.${topico.id},and(discipline_id.eq.${topico.discipline_id},assunto.eq."${topico.nome.replace(/["\\]/g, '')}")`)
   if (f.banca) x = x.eq('banca', f.banca)
+  if (f.anoDe) x = x.gte('ano', f.anoDe)
+  if (f.anoAte) x = x.lte('ano', f.anoAte)
   if (f.situacao === 'nunca') x = x.eq('vezes', 0)
   if (f.situacao === 'errei') x = x.eq('ultimo_certo', false)
   if (f.situacao === 'acertei') x = x.eq('ultimo_certo', true)

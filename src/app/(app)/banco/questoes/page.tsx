@@ -17,16 +17,16 @@ type Linha = { id: string; blocos: Bloco[]; alternativas: { letra: string; texto
 
 /** Banco: organizar as questões (ver, filtrar, dar assunto, excluir, importar). Estudar fica em Praticar (/banco). */
 export default async function BancoDeQuestoes({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const sp = await searchParams, f = lerFiltros(sp), pagina = Math.max(1, Number(sp.p) || 1)
+  const sp = await searchParams, f = lerFiltros(sp), pagina = Math.max(1, Number(sp.p) || 1), org = sp.org === '1' // org: modo Organizar (assuntos, lote, banco geral)
   const sb = await supabaseServer()
   // primeiro o banco geral (questões novas e correções), para a lista já vir com elas
   const [sync, topico, admin] = await Promise.all([sincronizarBancoGeral(sb), assuntoDoFiltro(sb, f), ehAdmin(sb)])
-  const aviso = avisoDoBancoGeral(sync), daPagina = <T,>(q: T) => (aplicarFiltros(q, f, topico) as any).order('criada_em', { ascending: false }).range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1)
+  const aviso = avisoDoBancoGeral(sync), daPagina = <T,>(q: T) => (aplicarFiltros(q, f, topico) as any).order('ano', { ascending: false, nullsFirst: false }).order('criada_em', { ascending: false }).range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1)
   // separadas: sem a 0037, estas falham e a página segue sem as marcas do banco geral
   const [{ data: todas, error }, { data: lista, count }, { data: ds }, { data: ts }, { data: geralDaPagina }, { count: removidas }, { data: colecoes }] = await Promise.all([
-    sb.from('banco_questoes').select('discipline_id,topic_id,assunto,banca').limit(20000),
+    sb.from('banco_questoes').select('discipline_id,topic_id,assunto,banca,ano').limit(20000),
     aplicarFiltros(sb.from('banco_questoes').select('id,blocos,alternativas,gabarito,gabarito_origem,anulada,comentario,area,discipline_id,topic_id,assunto,banca,ano,vezes,acertos,ultimo_certo', { count: 'exact' }), f, topico)
-      .order('criada_em', { ascending: false }).range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1),
+      .order('ano', { ascending: false, nullsFirst: false }).order('criada_em', { ascending: false }).range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1),
     sb.from('disciplines').select('id,nome').order('ordem'),
     sb.from('topics').select('id,nome,discipline_id').limit(5000),
     daPagina(sb.from('banco_questoes').select('id,origem_geral')),
@@ -39,8 +39,11 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
   const T = todas ?? [], discs = (ds ?? []) as { id: string; nome: string }[], topicos = (ts ?? []) as TopicoSimples[]
   const nomeDisc = new Map(discs.map(d => [d.id, d.nome]))
   const discsComQuestao = [...new Set(T.map(q => q.discipline_id).filter(Boolean))] as string[]
-  const assuntos = [...new Set(T.filter(q => !f.disciplina || q.discipline_id === f.disciplina).map(q => q.assunto).filter(Boolean))].sort() as string[]
-  const bancas = [...new Set(T.map(q => q.banca).filter(Boolean))].sort() as string[]
+  /** Valores de um campo com quantas questões têm cada um (para os seletores: "UFMA (120)"). */
+  const contar = (xs: (string | null)[]) => { const m = new Map<string, number>(); for (const x of xs) if (x) m.set(x, (m.get(x) ?? 0) + 1); return m }
+  const assuntos = [...contar(T.filter(q => !f.disciplina || q.discipline_id === f.disciplina).map(q => q.assunto))].sort((a, b) => a[0].localeCompare(b[0]))
+  const bancas = [...contar(T.map(q => q.banca))].sort((a, b) => a[0].localeCompare(b[0]))
+  const anos = [...new Set(T.map(q => q.ano).filter((a): a is number => !!a))].sort((a, b) => b - a)
   const semAssunto = T.filter(q => !q.assunto).length
   // "Ligar assuntos": nomes de assunto que não estão ligados a Matérias (ex.: vieram do banco geral com um nome diferente do seu)
   const porNome = new Map<string, { n: number; discs: Map<string, number> }>()
@@ -57,18 +60,19 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
   const doGeral = new Set(((geralDaPagina ?? []) as { id: string; origem_geral: string | null }[]).filter(q => q.origem_geral).map(q => q.id))
   const nomesColecoes = [...new Set(((colecoes ?? []) as { colecao: string }[]).map(c => c.colecao))].sort()
   const linhas = (lista ?? []) as Linha[], total = count ?? 0, paginas = Math.max(1, Math.ceil(total / POR_PAGINA))
-  const url = (o: Partial<Filtros> & { p?: number }) => {
-    const qs = [filtrosParaUrl({ ...f, ...o }), o.p && o.p > 1 ? `p=${o.p}` : ''].filter(Boolean).join('&')
+  const url = (o: Partial<Filtros> & { p?: number; org?: boolean }) => {
+    const qs = [filtrosParaUrl({ ...f, ...o }), o.p && o.p > 1 ? `p=${o.p}` : '', (o.org ?? org) ? 'org=1' : ''].filter(Boolean).join('&')
     return qs ? `/banco/questoes?${qs}` : '/banco/questoes'
   }
-  const volta = url({ p: pagina }), filtrado = !!(f.area || f.disciplina || f.assunto || f.topico || f.banca || f.situacao !== 'todas')
+  const volta = url({ p: pagina }), filtrado = !!(f.area || f.disciplina || f.assunto || f.topico || f.banca || f.anoDe || f.anoAte || f.situacao !== 'todas')
+  const maisFiltros = !!(f.area || f.disciplina || f.situacao !== 'todas'), praticar = `/banco/praticar${filtrosParaUrl(f) ? `?${filtrosParaUrl(f)}` : ''}`
   const gruposTopicos = discs.filter(d => topicos.some(t => t.discipline_id === d.id))
   const sel = inputCls + ' w-full', btn = 'rounded-xl border border-line px-4 py-2 text-sm hover:border-brand'
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><h1 className="text-2xl font-semibold">Banco de questões</h1><p className="text-sm text-muted">Todas as suas questões: importe, confira, dê o assunto e exclua. Para estudar, use Praticar.</p></div>
-        <Link href="/banco/importar" className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Importar questões</Link>
+        <div><h1 className="text-2xl font-semibold">Banco de questões</h1><p className="text-sm text-muted">Procure questões por banca, assunto e ano.</p></div>
+        <Link href="/banco/importar" className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">Importar questões</Link>
       </div>
       {sp.ok && <AvisoDaUrl tipo="ok" chaves={['ok']}>{sp.ok}</AvisoDaUrl>}
       {sp.erro && <AvisoDaUrl tipo="erro" chaves={['erro']}>{sp.erro}</AvisoDaUrl>}
@@ -77,22 +81,43 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
       {T.length === 0
         ? <p className="rounded-2xl border border-dashed border-line p-8 text-center text-muted">O banco está vazio. Importe um PDF ou .docx de questões (com o gabarito no fim) ou um pacote .json para começar.</p>
         : <>
-        <form action="/banco/questoes" method="get" className="grid gap-3 rounded-2xl border border-line bg-surface p-5 sm:grid-cols-2 lg:grid-cols-5">
-          <label className="text-sm text-muted">Área<select name="area" defaultValue={f.area ?? ''} className={sel}><option value="">Todas</option>{AREAS.map(a => <option key={a} value={a}>{ROTULO_AREA[a]}</option>)}</select></label>
-          <label className="text-sm text-muted">Disciplina<select name="disciplina" defaultValue={f.disciplina ?? ''} className={sel}><option value="">Todas</option>{discsComQuestao.map(d => <option key={d} value={d}>{nomeDisc.get(d) ?? 'Disciplina'}</option>)}</select></label>
-          <label className="text-sm text-muted">Assunto<select name="assunto" defaultValue={f.assunto ?? ''} className={sel}><option value="">Todos</option>
-            {semAssunto > 0 && <option value={SEM_ASSUNTO}>Sem assunto ({semAssunto})</option>}{assuntos.map(a => <option key={a} value={a}>{a}</option>)}</select></label>
-          <label className="text-sm text-muted">Banca<select name="banca" defaultValue={f.banca ?? ''} className={sel}><option value="">Todas</option>{bancas.map(b => <option key={b} value={b}>{b}</option>)}</select></label>
-          <label className="text-sm text-muted">Situação<select name="situacao" defaultValue={f.situacao} className={sel}>
-            <option value="todas">Todas</option><option value="nunca">Nunca fiz</option><option value="errei">Errei na última vez</option><option value="acertei">Acertei na última vez</option></select></label>
+        <form action="/banco/questoes" method="get" className="space-y-3 rounded-2xl border border-line bg-surface p-4 md:p-5">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1.4fr_auto]">
+            <label className="text-sm text-muted">Banca<select name="banca" defaultValue={f.banca ?? ''} className={sel}><option value="">Todas as bancas</option>{bancas.map(([b, n]) => <option key={b} value={b}>{b} ({n})</option>)}</select></label>
+            <label className="text-sm text-muted">Assunto<select name="assunto" defaultValue={f.assunto ?? ''} className={sel}><option value="">Todos os assuntos</option>
+              {semAssunto > 0 && <option value={SEM_ASSUNTO}>Sem assunto ({semAssunto})</option>}{assuntos.map(([a, n]) => <option key={a} value={a}>{a} ({n})</option>)}</select></label>
+            <fieldset className="text-sm text-muted sm:col-span-2 lg:col-span-1"><legend>Ano da prova</legend>
+              <div className="flex items-center gap-2">
+                <select name="de" defaultValue={f.anoDe ?? ''} aria-label="Ano: de" className={inputCls}><option value="">desde sempre</option>{anos.map(a => <option key={a} value={a}>{a}</option>)}</select>
+                <span>até</span>
+                <select name="ate" defaultValue={f.anoAte ?? ''} aria-label="Ano: até" className={inputCls}><option value="">hoje</option>{anos.map(a => <option key={a} value={a}>{a}</option>)}</select>
+              </div></fieldset>
+          </div>
+          <details open={maisFiltros} className="text-sm">
+            <summary className="cursor-pointer text-muted">Mais filtros{maisFiltros ? ' (em uso)' : ''}</summary>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <label className="text-muted">Área<select name="area" defaultValue={f.area ?? ''} className={sel}><option value="">Todas</option>{AREAS.map(a => <option key={a} value={a}>{ROTULO_AREA[a]}</option>)}</select></label>
+              <label className="text-muted">Disciplina<select name="disciplina" defaultValue={f.disciplina ?? ''} className={sel}><option value="">Todas</option>{discsComQuestao.map(d => <option key={d} value={d}>{nomeDisc.get(d) ?? 'Disciplina'}</option>)}</select></label>
+              <label className="text-muted">Situação<select name="situacao" defaultValue={f.situacao} className={sel}>
+                <option value="todas">Todas</option><option value="nunca">Nunca fiz</option><option value="errei">Errei na última vez</option><option value="acertei">Acertei na última vez</option></select></label>
+            </div>
+          </details>
           {f.topico && <input type="hidden" name="topico" value={f.topico} />}
-          <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-5">
-            <button className="rounded-xl bg-brand px-5 py-2 font-medium text-black">Filtrar</button>
-            {filtrado && <Link href="/banco/questoes" className={btn}>Limpar filtros</Link>}
-            <Link href={`/banco/praticar${filtrosParaUrl(f) ? `?${filtrosParaUrl(f)}` : ''}`} className={btn}>Praticar estas</Link>
+          {org && <input type="hidden" name="org" value="1" />}
+          <div className="flex flex-wrap gap-2">
+            <button className="rounded-xl bg-brand px-5 py-2 font-medium text-black">Buscar</button>
+            {filtrado && <Link href={org ? '/banco/questoes?org=1' : '/banco/questoes'} className={btn}>Limpar</Link>}
           </div>
         </form>
 
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <h2 className="mr-auto text-lg font-medium">{total} {total === 1 ? 'questão' : 'questões'}</h2>
+          <Link href={url({ p: 1, org: !org })} aria-pressed={org} className={`text-sm ${org ? 'text-brand' : 'text-muted hover:text-brand'}`}>
+            {org ? '✓ Organizando' : 'Organizar'}{!org && (soltos.length > 0 || semAssunto > 0) ? ' (assuntos pendentes)' : ''}</Link>
+          {total > 0 && <Link href={praticar} className="rounded-xl bg-brand px-5 py-2 font-medium text-black">Praticar {total === 1 ? 'esta' : `estas ${total}`} →</Link>}
+        </div>
+
+        {org && <>
         {soltos.length > 0 && <section className="space-y-3 rounded-2xl border border-line bg-surface p-5 text-sm">
           <h2 className="font-medium">Ligar assuntos</h2>
           <p className="text-muted">Estes nomes de assunto ainda não estão ligados a um assunto seu de Matérias, então não contam no Desempenho por assunto. Ligue cada um uma vez: todas as questões com aquele nome vão juntas. Já deixei escolhido o de nome mais parecido; confira antes.</p>
@@ -152,19 +177,21 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
             <button className="rounded-lg border border-line px-3 py-1.5 hover:border-brand">Trazer de volta</button>
           </form>}
         </section>
+        </>}
 
         <section className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-medium">{total} {total === 1 ? 'questão' : 'questões'}{filtrado ? ' com esses filtros' : ''}</h2>{linhas.length > 0 && <MarcarTodas form="lote" />}</div>
+          {org && linhas.length > 0 && <MarcarTodas form="lote" />}
+          {!total && <p className="rounded-2xl border border-dashed border-line p-6 text-center text-muted">Nenhuma questão com esses filtros.</p>}
           <ul className="space-y-2">{linhas.map(q => {
             const lb = lerArea(q.area)
             return (
               <li key={q.id} className="flex gap-3 rounded-xl border border-line bg-surface p-3 text-sm">
-                <input type="checkbox" name="sel" value={q.id} form="lote" aria-label="Marcar esta questão" className="mt-1 size-4 shrink-0 accent-brand" />
+                {org && <input type="checkbox" name="sel" value={q.id} form="lote" aria-label="Marcar esta questão" className="mt-1 size-4 shrink-0 accent-brand" />}
                 <details className="min-w-0 flex-1">
                   <summary className="cursor-pointer list-none space-y-1">
                     <span className="flex flex-wrap gap-x-2 text-xs text-muted">
-                      {q.banca && <span>{q.banca}{q.ano ? ` ${q.ano}` : ''}</span>}{lb && <span>· {SIGLA_AREA[lb]}</span>}
-                      {q.discipline_id && <span>· {nomeDisc.get(q.discipline_id)}</span>}{q.assunto ? <span>· {q.assunto}</span> : <span className="text-warn">· sem assunto</span>}{doGeral.has(q.id) && <span className="text-info">· banco geral</span>}
+                      <span className="font-medium text-inherit">{[q.banca, q.ano].filter(Boolean).join(' ') || 'Sem banca'}</span>
+                      <span>· {q.assunto ?? 'sem assunto'}</span>{org && lb && <span>· {SIGLA_AREA[lb]}</span>}{org && doGeral.has(q.id) && <span className="text-info">· banco geral</span>}
                       <span className={q.vezes === 0 ? '' : q.ultimo_certo ? 'text-brand' : 'text-danger'}>· {q.vezes === 0 ? 'nunca feita' : q.ultimo_certo ? `acertou (${q.acertos}/${q.vezes})` : `errou na última (${q.acertos}/${q.vezes})`}</span>
                       {q.anulada ? <span className="text-warn">· anulada</span> : !q.gabarito && <span className="text-warn">· sem gabarito</span>}
                     </span>

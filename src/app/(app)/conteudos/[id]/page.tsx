@@ -18,7 +18,7 @@ export default async function Assunto({ params }: { params: Promise<{ id: string
     sb.from('question_sets').select('total,acertos').eq('topic_id', id),
     sb.from('reviews').select('due_date').eq('topic_id', id).eq('status', 'pendente').order('due_date').limit(1),
     carregarModelos(sb),
-    contarNoBanco(sb, { area: null, disciplina: null, assunto: null, topico: id, banca: null, situacao: 'todas' as const, busca: '' }, { id: t.id, nome: t.nome, discipline_id: (t as any).discipline_id }),
+    contarNoBanco(sb, { area: null, disciplina: null, assunto: null, topico: id, banca: null, situacao: 'todas' as const, busca: '', anoDe: null, anoAte: null }, { id: t.id, nome: t.nome, discipline_id: (t as any).discipline_id }),
   ])
   const total = (qs ?? []).reduce((n, x) => n + x.total, 0), ac = (qs ?? []).reduce((n, x) => n + x.acertos, 0)
   const disc = (t as any).disciplines?.nome as string | undefined

@@ -1,5 +1,5 @@
 import { supabaseServer } from '@/lib/supabase/server'
-import { lerFiltros, filtrosParaUrl } from '@/lib/engine/banco'
+import { lerFiltros, filtrosParaUrl, rotuloDosAnos, SEM_ASSUNTO } from '@/lib/engine/banco'
 import { ROTULO_AREA } from '@/lib/engine/areas'
 import { assuntoDoFiltro } from '@/lib/banco-data'
 import { proximaQuestao } from '@/lib/pratica'
@@ -13,7 +13,7 @@ export default async function PraticarPage({ searchParams }: { searchParams: Pro
     proximaQuestao(filtros, []), assuntoDoFiltro(sb, f),
     f.disciplina ? sb.from('disciplines').select('nome').eq('id', f.disciplina).maybeSingle().then(r => r.data?.nome as string | undefined) : Promise.resolve(undefined),
   ])
-  const titulo = [f.area ? ROTULO_AREA[f.area] : null, disc, topico?.nome ?? f.assunto, f.banca,
+  const titulo = [f.area ? ROTULO_AREA[f.area] : null, disc, topico?.nome ?? (f.assunto === SEM_ASSUNTO ? 'sem assunto' : f.assunto), f.banca, rotuloDosAnos(f),
     f.situacao === 'nunca' ? 'nunca feitas' : f.situacao === 'errei' ? 'que errei' : f.situacao === 'acertei' ? 'que acertei' : null].filter(Boolean).join(' · ') || 'todas as questões'
   return (
     <>

@@ -134,19 +134,31 @@ export function validarLote(v: unknown, uid: string): { ok: true; questoes: Ques
 // ---------- Filtros e listas ----------
 
 export type Situacao = 'todas' | 'nunca' | 'errei' | 'acertei'
-export type Filtros = { area: Area | null; disciplina: string | null; assunto: string | null; topico: string | null; banca: string | null; situacao: Situacao; busca: string }
+export type Filtros = { area: Area | null; disciplina: string | null; assunto: string | null; topico: string | null; banca: string | null; situacao: Situacao; busca: string
+  anoDe: number | null; anoAte: number | null } // ano da prova (de/até, inclusive)
 /** Valor do filtro de assunto que pega as questões SEM assunto. */
 export const SEM_ASSUNTO = '(sem assunto)'
+const lerAno = (v: string | undefined) => { const n = Number(v); return Number.isInteger(n) && n >= 1980 && n <= 2100 ? n : null }
+/** "de" e "até" do ano da prova; trocados (de 2024 até 2020) viram 2020–2024. */
+function anos(de: string | undefined, ate: string | undefined) {
+  const a = lerAno(de), b = lerAno(ate)
+  return a && b && a > b ? { anoDe: b, anoAte: a } : { anoDe: a, anoAte: b }
+}
+/** "2020–2024", "desde 2020", "até 2018", "2022" ou null: para títulos de listas e do Praticar. */
+export const rotuloDosAnos = (f: Pick<Filtros, 'anoDe' | 'anoAte'>) =>
+  f.anoDe && f.anoAte ? (f.anoDe === f.anoAte ? String(f.anoDe) : `${f.anoDe}–${f.anoAte}`) : f.anoDe ? `desde ${f.anoDe}` : f.anoAte ? `até ${f.anoAte}` : null
 export function lerFiltros(sp: Record<string, string | undefined>): Filtros {
   const s = sp.situacao
   return {
     area: lerArea(sp.area), disciplina: ehUuid(sp.disciplina) ? sp.disciplina : null, assunto: str(sp.assunto, 120), topico: ehUuid(sp.topico) ? sp.topico : null, banca: str(sp.banca, 60),
     situacao: s === 'nunca' || s === 'errei' || s === 'acertei' ? s : 'todas', busca: str(sp.busca, 80) ?? '',
+    ...anos(sp.de, sp.ate),
   }
 }
 /** Para links e formulários: só os filtros preenchidos. */
 export const filtrosParaUrl = (f: Filtros) =>
-  new URLSearchParams(Object.entries({ area: f.area, disciplina: f.disciplina, assunto: f.assunto, topico: f.topico, banca: f.banca, situacao: f.situacao === 'todas' ? null : f.situacao, busca: f.busca || null })
+  new URLSearchParams(Object.entries({ area: f.area, disciplina: f.disciplina, assunto: f.assunto, topico: f.topico, banca: f.banca, situacao: f.situacao === 'todas' ? null : f.situacao, busca: f.busca || null,
+    de: f.anoDe ? String(f.anoDe) : null, ate: f.anoAte ? String(f.anoAte) : null })
     .filter(([, v]) => v) as [string, string][]).toString()
 
 /** Embaralha (Fisher–Yates) e pega n. `aleatorio` pode ser trocado nos testes. */

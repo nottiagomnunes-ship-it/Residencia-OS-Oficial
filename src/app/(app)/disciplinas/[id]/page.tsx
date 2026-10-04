@@ -16,7 +16,7 @@ export default async function Disciplina({ params }: { params: Promise<{ id: str
     sb.from('topics').select('id,nome,subcategoria,status').eq('discipline_id', id).order('subcategoria').order('nome'),
     sb.from('question_sets').select('topic_id,total,acertos').eq('discipline_id', id),
     sb.from('reviews').select('topic_id,due_date,topics!inner(discipline_id)').eq('status', 'pendente').eq('topics.discipline_id', id),
-    contarNoBanco(sb, { ...{ area: null, disciplina: null, assunto: null, topico: null, banca: null, situacao: 'todas' as const, busca: '' }, disciplina: id }),
+    contarNoBanco(sb, { ...{ area: null, disciplina: null, assunto: null, topico: null, banca: null, situacao: 'todas' as const, busca: '', anoDe: null, anoAte: null }, disciplina: id }),
   ])
   const topics = ts ?? [], sets = qs ?? [], revs = rs ?? []
   const ok = topics.filter(t => t.status === 'concluido').length
