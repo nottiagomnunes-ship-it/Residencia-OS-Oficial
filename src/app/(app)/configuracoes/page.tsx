@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { supabaseServer } from '@/lib/supabase/server'
-import { salvarConfiguracoes, reiniciarConfiguracoes, sair } from '@/lib/config'
+import { salvarConfiguracoes, reiniciarConfiguracoes, apagarTudo, sair } from '@/lib/config'
 import { salvarLembrete, enviarLembreteTeste } from '@/lib/lembretes'
 import { salvarRitmoModo } from '@/lib/config'
 import { inputCls } from '@/components/ui'
@@ -80,7 +80,7 @@ export default async function Configuracoes({ searchParams }: { searchParams: Pr
         </form>
         <form action={enviarLembreteTeste}><button className="text-sm text-brand underline">Enviar um e-mail de teste agora</button></form>
       </section>
-      <section className={sec}><h2 className="font-medium">Meus dados</h2>
+      <section id="meus-dados" className={sec}><h2 className="font-medium">Meus dados</h2>
         <p className="text-sm text-muted">Baixe uma cópia do que você registrou. O backup completo guarda tudo; as planilhas abrem direto no Excel.</p>
         <div className="flex flex-wrap gap-2 text-sm">
           <a href="/exportar/backup" className="rounded-xl bg-brand px-4 py-2 font-medium text-black">Baixar backup completo (.json)</a>
@@ -103,9 +103,18 @@ export default async function Configuracoes({ searchParams }: { searchParams: Pr
           <p className="text-muted">Volta a data da prova, a rotina, os dias disponíveis, os intervalos de revisão, os limites de desempenho e a janela de estudo para os valores padrão, e leva você ao assistente inicial para configurar tudo de novo.</p>
           <p>Não são apagados: assuntos, disciplinas, questões, simulados, erros, revisões, tarefas do calendário, XP e conquistas. O cronograma já gerado continua; gere-o de novo depois de reconfigurar.</p>
           <label className="flex items-start gap-3"><input type="checkbox" name="metas" defaultChecked className="mt-1 accent-brand" /><span>Apagar também as minhas metas</span></label>
-          <label className="flex items-start gap-3"><input type="checkbox" name="compromissos" defaultChecked className="mt-1 accent-brand" /><span>Apagar também os meus compromissos de Meu tempo</span></label>
+          <label className="flex items-start gap-3"><input type="checkbox" name="compromissos" defaultChecked className="mt-1 accent-brand" /><span>Apagar também os meus compromissos (Agenda → Compromissos)</span></label>
           <label className="block space-y-1"><span>Digite <b>REINICIAR</b> para confirmar</span><input name="confirmacao" autoComplete="off" className={inputCls + ' w-full'} /></label>
           <button className="rounded-xl border border-danger px-4 py-2 font-medium text-danger hover:bg-danger/10">Reiniciar configurações</button>
+        </form>
+      </details>
+      <details className="rounded-2xl border border-danger bg-surface p-5">
+        <summary className="cursor-pointer font-medium text-danger">Apagar tudo e começar do zero</summary>
+        <form action={apagarTudo} className="mt-4 space-y-4 text-sm">
+          <p>Apaga <b>absolutamente todas</b> as informações da conta: disciplinas, assuntos, cronograma, revisões, questões, provas, banco de questões, caderno de erros, simulados, metas, compromissos, tempo de estudo, XP, nível, conquistas, cores e as figuras enviadas. As configurações voltam ao padrão e o assistente inicial e o tutorial aparecem de novo.</p>
+          <p>Continuam só o seu e-mail e a sua senha. <b>Não dá para desfazer.</b> Se quiser guardar uma cópia antes, baixe o backup em <a href="#meus-dados" className="text-brand underline">Meus dados</a>.</p>
+          <label className="block space-y-1"><span>Digite <b>APAGAR TUDO</b> para confirmar</span><input name="confirmacao" autoComplete="off" className={inputCls + ' w-full'} /></label>
+          <button className="rounded-xl bg-danger px-4 py-2 font-medium text-white hover:bg-danger/90">Apagar tudo</button>
         </form>
       </details>
       <form action={sair}><button className="rounded-xl border border-line px-4 py-2 text-sm hover:border-danger hover:text-danger">Sair da conta</button></form>

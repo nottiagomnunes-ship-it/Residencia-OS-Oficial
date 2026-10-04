@@ -56,3 +56,34 @@ export async function reiniciarConfiguracoes(fd: FormData) {
   revalidatePath('/', 'layout')
   redirect('/onboarding')
 }
+
+/**
+ * Apagar tudo: a conta volta a ser como recém-criada (o login e a senha continuam). Apaga, numa transação só, os dados de todas as tabelas
+ * e volta o perfil ao padrão; depois tira as figuras das provas e do banco de questões do armazenamento. Exige digitar APAGAR TUDO.
+ */
+export async function apagarTudo(fd: FormData) {
+  const sb = await supabaseServer()
+  const { data: { user } } = await sb.auth.getUser()
+  if (!user) redirect('/login')
+  if (String(fd.get('confirmacao') || '').trim().toUpperCase().replace(/\s+/g, ' ') !== 'APAGAR TUDO')
+    redirect('/configuracoes?erro=' + encodeURIComponent('Nada foi apagado. Para apagar tudo, digite APAGAR TUDO no campo de confirmação.'))
+  const { error } = await sb.rpc('apagar_tudo')
+  if (error) redirect('/configuracoes?erro=' + encodeURIComponent(/apagar_tudo/.test(error.message) ? 'Falta atualizar o banco: rode supabase/migrations/0036_apagar_tudo.sql no SQL Editor do Supabase. Nada foi apagado.' : 'Não foi possível apagar. Nada foi apagado; tente de novo.'))
+  await apagarFiguras(sb, user.id).catch(() => {})
+  revalidatePath('/', 'layout')
+  redirect('/onboarding')
+}
+
+/** As figuras ficam em <id da pessoa>/<id da prova ou "banco">/arquivo no armazenamento "provas". */
+async function apagarFiguras(sb: Awaited<ReturnType<typeof supabaseServer>>, uid: string) {
+  const st = sb.storage.from('provas')
+  const { data: pastas } = await st.list(uid, { limit: 1000 })
+  for (const p of pastas ?? []) {
+    for (let pagina = 0; pagina < 50; pagina++) {
+      const { data: arquivos } = await st.list(`${uid}/${p.name}`, { limit: 1000 })
+      if (!arquivos?.length) break
+      await st.remove(arquivos.map(a => `${uid}/${p.name}/${a.name}`))
+      if (arquivos.length < 1000) break
+    }
+  }
+}
