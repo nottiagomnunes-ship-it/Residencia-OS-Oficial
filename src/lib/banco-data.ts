@@ -48,3 +48,29 @@ export async function contarNoBanco(sb: SupabaseClient, f: Filtros, topico: { id
   const { count, error } = await aplicarFiltros(sb.from('banco_questoes').select('id', { count: 'exact', head: true }).eq('anulada', false).not('gabarito', 'is', null), f, topico)
   return error ? 0 : count ?? 0
 }
+
+/**
+ * Traz o banco geral para a conta (questões novas e correções do administrador). Rápido quando não há nada novo.
+ * Sem a 0037 (ou sem internet com o banco), devolve null e a página segue normal.
+ */
+export async function sincronizarBancoGeral(sb: SupabaseClient): Promise<{ novas: number; corrigidas: number } | null> {
+  const { data, error } = await sb.rpc('sincronizar_banco_geral')
+  if (error || !data) return null
+  return { novas: Number(data.novas) || 0, corrigidas: Number(data.corrigidas) || 0 }
+}
+
+/** A conta é a administradora do banco geral? (false sem a 0037) */
+export async function ehAdmin(sb: SupabaseClient) {
+  const { data, error } = await sb.rpc('eh_admin')
+  return !error && data === true
+}
+
+/** Frase para o aviso depois de sincronizar ("12 questões novas do banco geral entraram no seu banco."), ou null se nada mudou. */
+export function avisoDoBancoGeral(s: { novas: number; corrigidas: number } | null) {
+  if (!s || (!s.novas && !s.corrigidas)) return null
+  const partes = [
+    s.novas ? `${s.novas} ${s.novas === 1 ? 'questão nova do banco geral entrou' : 'questões novas do banco geral entraram'} no seu banco` : null,
+    s.corrigidas ? `${s.corrigidas} ${s.corrigidas === 1 ? 'questão foi corrigida' : 'questões foram corrigidas'} (gabarito ou enunciado)` : null,
+  ].filter(Boolean)
+  return partes.join(' e ') + '.'
+}

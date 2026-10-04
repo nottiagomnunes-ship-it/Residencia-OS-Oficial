@@ -6,11 +6,13 @@ import { AREAS, ROTULO_AREA } from '@/lib/engine/areas'
 import { pct } from '@/lib/engine/desempenho'
 import { fmtData, inputCls } from '@/components/ui'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
+import { sincronizarBancoGeral, avisoDoBancoGeral } from '@/lib/banco-data'
 
 /** Praticar: escolher o que estudar e começar (uma por vez ou lista como prova). Organizar as questões fica na aba Banco (/banco/questoes). */
 export default async function PraticarInicio({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams, f = lerFiltros(sp)
   const sb = await supabaseServer()
+  const aviso = avisoDoBancoGeral(await sincronizarBancoGeral(sb)) // questões novas e correções do banco geral, antes de contar
   const [{ data: todas, error }, { data: ds }, { data: listas }] = await Promise.all([
     sb.from('banco_questoes').select('discipline_id,assunto,banca,vezes,acertos,gabarito,anulada').limit(20000),
     sb.from('disciplines').select('id,nome').order('ordem'),
@@ -34,6 +36,7 @@ export default async function PraticarInicio({ searchParams }: { searchParams: P
         {T.length > 0 && <Link href="/banco/questoes" className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">Ver e organizar o banco</Link>}
       </div>
       {sp.erro && <AvisoDaUrl tipo="erro" chaves={['erro']}>{sp.erro}</AvisoDaUrl>}
+      {aviso && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-3 text-sm">{aviso}</p>}
 
       {T.length === 0
         ? <div className="space-y-3 rounded-2xl border border-dashed border-line p-8 text-center">

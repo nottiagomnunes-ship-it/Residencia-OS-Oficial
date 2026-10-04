@@ -168,3 +168,84 @@ export async function sugerirAssuntosDoBanco(fd: FormData) {
   const msg = n ? `Assunto encontrado para ${n} ${n === 1 ? 'questão' : 'questões'}. As outras continuam sem assunto: escolha à mão.` : 'Não achei o assunto pelo texto em nenhuma questão. Confira se os assuntos existem em Matérias → Assuntos, ou escolha à mão.'
   redirect(`${volta}${volta.includes('?') ? '&' : '?'}${n ? 'ok' : 'erro'}=${encodeURIComponent(msg)}`)
 }
+
+// ---------- Banco geral ----------
+
+const comAviso = (volta: string, tipo: 'ok' | 'erro', msg: string) => `${volta}${volta.includes('?') ? '&' : '?'}${tipo}=${encodeURIComponent(msg)}`
+const SEM_GERAL = 'Falta atualizar o banco: rode supabase/migrations/0037_banco_geral.sql no SQL Editor do Supabase.'
+
+/** As questões escolhidas no formulário: as marcadas, ou (com "todas") todas as dos filtros da página, até 1000. */
+async function idsDoFormulario(sb: Awaited<ReturnType<typeof supabaseServer>>, fd: FormData) {
+  if (fd.get('todas') !== '1') return fd.getAll('sel').map(String).filter(x => /^[0-9a-f-]{36}$/i.test(x))
+  const f = lerFiltros(Object.fromEntries(new URLSearchParams(String(fd.get('filtros') || ''))))
+  const { data } = await aplicarFiltros(sb.from('banco_questoes').select('id'), f, await assuntoDoFiltro(sb, f)).limit(1000)
+  return (data ?? []).map((q: { id: string }) => q.id)
+}
+
+/**
+ * Administrador: publica questões do próprio banco no banco geral (todas as contas recebem). Vão só o enunciado, as alternativas,
+ * o gabarito (a letra) e a classificação; o comentário fica só no banco do administrador. As figuras são copiadas para a pasta "geral/",
+ * que todas as contas podem ler (assim apagar as do próprio banco não quebra as das outras contas).
+ */
+export async function publicarNoBancoGeral(fd: FormData) {
+  const { sb } = await ctx()
+  const volta = voltaDoBanco(fd)
+  const ids = await idsDoFormulario(sb, fd)
+  if (!ids.length) redirect(comAviso(volta, 'erro', 'Marque as questões que quer publicar.'))
+  const { data: qs, error } = await sb.from('banco_questoes').select('id,blocos,gabarito,anulada').in('id', ids.slice(0, 1000))
+  if (error) redirect(comAviso(volta, 'erro', 'Não foi possível ler as questões.'))
+  const semGabarito = (qs ?? []).filter(q => !q.gabarito && !q.anulada).length
+  const st = sb.storage.from('provas'), copiadas: Record<string, string> = {}
+  const itens = []
+  for (const q of qs ?? []) {
+    const blocos: Bloco[] = []
+    for (const b of (q.blocos ?? []) as Bloco[]) {
+      if (b.tipo !== 'imagem' || b.caminho.startsWith('geral/')) { blocos.push(b); continue }
+      if (!copiadas[b.caminho]) {
+        const destino = `geral/${crypto.randomUUID()}.${b.caminho.split('.').pop() || 'png'}`
+        const { error: e } = await st.copy(b.caminho, destino)
+        if (e) {
+          if (Object.keys(copiadas).length) await st.remove(Object.values(copiadas)).catch(() => {})
+          redirect(comAviso(volta, 'erro', 'Não foi possível copiar as figuras para o banco geral. Nada foi publicado.'))
+        }
+        copiadas[b.caminho] = destino
+      }
+      blocos.push({ ...b, caminho: copiadas[b.caminho] })
+    }
+    itens.push({ id: q.id, blocos })
+  }
+  const { data: r, error: e2 } = await sb.rpc('publicar_no_banco_geral', { p_itens: itens, p_colecao: String(fd.get('colecao') || '').trim().slice(0, 120) || null })
+  if (e2) {
+    if (Object.keys(copiadas).length) await st.remove(Object.values(copiadas)).catch(() => {})
+    redirect(comAviso(volta, 'erro', e2.code === 'PGRST202' ? SEM_GERAL : /administradora/.test(e2.message) ? 'Só a conta administradora publica no banco geral.' : 'Não foi possível publicar. Tente de novo.'))
+  }
+  refresh()
+  const novas = Number(r?.novas) || 0, atual = Number(r?.atualizadas) || 0
+  redirect(comAviso(volta, 'ok', [novas ? `${novas} ${novas === 1 ? 'questão publicada' : 'questões publicadas'} no banco geral` : null,
+    atual ? `${atual} já ${atual === 1 ? 'estava' : 'estavam'} lá e ${atual === 1 ? 'foi atualizada' : 'foram atualizadas'}` : null].filter(Boolean).join('; ') +
+    '. As outras contas recebem ao abrir Praticar ou Banco (sem os comentários).' + (semGabarito ? ` Atenção: ${semGabarito} sem gabarito.` : '')))
+}
+
+/** Administrador: tira questões do banco geral. As cópias que as contas já receberam continuam no banco delas. */
+export async function retirarDoBancoGeral(fd: FormData) {
+  const { sb } = await ctx()
+  const volta = voltaDoBanco(fd)
+  const ids = await idsDoFormulario(sb, fd)
+  if (!ids.length) redirect(comAviso(volta, 'erro', 'Marque as questões que quer tirar do banco geral.'))
+  const { data: n, error } = await sb.rpc('retirar_do_banco_geral', { p_ids: ids })
+  if (error) redirect(comAviso(volta, 'erro', error.code === 'PGRST202' ? SEM_GERAL : 'Não foi possível tirar do banco geral.'))
+  refresh()
+  redirect(comAviso(volta, 'ok', `${n ?? 0} ${n === 1 ? 'questão saiu' : 'questões saíram'} do banco geral. Quem já tinha recebido continua com a cópia.`))
+}
+
+/** Traz de volta as questões do banco geral que a pessoa excluiu do próprio banco. */
+export async function restaurarDoBancoGeral(fd: FormData) {
+  const { sb, uid } = await ctx()
+  const volta = voltaDoBanco(fd)
+  await sb.from('banco_geral_removidas').delete().eq('user_id', uid)
+  await sb.from('profiles').update({ banco_geral_em: null }).eq('id', uid)
+  const { data } = await sb.rpc('sincronizar_banco_geral')
+  refresh()
+  const n = Number(data?.novas) || 0
+  redirect(comAviso(volta, 'ok', n ? `${n} ${n === 1 ? 'questão do banco geral voltou' : 'questões do banco geral voltaram'} para o seu banco.` : 'Nenhuma questão para trazer de volta.'))
+}

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { supabaseServer } from '@/lib/supabase/server'
-import { excluirDoBanco, definirAssuntoEmLote, sugerirAssuntosDoBanco } from '@/lib/banco'
-import { aplicarFiltros, assuntoDoFiltro } from '@/lib/banco-data'
+import { excluirDoBanco, definirAssuntoEmLote, sugerirAssuntosDoBanco, publicarNoBancoGeral, retirarDoBancoGeral, restaurarDoBancoGeral } from '@/lib/banco'
+import { aplicarFiltros, assuntoDoFiltro, sincronizarBancoGeral, ehAdmin, avisoDoBancoGeral } from '@/lib/banco-data'
 import { lerFiltros, filtrosParaUrl, SEM_ASSUNTO, type Filtros } from '@/lib/engine/banco'
 import { textoDosBlocos, ehLetra, type Bloco } from '@/lib/engine/provas'
 import { AREAS, ROTULO_AREA, SIGLA_AREA, lerArea } from '@/lib/engine/areas'
@@ -19,13 +19,19 @@ type Linha = { id: string; blocos: Bloco[]; alternativas: { letra: string; texto
 export default async function BancoDeQuestoes({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams, f = lerFiltros(sp), pagina = Math.max(1, Number(sp.p) || 1)
   const sb = await supabaseServer()
-  const topico = await assuntoDoFiltro(sb, f)
-  const [{ data: todas, error }, { data: lista, count }, { data: ds }, { data: ts }] = await Promise.all([
+  // primeiro o banco geral (questões novas e correções), para a lista já vir com elas
+  const [sync, topico, admin] = await Promise.all([sincronizarBancoGeral(sb), assuntoDoFiltro(sb, f), ehAdmin(sb)])
+  const aviso = avisoDoBancoGeral(sync), daPagina = <T,>(q: T) => (aplicarFiltros(q, f, topico) as any).order('criada_em', { ascending: false }).range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1)
+  // separadas: sem a 0037, estas falham e a página segue sem as marcas do banco geral
+  const [{ data: todas, error }, { data: lista, count }, { data: ds }, { data: ts }, { data: geralDaPagina }, { count: removidas }, { data: colecoes }] = await Promise.all([
     sb.from('banco_questoes').select('discipline_id,assunto,banca').limit(20000),
     aplicarFiltros(sb.from('banco_questoes').select('id,blocos,alternativas,gabarito,gabarito_origem,anulada,comentario,area,discipline_id,topic_id,assunto,banca,ano,vezes,acertos,ultimo_certo', { count: 'exact' }), f, topico)
       .order('criada_em', { ascending: false }).range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1),
     sb.from('disciplines').select('id,nome').order('ordem'),
     sb.from('topics').select('id,nome,discipline_id').limit(5000),
+    daPagina(sb.from('banco_questoes').select('id,origem_geral')),
+    sync ? sb.from('banco_geral_removidas').select('geral_id', { count: 'exact', head: true }) : Promise.resolve({ count: 0 }),
+    admin ? sb.from('banco_geral').select('colecao').not('colecao', 'is', null).limit(5000) : Promise.resolve({ data: [] }),
   ])
   if (error) return (
     <div className="space-y-4"><h1 className="text-2xl font-semibold">Banco de questões</h1>
@@ -36,6 +42,8 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
   const assuntos = [...new Set(T.filter(q => !f.disciplina || q.discipline_id === f.disciplina).map(q => q.assunto).filter(Boolean))].sort() as string[]
   const bancas = [...new Set(T.map(q => q.banca).filter(Boolean))].sort() as string[]
   const semAssunto = T.filter(q => !q.assunto).length
+  const doGeral = new Set(((geralDaPagina ?? []) as { id: string; origem_geral: string | null }[]).filter(q => q.origem_geral).map(q => q.id))
+  const nomesColecoes = [...new Set(((colecoes ?? []) as { colecao: string }[]).map(c => c.colecao))].sort()
   const linhas = (lista ?? []) as Linha[], total = count ?? 0, paginas = Math.max(1, Math.ceil(total / POR_PAGINA))
   const url = (o: Partial<Filtros> & { p?: number }) => {
     const qs = [filtrosParaUrl({ ...f, ...o }), o.p && o.p > 1 ? `p=${o.p}` : ''].filter(Boolean).join('&')
@@ -52,6 +60,7 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
       </div>
       {sp.ok && <AvisoDaUrl tipo="ok" chaves={['ok']}>{sp.ok}</AvisoDaUrl>}
       {sp.erro && <AvisoDaUrl tipo="erro" chaves={['erro']}>{sp.erro}</AvisoDaUrl>}
+      {aviso && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-3 text-sm">{aviso}</p>}
 
       {T.length === 0
         ? <p className="rounded-2xl border border-dashed border-line p-8 text-center text-muted">O banco está vazio. Importe um PDF ou .docx de questões (com o gabarito no fim) ou um pacote .json para começar.</p>
@@ -95,7 +104,24 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
               {discs.length > 0 && <select name="criar_em" defaultValue={f.disciplina ?? ''} aria-label="Criar em Matérias" className={sel + ' mt-1'}>
                 <option value="">Só o nome (não criar em Matérias)</option>{discs.map(d => <option key={d.id} value={d.id}>Criar em Matérias: {d.nome}</option>)}</select>}</label>
             <button className="rounded-xl bg-brand px-4 py-2 font-medium text-black">Salvar nas marcadas</button>
+            {admin && <div className="space-y-2 border-t border-line pt-3 sm:col-span-3">
+              <h3 className="font-medium">Banco geral <span className="font-normal text-muted">(só a conta administradora vê isto)</span></h3>
+              <p className="text-xs text-muted">Publicar manda para todas as contas o enunciado, as figuras, as alternativas, o gabarito (a letra), a disciplina e o assunto. O comentário <b>não</b> vai: fica só no seu banco. Publicar de novo uma questão atualiza a cópia das outras contas (sem mexer no histórico nem no assunto delas).</p>
+              <input type="hidden" name="filtros" value={filtrosParaUrl(f)} />
+              <div className="flex flex-wrap items-end gap-2">
+                <label className="min-w-48 flex-1 text-muted">Coleção (opcional)<input name="colecao" list="colecoes" maxLength={120} placeholder="Ex.: Anestesiologia – UFMA" className={sel} /></label>
+                <datalist id="colecoes">{nomesColecoes.map(c => <option key={c} value={c} />)}</datalist>
+                <button formAction={publicarNoBancoGeral} className="rounded-xl border border-brand px-4 py-2 text-brand">Publicar as marcadas</button>
+                <button formAction={publicarNoBancoGeral} name="todas" value="1" className="rounded-xl border border-line px-4 py-2 hover:border-brand">Publicar todas {filtrado ? 'destes filtros' : 'do banco'} ({Math.min(total, 1000)})</button>
+                <button formAction={retirarDoBancoGeral} className="rounded-xl px-3 py-2 text-danger hover:underline">Tirar as marcadas do banco geral</button>
+              </div>
+            </div>}
           </form>
+          {!!removidas && <form action={restaurarDoBancoGeral} className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
+            <input type="hidden" name="volta" value={volta} />
+            <span className="flex-1 text-muted">Você excluiu {removidas} {removidas === 1 ? 'questão' : 'questões'} do banco geral; {removidas === 1 ? 'ela não volta' : 'elas não voltam'} sozinhas.</span>
+            <button className="rounded-lg border border-line px-3 py-1.5 hover:border-brand">Trazer de volta</button>
+          </form>}
         </section>
 
         <section className="space-y-3">
@@ -109,7 +135,7 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
                   <summary className="cursor-pointer list-none space-y-1">
                     <span className="flex flex-wrap gap-x-2 text-xs text-muted">
                       {q.banca && <span>{q.banca}{q.ano ? ` ${q.ano}` : ''}</span>}{lb && <span>· {SIGLA_AREA[lb]}</span>}
-                      {q.discipline_id && <span>· {nomeDisc.get(q.discipline_id)}</span>}{q.assunto ? <span>· {q.assunto}</span> : <span className="text-warn">· sem assunto</span>}
+                      {q.discipline_id && <span>· {nomeDisc.get(q.discipline_id)}</span>}{q.assunto ? <span>· {q.assunto}</span> : <span className="text-warn">· sem assunto</span>}{doGeral.has(q.id) && <span className="text-info">· banco geral</span>}
                       <span className={q.vezes === 0 ? '' : q.ultimo_certo ? 'text-brand' : 'text-danger'}>· {q.vezes === 0 ? 'nunca feita' : q.ultimo_certo ? `acertou (${q.acertos}/${q.vezes})` : `errou na última (${q.acertos}/${q.vezes})`}</span>
                       {q.anulada ? <span className="text-warn">· anulada</span> : !q.gabarito && <span className="text-warn">· sem gabarito</span>}
                     </span>
