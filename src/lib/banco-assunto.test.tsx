@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 type Op = { t: string; tipo: string; dados?: any; filtros: string[] }
-const h = vi.hoisted(() => ({ dados: {} as Record<string, any>, ops: [] as Op[], redirects: [] as string[], filtros: [] as string[] }))
+const h = vi.hoisted(() => ({ dados: {} as Record<string, any>, ops: [] as Op[], redirects: [] as string[], filtros: [] as string[], admin: true }))
 const cadeia = (t: string) => {
   const op: Op = { t, tipo: 'select', filtros: [] }
   const r: any = {}
@@ -21,7 +21,7 @@ const cadeia = (t: string) => {
 }
 vi.mock('@/lib/supabase/server', () => ({ supabaseServer: async () => ({
   auth: { getUser: async () => ({ data: { user: { id: '11111111-1111-1111-1111-111111111111' } } }) }, from: (t: string) => cadeia(t),
-  rpc: async () => ({ data: null, error: null }), storage: { from: () => ({ createSignedUrls: async () => ({ data: [] }) }) },
+  rpc: async (nome: string) => ({ data: nome === 'eh_admin' ? h.admin : null, error: null }), storage: { from: () => ({ createSignedUrls: async () => ({ data: [] }) }) },
 }) }))
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }))
 vi.mock('next/navigation', () => ({ redirect: (u: string) => { h.redirects.push(u); throw new Error('REDIRECT') }, useRouter: () => ({ refresh: () => {}, push: () => {} }) }))
@@ -35,7 +35,7 @@ const Q1 = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', Q2 = 'bbbbbbbb-bbbb-bbbb-bbbb
 const DISC = 'dddddddd-dddd-dddd-dddd-dddddddddddd', TOP = 'tttttttt-tttt-tttt-tttt-tttttttttttt'.replace(/t/g, 'e')
 const fd = (o: Record<string, string | string[]>) => { const f = new FormData(); for (const [k, v] of Object.entries(o)) for (const x of [v].flat()) f.append(k, x); return f }
 const updates = () => h.ops.filter(o => o.t === 'banco_questoes' && o.tipo === 'update')
-beforeEach(() => { h.dados = {}; h.ops = []; h.redirects = []; h.filtros = [] })
+beforeEach(() => { h.dados = {}; h.ops = []; h.redirects = []; h.filtros = []; h.admin = true })
 
 describe('definir o assunto das questões do banco', () => {
   it('com um assunto de Matérias: liga a questão a ele e à disciplina dele', async () => {
@@ -173,7 +173,7 @@ describe('telas', () => {
     h.dados.disciplines = [{ id: DISC, nome: 'Anestesiologia' }]
     const html = renderToStaticMarkup(await PraticarInicio({ searchParams: Promise.resolve({}) }))
     expect(html).toContain('O que você quer praticar?'); expect(html).toContain('formAction="/banco/praticar"')
-    expect(html).toContain('href="/banco/questoes?assunto=(sem%20assunto)"'); expect(html).toContain('1 questão está sem assunto')
+    expect(html).toContain('href="/banco/questoes?assunto=(sem%20assunto)&amp;org=1"'); expect(html).toContain('1 questão está sem assunto')
     expect(html).not.toContain('name="sel"'); expect(html).not.toContain('Sugerir pelo texto')
   })
   it('Praticar com o banco vazio: leva a importar', async () => {
@@ -189,5 +189,27 @@ describe('telas', () => {
     expect(html).toContain('href="/banco/praticar?banca=UFMA&amp;de=2020&amp;ate=2024"')
     expect(html).not.toContain('name="sel"'); expect(html).not.toContain('Ligar assuntos'); expect(html).not.toContain('Sugerir pelo texto')
     expect(html).toContain('href="/banco/questoes?banca=UFMA&amp;de=2020&amp;ate=2024&amp;org=1"')
+  })
+})
+
+describe('estudante (conta que não é a administradora)', () => {
+  beforeEach(() => { h.admin = false })
+  it('não muda assunto, não liga nem sugere: o servidor recusa', async () => {
+    expect(await definirAssuntoDoBanco([Q1], { assunto: 'x' })).toEqual({ ok: false, erro: expect.stringContaining('Só a conta administradora') })
+    await expect(ligarAssunto(fd({ rotulo: 'Via aérea', alvo: `t:${TOP}` }))).rejects.toThrow('REDIRECT')
+    await expect(sugerirAssuntosDoBanco(fd({}))).rejects.toThrow('REDIRECT')
+    expect(h.redirects.every(r => decodeURIComponent(r).includes('Só a conta administradora'))).toBe(true)
+    expect(h.ops.filter(o => o.tipo !== 'select')).toEqual([])
+  })
+  it('a tela fica só com a busca: sem Importar, sem Organizar (nem pela URL) e sem "Mudar assunto"; excluir continua', async () => {
+    h.dados.banco_questoes = [{ id: Q1, blocos: [{ tipo: 'texto', texto: 'Enunciado' }], alternativas: [], gabarito: 'A', anulada: false, topic_id: null, assunto: null, vezes: 0, acertos: 0 }]
+    const html = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({ org: '1' }) }))
+    expect(html).not.toContain('Importar questões'); expect(html).not.toContain('Organiz'); expect(html).not.toContain('name="sel"')
+    expect(html).not.toContain('Mudar assunto'); expect(html).not.toContain('Sugerir pelo texto'); expect(html).toContain('Excluir do banco')
+    expect(html).toContain('Praticar esta')
+  })
+  it('Praticar com o banco vazio: sem botão de importar', async () => {
+    const html = renderToStaticMarkup(await PraticarInicio({ searchParams: Promise.resolve({}) }))
+    expect(html).not.toContain('/banco/importar'); expect(html).toContain('assim que forem publicadas')
   })
 })

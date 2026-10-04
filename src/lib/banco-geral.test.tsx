@@ -108,7 +108,7 @@ describe('telas', () => {
   it('conta comum: sem o bloco de publicar', async () => {
     banco(); h.rpcRes.eh_admin = { data: false, error: null }
     const html = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({ org: '1' }) }))
-    expect(html).not.toContain('Publicar as marcadas'); expect(html).toContain('· banco geral')
+    expect(html).not.toContain('Publicar as marcadas'); expect(html).not.toContain('Organiz')
   })
   it('Praticar sincroniza antes de contar', async () => {
     banco()

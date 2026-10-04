@@ -14,7 +14,7 @@ const cadeia = (t: string) => {
 }
 vi.mock('@/lib/supabase/server', () => ({ supabaseServer: async () => ({
   auth: { getUser: async () => ({ data: { user: { id: '11111111-1111-1111-1111-111111111111' } } }) }, from: (t: string) => cadeia(t),
-  rpc: async (nome: string, args: any) => { h.rpcs.push({ nome, args }); return h.rpcRes[nome] ?? { data: null, error: null } },
+  rpc: async (nome: string, args: any) => { h.rpcs.push({ nome, args }); return h.rpcRes[nome] ?? { data: nome === 'eh_admin' ? true : null, error: null } },
   storage: { from: () => ({ createSignedUrls: async () => ({ data: [] }), remove: async () => ({}) }) },
 }) }))
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }))
@@ -34,17 +34,25 @@ describe('importar no banco', () => {
   it('manda cada questão com a impressão digital; o banco diz quantas eram novas', async () => {
     h.rpcRes.importar_banco = { data: 1, error: null }
     expect(await importarNoBanco({ questoes: [q('Qual a conduta?'), q('QUAL  a conduta')] })).toEqual({ ok: true, novas: 1, repetidas: 1 })
-    const itens = h.rpcs[0].args.p_itens
+    const itens = h.rpcs.find(r => r.nome === 'importar_banco')!.args.p_itens
     expect(itens).toHaveLength(2); expect(itens[0].hash).toMatch(/^[0-9a-f]{64}$/); expect(itens[0].hash).toBe(itens[1].hash)
   })
   it('lotes grandes vão em partes de 200', async () => {
     h.rpcRes.importar_banco = { data: 200, error: null }
     await importarNoBanco({ questoes: Array.from({ length: 450 }, (_, i) => q(`Questão número ${i}`)) })
-    expect(h.rpcs.map(r => r.args.p_itens.length)).toEqual([200, 200, 50])
+    expect(h.rpcs.filter(r => r.nome === 'importar_banco').map(r => r.args.p_itens.length)).toEqual([200, 200, 50])
   })
   it('sem a 0034: diz o que rodar', async () => {
     h.rpcRes.importar_banco = { data: null, error: { code: 'PGRST202', message: 'Could not find the function' } }
     expect(await importarNoBanco({ questoes: [q('x')] })).toEqual({ ok: false, erro: expect.stringContaining('0034_banco_questoes.sql') })
+  })
+})
+
+describe('só a conta administradora importa', () => {
+  it('estudante: recusa sem gravar nada', async () => {
+    h.rpcRes.eh_admin = { data: false, error: null }
+    expect(await importarNoBanco({ questoes: [q('x')] })).toEqual({ ok: false, erro: expect.stringContaining('Só a conta administradora') })
+    expect(h.rpcs.map(r => r.nome)).toEqual(['eh_admin'])
   })
 })
 
@@ -61,7 +69,7 @@ describe('montar lista', () => {
   it('nada bate com os filtros: avisa e não cria lista', async () => {
     await expect(montarLista(fd({ quantidade: '10' }))).rejects.toThrow('REDIRECT')
     expect(decodeURIComponent(h.redirects.at(-1)!)).toContain('Nenhuma questão com gabarito')
-    expect(h.rpcs).toEqual([])
+    expect(h.rpcs.filter(r => r.nome !== 'eh_admin')).toEqual([])
   })
 })
 

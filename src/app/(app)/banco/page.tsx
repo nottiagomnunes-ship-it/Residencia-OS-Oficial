@@ -6,13 +6,14 @@ import { AREAS, ROTULO_AREA } from '@/lib/engine/areas'
 import { pct } from '@/lib/engine/desempenho'
 import { fmtData, inputCls } from '@/components/ui'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
-import { sincronizarBancoGeral, avisoDoBancoGeral } from '@/lib/banco-data'
+import { sincronizarBancoGeral, avisoDoBancoGeral, podeOrganizar } from '@/lib/banco-data'
 
 /** Praticar: escolher o que estudar e começar (uma por vez ou lista como prova). Organizar as questões fica na aba Banco (/banco/questoes). */
 export default async function PraticarInicio({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams, f = lerFiltros(sp)
   const sb = await supabaseServer()
-  const aviso = avisoDoBancoGeral(await sincronizarBancoGeral(sb)) // questões novas e correções do banco geral, antes de contar
+  const [sync, gestor] = await Promise.all([sincronizarBancoGeral(sb), podeOrganizar(sb)])
+  const aviso = avisoDoBancoGeral(sync) // questões novas e correções do banco geral, antes de contar
   const [{ data: todas, error }, { data: ds }, { data: listas }] = await Promise.all([
     sb.from('banco_questoes').select('discipline_id,assunto,banca,ano,vezes,acertos,gabarito,anulada').limit(20000),
     sb.from('disciplines').select('id,nome').order('ordem'),
@@ -34,15 +35,15 @@ export default async function PraticarInicio({ searchParams }: { searchParams: P
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h1 className="text-2xl font-semibold">Praticar</h1><p className="text-sm text-muted">Escolha o que estudar e responda uma por vez, com a resposta na hora.</p></div>
-        {T.length > 0 && <Link href="/banco/questoes" className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">Ver e organizar o banco</Link>}
+        {T.length > 0 && <Link href="/banco/questoes" className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">{gestor ? 'Ver e organizar o banco' : 'Procurar questões'}</Link>}
       </div>
       {sp.erro && <AvisoDaUrl tipo="erro" chaves={['erro']}>{sp.erro}</AvisoDaUrl>}
       {aviso && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-3 text-sm">{aviso}</p>}
 
       {T.length === 0
         ? <div className="space-y-3 rounded-2xl border border-dashed border-line p-8 text-center">
-          <p className="text-muted">Seu banco de questões está vazio. Importe um PDF ou .docx de questões (com o gabarito no fim) ou um pacote .json para começar a praticar.</p>
-          <Link href="/banco/importar" className="inline-block rounded-xl bg-brand px-5 py-2.5 font-medium text-black">Importar questões</Link>
+          <p className="text-muted">{gestor ? 'Seu banco de questões está vazio. Importe um PDF ou .docx de questões (com o gabarito no fim) ou um pacote .json para começar a praticar.' : 'Ainda não há questões para praticar. Elas aparecem aqui assim que forem publicadas.'}</p>
+          {gestor && <Link href="/banco/importar" className="inline-block rounded-xl bg-brand px-5 py-2.5 font-medium text-black">Importar questões</Link>}
         </div>
         : <>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -72,9 +73,9 @@ export default async function PraticarInicio({ searchParams }: { searchParams: P
           {f.topico && <input type="hidden" name="topico" value={f.topico} />}
         </form>
 
-        {semAssunto > 0 && <p className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface px-4 py-3 text-sm">
+        {gestor && semAssunto > 0 && <p className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface px-4 py-3 text-sm">
           <span className="text-muted">{semAssunto} {semAssunto === 1 ? 'questão está' : 'questões estão'} sem assunto e não {semAssunto === 1 ? 'entra' : 'entram'} no Desempenho por assunto.</span>
-          <Link href={`/banco/questoes?assunto=${encodeURIComponent(SEM_ASSUNTO)}`} className="text-brand hover:underline">Organizar no Banco →</Link></p>}
+          <Link href={`/banco/questoes?assunto=${encodeURIComponent(SEM_ASSUNTO)}&org=1`} className="text-brand hover:underline">Organizar no Banco →</Link></p>}
 
         {(listas ?? []).length > 0 && <section className="space-y-2">
           <h2 className="font-medium">Listas recentes</h2>

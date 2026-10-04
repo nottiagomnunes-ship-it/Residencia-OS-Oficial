@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { supabaseServer } from '@/lib/supabase/server'
 import { excluirDoBanco, definirAssuntoEmLote, ligarAssunto, sugerirAssuntosDoBanco, publicarNoBancoGeral, retirarDoBancoGeral, restaurarDoBancoGeral } from '@/lib/banco'
-import { aplicarFiltros, assuntoDoFiltro, sincronizarBancoGeral, ehAdmin, avisoDoBancoGeral } from '@/lib/banco-data'
+import { aplicarFiltros, assuntoDoFiltro, sincronizarBancoGeral, ehAdmin, avisoDoBancoGeral, podeOrganizar } from '@/lib/banco-data'
 import { lerFiltros, filtrosParaUrl, SEM_ASSUNTO, assuntoParecido, type Filtros } from '@/lib/engine/banco'
 import { textoDosBlocos, ehLetra, type Bloco } from '@/lib/engine/provas'
 import { AREAS, ROTULO_AREA, SIGLA_AREA, lerArea } from '@/lib/engine/areas'
@@ -17,10 +17,12 @@ type Linha = { id: string; blocos: Bloco[]; alternativas: { letra: string; texto
 
 /** Banco: organizar as questões (ver, filtrar, dar assunto, excluir, importar). Estudar fica em Praticar (/banco). */
 export default async function BancoDeQuestoes({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const sp = await searchParams, f = lerFiltros(sp), pagina = Math.max(1, Number(sp.p) || 1), org = sp.org === '1' // org: modo Organizar (assuntos, lote, banco geral)
+  const sp = await searchParams, f = lerFiltros(sp), pagina = Math.max(1, Number(sp.p) || 1)
   const sb = await supabaseServer()
   // primeiro o banco geral (questões novas e correções), para a lista já vir com elas
-  const [sync, topico, admin] = await Promise.all([sincronizarBancoGeral(sb), assuntoDoFiltro(sb, f), ehAdmin(sb)])
+  const [sync, topico, admin, gestor] = await Promise.all([sincronizarBancoGeral(sb), assuntoDoFiltro(sb, f), ehAdmin(sb), podeOrganizar(sb)])
+  // gestor: importa e organiza (a conta administradora). O estudante só busca, pratica e exclui o que não quer.
+  const org = gestor && sp.org === '1' // modo Organizar (assuntos, lote, banco geral)
   const aviso = avisoDoBancoGeral(sync), daPagina = <T,>(q: T) => (aplicarFiltros(q, f, topico) as any).order('ano', { ascending: false, nullsFirst: false }).order('criada_em', { ascending: false }).range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1)
   // separadas: sem a 0037, estas falham e a página segue sem as marcas do banco geral
   const [{ data: todas, error }, { data: lista, count }, { data: ds }, { data: ts }, { data: geralDaPagina }, { count: removidas }, { data: colecoes }] = await Promise.all([
@@ -72,14 +74,14 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h1 className="text-2xl font-semibold">Banco de questões</h1><p className="text-sm text-muted">Procure questões por banca, assunto e ano.</p></div>
-        <Link href="/banco/importar" className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">Importar questões</Link>
+        {gestor && <Link href="/banco/importar" className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">Importar questões</Link>}
       </div>
       {sp.ok && <AvisoDaUrl tipo="ok" chaves={['ok']}>{sp.ok}</AvisoDaUrl>}
       {sp.erro && <AvisoDaUrl tipo="erro" chaves={['erro']}>{sp.erro}</AvisoDaUrl>}
       {aviso && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-3 text-sm">{aviso}</p>}
 
       {T.length === 0
-        ? <p className="rounded-2xl border border-dashed border-line p-8 text-center text-muted">O banco está vazio. Importe um PDF ou .docx de questões (com o gabarito no fim) ou um pacote .json para começar.</p>
+        ? <p className="rounded-2xl border border-dashed border-line p-8 text-center text-muted">{gestor ? 'O banco está vazio. Importe um PDF ou .docx de questões (com o gabarito no fim) ou um pacote .json para começar.' : 'Ainda não há questões no banco. Elas aparecem aqui assim que forem publicadas.'}</p>
         : <>
         <form action="/banco/questoes" method="get" className="space-y-3 rounded-2xl border border-line bg-surface p-4 md:p-5">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1.4fr_auto]">
@@ -112,8 +114,8 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <h2 className="mr-auto text-lg font-medium">{total} {total === 1 ? 'questão' : 'questões'}</h2>
-          <Link href={url({ p: 1, org: !org })} aria-pressed={org} className={`text-sm ${org ? 'text-brand' : 'text-muted hover:text-brand'}`}>
-            {org ? '✓ Organizando' : 'Organizar'}{!org && (soltos.length > 0 || semAssunto > 0) ? ' (assuntos pendentes)' : ''}</Link>
+          {gestor && <Link href={url({ p: 1, org: !org })} aria-pressed={org} className={`text-sm ${org ? 'text-brand' : 'text-muted hover:text-brand'}`}>
+            {org ? '✓ Organizando' : 'Organizar'}{!org && (soltos.length > 0 || semAssunto > 0) ? ' (assuntos pendentes)' : ''}</Link>}
           {total > 0 && <Link href={praticar} className="rounded-xl bg-brand px-5 py-2 font-medium text-black">Praticar {total === 1 ? 'esta' : `estas ${total}`} →</Link>}
         </div>
 
@@ -171,11 +173,6 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
               </div>
             </div>}
           </form>
-          {!!removidas && <form action={restaurarDoBancoGeral} className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
-            <input type="hidden" name="volta" value={volta} />
-            <span className="flex-1 text-muted">Você excluiu {removidas} {removidas === 1 ? 'questão' : 'questões'} do banco geral; {removidas === 1 ? 'ela não volta' : 'elas não voltam'} sozinhas.</span>
-            <button className="rounded-lg border border-line px-3 py-1.5 hover:border-brand">Trazer de volta</button>
-          </form>}
         </section>
         </>}
 
@@ -203,12 +200,17 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
                     <details className="text-muted"><summary className="cursor-pointer">Ver gabarito</summary>
                       <p className="mt-1">{ehLetra(q.gabarito) ? <>Gabarito: <b className="text-brand">{q.gabarito}</b>{q.gabarito_origem === 'ia' && <span className="text-warn"> (sugerido pela IA, conferir)</span>}</> : 'Sem gabarito.'}</p>
                       {q.comentario && <p className="mt-1 whitespace-pre-line">{q.comentario}</p>}</details>
-                    <AssuntoDaQuestao id={q.id} topicId={q.topic_id} assunto={q.assunto} disciplinaId={q.discipline_id} assuntos={topicos} disciplinas={discs} />
+                    {gestor && <AssuntoDaQuestao id={q.id} topicId={q.topic_id} assunto={q.assunto} disciplinaId={q.discipline_id} assuntos={topicos} disciplinas={discs} />}
                     <form action={excluirDoBanco}><input type="hidden" name="id" value={q.id} /><button className="text-sm text-danger hover:underline">Excluir do banco</button></form>
                   </div>
                 </details>
               </li>)
           })}</ul>
+          {!!removidas && <form action={restaurarDoBancoGeral} className="flex flex-wrap items-center gap-2 text-sm">
+            <input type="hidden" name="volta" value={volta} />
+            <span className="flex-1 text-muted">Você excluiu {removidas} {removidas === 1 ? 'questão' : 'questões'} do banco geral; {removidas === 1 ? 'ela não volta sozinha' : 'elas não voltam sozinhas'}.</span>
+            <button className="rounded-lg border border-line px-3 py-1.5 hover:border-brand">Trazer de volta</button>
+          </form>}
           {paginas > 1 && <nav className="flex items-center gap-2 text-sm" aria-label="Páginas">
             {pagina > 1 && <Link href={url({ p: pagina - 1 })} className="rounded-lg border border-line px-3 py-1.5">‹ Anterior</Link>}
             <span className="text-muted">Página {pagina} de {paginas}</span>

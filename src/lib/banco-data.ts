@@ -76,3 +76,13 @@ export function avisoDoBancoGeral(s: { novas: number; corrigidas: number } | nul
   ].filter(Boolean)
   return partes.join(' e ') + '.'
 }
+
+/**
+ * Pode importar e organizar o banco (assuntos, lote, banco geral)? Só a conta administradora; o estudante só busca e pratica.
+ * Sem o sistema de administração (antes da 0037), qualquer conta pode, como era antes.
+ */
+export async function podeOrganizar(sb: SupabaseClient) {
+  const { data, error } = await sb.rpc('eh_admin')
+  return error ? true : data === true
+}
+export const SO_ADMIN = 'Só a conta administradora importa e organiza o banco de questões.'

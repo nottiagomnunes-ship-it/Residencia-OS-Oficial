@@ -2,9 +2,12 @@ import Link from 'next/link'
 import { supabaseServer } from '@/lib/supabase/server'
 import { carregarAreas, comArea } from '@/lib/areas-data'
 import ImportarBanco from '@/components/banco/ImportarBanco'
+import { redirect } from 'next/navigation'
+import { podeOrganizar } from '@/lib/banco-data'
 
 export default async function Importar() {
   const sb = await supabaseServer()
+  if (!(await podeOrganizar(sb))) redirect('/banco/questoes') // só a conta administradora importa
   const [{ data: ds }, { data: ts }, areas] = await Promise.all([
     sb.from('disciplines').select('id,nome').order('ordem'), sb.from('topics').select('id,nome,discipline_id').limit(5000), carregarAreas(sb),
   ])
