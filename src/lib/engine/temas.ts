@@ -83,3 +83,13 @@ export function sugerirTemas<T extends { id: string; nome: string; palavras?: st
   }
   return r
 }
+
+/**
+ * A lista de temas como texto, uma linha por tema ("Área > Especialidade > Tema: palavras-chave"), no mesmo formato que a lista colada aceita.
+ * Serve para mandar a lista ao Claude junto com uma prova: ele classifica cada questão com um tema que já existe.
+ */
+export function listaDeTemasEmTexto(temas: Tema[]): string {
+  const limpo = (s: string) => s.replace(/[›»>;|]/g, '-').replace(/\s+/g, ' ').trim()
+  return porEspecialidade(temas).flatMap(([, ts]) => ts.map(t => [t.area ? ROTULO_AREA[t.area] : null, limpo(t.especialidade), limpo(t.nome).replace(/:/g, ' -')]
+    .filter(Boolean).join(' > ') + (t.palavras ? `: ${limpo(t.palavras)}` : ''))).join('\n')
+}

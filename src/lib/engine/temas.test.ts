@@ -69,3 +69,21 @@ describe('sugerir tema pelo texto (lote)', () => {
       .toEqual([{ area: expect.anything(), especialidade: 'Anestesiologia', nome: 'Hipertermia maligna', palavras: 'dantrolene, rigidez de masseter' }])
   })
 })
+
+import { listaDeTemasEmTexto } from './temas'
+describe('lista de temas em texto (para mandar ao Claude)', () => {
+  it('uma linha por tema e, colada de volta, dá a mesma lista (área, especialidade, nome e palavras-chave)', () => {
+    const temas = [
+      { id: '1', area: 'cirurgia' as const, especialidade: 'Anestesiologia', nome: 'Hipertermia maligna', palavras: 'dantrolene, rigidez de masseter' },
+      { id: '2', area: null, especialidade: 'Ética', nome: 'Sigilo: limites', palavras: null },
+      { id: '3', area: 'pediatria' as const, especialidade: 'Neonatologia', nome: 'Icterícia > fototerapia', palavras: null },
+    ]
+    const txt = listaDeTemasEmTexto(temas)
+    expect(txt.split('\n')).toEqual(['Cirurgia > Anestesiologia > Hipertermia maligna: dantrolene, rigidez de masseter', 'Ética > Sigilo - limites', 'Pediatria > Neonatologia > Icterícia - fototerapia'])
+    const volta = lerListaDeTemas(txt)
+    expect(volta.avisos).toEqual([])
+    expect(volta.temas.map(t => [t.area, t.especialidade, t.nome, t.palavras])).toEqual([
+      ['cirurgia', 'Anestesiologia', 'Hipertermia maligna', 'dantrolene, rigidez de masseter'], [expect.anything(), 'Ética', 'Sigilo - limites', null],
+      ['pediatria', 'Neonatologia', 'Icterícia - fototerapia', null]])
+  })
+})

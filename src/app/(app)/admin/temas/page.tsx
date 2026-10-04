@@ -38,7 +38,10 @@ export default async function Temas({ searchParams }: { searchParams: Promise<{ 
       </form>
 
       <section className="space-y-3">
-        <h2 className="font-medium">{temas.length} {temas.length === 1 ? 'tema' : 'temas'}{grupos.length ? ` em ${grupos.length} ${grupos.length === 1 ? 'especialidade' : 'especialidades'}` : ''}</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-medium">{temas.length} {temas.length === 1 ? 'tema' : 'temas'}{grupos.length ? ` em ${grupos.length} ${grupos.length === 1 ? 'especialidade' : 'especialidades'}` : ''}</h2>
+          {temas.length > 0 && <a href="/admin/temas/lista" className={btn}>Baixar a lista (.txt) para o Claude</a>}
+        </div>
         {!temas.length && <p className="rounded-2xl border border-dashed border-line p-6 text-center text-muted">Nenhum tema ainda. Cole a lista acima para começar.</p>}
         {grupos.map(([esp, ts]) => (
           <details key={esp} className="rounded-2xl border border-line bg-surface p-4" open={grupos.length <= 3}>
