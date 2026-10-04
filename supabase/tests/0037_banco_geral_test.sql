@@ -20,8 +20,10 @@ end $$;
 -- a pessoa 2222 já tinha importado uma das questões (mesmo texto) e tem a disciplina "ANESTESIOLOGIA" e o assunto "Via aérea"
 insert into disciplines (id, user_id, nome) values ('d2000000-0000-0000-0000-000000000001', auth.uid(), 'ANESTESIOLOGIA');
 insert into topics (id, user_id, discipline_id, nome) values ('e2000000-0000-0000-0000-000000000001', auth.uid(), 'd2000000-0000-0000-0000-000000000001', 'Via aerea');
+reset role; insert into admins (uid) values ('22222222-2222-2222-2222-222222222222') on conflict do nothing; set role authenticated; -- importação antiga (antes da 0049, qualquer conta importava)
 select importar_banco('[{"hash":"g2","blocos":[{"tipo":"texto","texto":"G2 versão dela"}],"alternativas":[{"letra":"A","texto":"a"},{"letra":"B","texto":"b"}],"gabarito":"A","comentario":"anotação dela"}]');
 reset role;
+delete from admins where uid = '22222222-2222-2222-2222-222222222222';
 
 -- administradora publica 3 questões do próprio banco (com comentário, que NÃO pode ir)
 select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', false);

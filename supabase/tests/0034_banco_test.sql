@@ -2,6 +2,7 @@
 \set ON_ERROR_STOP 1
 grant all on all tables in schema public to authenticated;
 grant execute on all functions in schema public to authenticated;
+insert into admins (uid) values ('11111111-1111-1111-1111-111111111111') on conflict do nothing; -- desde a 0049, só a administração importa
 select set_config('request.jwt.claim.sub', '11111111-1111-1111-1111-111111111111', false);
 set role authenticated;
 insert into disciplines (id, user_id, nome) values ('d0000000-0000-0000-0000-0000000000aa', auth.uid(), 'Anestesiologia') on conflict do nothing;

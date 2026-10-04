@@ -13,12 +13,14 @@ set role authenticated;
 insert into disciplines (id, user_id, nome) values ('d0000000-0000-0000-0000-000000000001', auth.uid(), 'Pediatria');
 insert into schedule_items (user_id, tipo, titulo, data) values (auth.uid(), 'simulado', 'Simulado', '2026-10-03');
 
-select salvar_prova('{"id":"a0000000-0000-0000-0000-000000000001","nome":"UEPA 2022","banca":"UEPA","ano":2022}',
-  '[{"numero":1,"blocos":[{"tipo":"texto","texto":"Q1"}],"alternativas":[{"letra":"A","texto":"a"},{"letra":"B","texto":"b"}],"gabarito":"A","area":"preventiva"},
-    {"numero":2,"blocos":[{"tipo":"texto","texto":"Q2"}],"alternativas":[{"letra":"A","texto":"a"},{"letra":"B","texto":"b"}],"gabarito":null,"area":"pediatria"},
-    {"numero":3,"blocos":[{"tipo":"texto","texto":"Q3"}],"alternativas":[{"letra":"A","texto":"a"},{"letra":"B","texto":"b"}],"gabarito":"B"},
-    {"numero":4,"blocos":[{"tipo":"texto","texto":"Q4"}],"alternativas":[{"letra":"A","texto":"a"},{"letra":"B","texto":"b"}],"gabarito":"B","area":"pediatria"},
-    {"numero":5,"blocos":[{"tipo":"texto","texto":"Q5"}],"alternativas":[{"letra":"A","texto":"a"},{"letra":"B","texto":"b"}],"anulada":true}]');
+-- (a salvar_prova saiu na 0049: a prova antiga é criada direto, como se tivesse sido importada antes)
+insert into provas (id, user_id, nome, banca, ano) values ('a0000000-0000-0000-0000-000000000001', auth.uid(), 'UEPA 2022', 'UEPA', 2022);
+insert into prova_questoes (user_id, prova_id, numero, blocos, alternativas, gabarito, anulada, area) values
+  (auth.uid(), 'a0000000-0000-0000-0000-000000000001', 1, '[{"tipo":"texto","texto":"Q1"}]', '[{"letra":"A","texto":"a"},{"letra":"B","texto":"b"}]', 'A', false, 'preventiva'),
+  (auth.uid(), 'a0000000-0000-0000-0000-000000000001', 2, '[{"tipo":"texto","texto":"Q2"}]', '[{"letra":"A","texto":"a"},{"letra":"B","texto":"b"}]', null, false, 'pediatria'),
+  (auth.uid(), 'a0000000-0000-0000-0000-000000000001', 3, '[{"tipo":"texto","texto":"Q3"}]', '[{"letra":"A","texto":"a"},{"letra":"B","texto":"b"}]', 'B', false, null),
+  (auth.uid(), 'a0000000-0000-0000-0000-000000000001', 4, '[{"tipo":"texto","texto":"Q4"}]', '[{"letra":"A","texto":"a"},{"letra":"B","texto":"b"}]', 'B', false, 'pediatria'),
+  (auth.uid(), 'a0000000-0000-0000-0000-000000000001', 5, '[{"tipo":"texto","texto":"Q5"}]', '[{"letra":"A","texto":"a"},{"letra":"B","texto":"b"}]', null, true, null);
 
 do $$
 declare v_t uuid; v_t2 uuid; qq record; v_res jsonb; v_st text; n int;

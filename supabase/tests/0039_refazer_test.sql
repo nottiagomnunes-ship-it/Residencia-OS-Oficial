@@ -3,9 +3,11 @@
 grant all on all tables in schema public to authenticated;
 grant execute on all functions in schema public to authenticated;
 select set_config('request.jwt.claim.sub', '22222222-2222-2222-2222-222222222222', false);
+insert into admins (uid) values ('22222222-2222-2222-2222-222222222222') on conflict do nothing; -- importação antiga (antes da 0049, qualquer conta importava)
 set role authenticated;
 select importar_banco('[{"hash":"r1","blocos":[{"tipo":"texto","texto":"R1"}],"alternativas":[{"letra":"A","texto":"a"},{"letra":"B","texto":"b"}],"gabarito":"A"},
                         {"hash":"r2","blocos":[{"tipo":"texto","texto":"R2"}],"alternativas":[{"letra":"A","texto":"a"},{"letra":"B","texto":"b"}],"gabarito":"A"}]');
+reset role; delete from admins where uid = '22222222-2222-2222-2222-222222222222'; set role authenticated;
 do $$ declare v1 uuid := (select id from banco_questoes where hash = 'r1'); v2 uuid := (select id from banco_questoes where hash = 'r2'); r jsonb;
 begin
   delete from revisao_questoes;
