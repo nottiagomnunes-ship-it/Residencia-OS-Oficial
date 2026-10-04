@@ -150,7 +150,7 @@ export default function ImportarBanco({ disciplinas, assuntos }: { disciplinas: 
             {disc === NOVA && <label className="text-sm text-muted">Nome da nova disciplina<input value={novaDisc} onChange={e => setNovaDisc(e.target.value)} maxLength={80} className={inputCls + ' mt-1 w-full'} /></label>}
             <label className="text-sm text-muted">De onde vieram (para você lembrar)<input value={fonte} onChange={e => setFonte(e.target.value)} maxLength={120} className={inputCls + ' mt-1 w-full'} /></label>
           </div>
-          {resumo.comAssunto > 0 && <p className="text-xs text-muted">{resumo.comAssunto} questões foram ligadas a assuntos que já existem em Conteúdos.</p>}
+          {resumo.comAssunto > 0 && <p className="text-xs text-muted">{resumo.comAssunto} questões foram ligadas a assuntos que já existem em Matérias → Assuntos.</p>}
           <details>
             <summary className="cursor-pointer text-sm text-muted">Ver as questões</summary>
             <ul className="mt-3 divide-y divide-line">{classificados.map((i, k) => (

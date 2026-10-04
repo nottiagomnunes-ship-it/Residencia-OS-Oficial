@@ -38,7 +38,7 @@ export default function ReorganizarAtrasadas({ n }: { n: number }) {
         </>
       ) : (
         <>
-          <p>Nada das atrasadas cabe nos próximos dias com o tempo que você tem. Aumente o tempo em <a href="/semana" className="text-brand underline">Minha semana</a> e tente de novo.</p>
+          <p>Nada das atrasadas cabe nos próximos dias com o tempo que você tem. Aumente o tempo em <a href="/semana" className="text-brand underline">Meu tempo</a> e tente de novo.</p>
           <button onClick={() => setPrevia(null)} className="rounded-xl border border-line px-4 py-2">Fechar</button>
         </>))}
     </div>)

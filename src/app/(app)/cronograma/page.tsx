@@ -33,8 +33,8 @@ export default async function Cronograma({ searchParams }: { searchParams: Promi
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Meu Cronograma</h1>
-        <div className="flex flex-wrap gap-2"><Link href="/semana" className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">Minha semana</Link>
+        <h1 className="text-2xl font-semibold">Plano de estudo</h1>
+        <div className="flex flex-wrap gap-2">
           <Link href="/importar" className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">Importar cronograma</Link>
           <form action={gerarCronogramaAction}><button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Gerar ou atualizar cronograma</button></form></div>
       </div>

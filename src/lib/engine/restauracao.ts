@@ -7,7 +7,7 @@ export const ROTULOS_TABELAS: Record<string, string> = {
   disciplines: 'Disciplinas', topics: 'Assuntos', topic_tasks: 'Etapas dos assuntos', review_tasks: 'Etapas das revisões', etapa_modelos: 'Padrões de etapas',
   study_sessions: 'Sessões de estudo', reviews: 'Revisões', question_sets: 'Sessões de questões', question_answers: 'Respostas de questões',
   error_notebook: 'Caderno de erros', schedule_items: 'Tarefas do calendário', mock_exams: 'Simulados', goals: 'Metas', achievements: 'Conquistas',
-  daily_stats: 'Dias de estudo', commitments: 'Agenda pessoal', capacidade_dia: 'Tempo por dia',
+  daily_stats: 'Dias de estudo', commitments: 'Compromissos', capacidade_dia: 'Tempo por dia',
 }
 // tabelas que todo backup já tinha desde que o backup existe; as outras foram criadas depois e podem faltar em arquivos antigos
 const OPCIONAIS = ['review_tasks', 'capacidade_dia']

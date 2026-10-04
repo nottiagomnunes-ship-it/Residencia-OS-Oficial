@@ -51,7 +51,7 @@ export default async function Calendario({ searchParams }: { searchParams: Promi
       </div>
       <NovaTarefa ancora={ancora} />
       <CalendarBoard items={(data ?? []) as Item[]} dias={dias} view={v} hoje={hoje} mes={ancora.slice(0, 7)} ocupados={ocupados} livres={livres} etapas={etapas} etapasRev={etapasRev} modelos={modelos} />
-      <p className="text-xs text-muted">No computador, arraste uma tarefa para outro dia. No celular, toque na tarefa e use “Mover para esta data”. Internato, academia e compromissos (com o tempo livre do dia) vêm da <Link href="/agenda" className="text-brand underline">Agenda pessoal</Link>.</p>
+      <p className="text-xs text-muted">No computador, arraste uma tarefa para outro dia. No celular, toque na tarefa e use “Mover para esta data”. Internato, academia e compromissos (com o tempo livre do dia) vêm da <Link href="/agenda" className="text-brand underline">Compromissos</Link>.</p>
     </div>
   )
 }

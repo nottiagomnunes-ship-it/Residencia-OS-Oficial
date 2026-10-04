@@ -35,7 +35,7 @@ export default async function Revisoes({ searchParams }: { searchParams: Promise
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-semibold">Revisões</h1>
-      {!itens.length && <p className="rounded-2xl border border-dashed border-line p-8 text-center text-muted">Nenhuma revisão pendente. Conclua um conteúdo em Conteúdos para gerar as primeiras.</p>}
+      {!itens.length && <p className="rounded-2xl border border-dashed border-line p-8 text-center text-muted">Nenhuma revisão pendente. Conclua um conteúdo em Matérias → Assuntos para gerar as primeiras.</p>}
       {grupos.filter(g => g.lista.length).map(g => (
         <section key={g.titulo} className="space-y-3">
           <h2 className={`font-medium ${g.cor}`}>{g.titulo} ({g.lista.length})</h2>

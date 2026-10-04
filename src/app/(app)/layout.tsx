@@ -6,7 +6,7 @@ import { NovasPromocoes } from '@/components/NovasPromocoes'
 import { contarAssuntos } from '@/lib/gamificacao-data'
 import { levelFor } from '@/lib/engine/review'
 import { promocoes, passoDoRank } from '@/lib/engine/rank'
-import { Sidebar, BottomNav } from '@/components/Nav'
+import { Sidebar, BottomNav, SubNav } from '@/components/Nav'
 import CronometroProvider from '@/components/CronometroProvider'
 import { AvisosProvider } from '@/components/Avisos'
 import { carregarCronometro } from '@/lib/cronometro-data'
@@ -34,7 +34,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <CronometroProvider disponivel={cron.disponivel} ativo={cron.ativo} agora={Date.now()}>
     <div className="flex min-h-dvh">
       <Sidebar recolhidoInicial={menuRecolhido} />
-      <main className="min-w-0 flex-1 p-4 pb-28 md:p-8 md:pb-28 lg:pb-8"><NovasPromocoes rank={promo.rank} titulo={promo.titulo} /><NovasConquistas codigos={(nv ?? []).map(x => x.codigo)} />{children}</main>
+      <main className="min-w-0 flex-1 p-4 pb-28 md:p-8 md:pb-28 lg:pb-8"><NovasPromocoes rank={promo.rank} titulo={promo.titulo} /><NovasConquistas codigos={(nv ?? []).map(x => x.codigo)} /><SubNav />{children}</main>
       <BottomNav />
     </div>
     <Tutorial primeiraVez={primeiraVez} />

@@ -41,7 +41,7 @@ export default async function Banco({ searchParams }: { searchParams: Promise<Re
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Banco de questões</h1>
+        <div><h1 className="text-2xl font-semibold">Praticar</h1><p className="text-sm text-muted">Seu banco de questões: filtre e responda uma por vez, com a resposta na hora.</p></div>
         <Link href="/banco/importar" className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Importar questões</Link>
       </div>
       {sp.erro && <AvisoDaUrl tipo="erro" chaves={['erro']}>{sp.erro}</AvisoDaUrl>}

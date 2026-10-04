@@ -26,7 +26,7 @@ export default async function Assunto({ params }: { params: Promise<{ id: string
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <Link href="/conteudos" className="text-sm text-muted hover:text-brand">← Conteúdos</Link>
+        <Link href="/conteudos" className="text-sm text-muted hover:text-brand">← Assuntos</Link>
         <h1 className="mt-1 text-2xl font-semibold">{t.nome}</h1>
         <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">{disc}{t.subcategoria ? ` › ${t.subcategoria}` : ''} <Badge status={t.status} /></p>
         {noBanco > 0 && <Link href={`/banco/praticar?topico=${t.id}`} className="mt-3 inline-block rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Praticar questões deste assunto ({noBanco})</Link>}

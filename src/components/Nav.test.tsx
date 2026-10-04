@@ -1,27 +1,45 @@
 import { describe, it, expect, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
-vi.mock('next/navigation', () => ({ usePathname: () => '/calendario' }))
-import { Sidebar } from './Nav'
+const h = vi.hoisted(() => ({ path: '/semana' }))
+vi.mock('next/navigation', () => ({ usePathname: () => h.path }))
+import { Sidebar, BottomNav, SubNav } from './Nav'
 
-const html = renderToStaticMarkup(<Sidebar />)
-const titulos = [...html.matchAll(/<p aria-hidden="true" class="([^"]*)"><span>([^<]+)<\/span><span aria-hidden="true" class="([^"]*)"><\/span><\/p>/g)]
-const links = [...html.matchAll(/<a [^>]*class="([^"]*)"[^>]*>([^<]+)<\/a>/g)]
+const texto = (s: string) => s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+const links = (s: string) => [...s.matchAll(/<a [^>]*href="([^"]+)"[^>]*>/g)].map(m => ({ href: m[1], atual: m[0].includes('aria-current="page"') }))
 
-describe('menu: títulos de grupo não podem parecer botões', () => {
-  it('os quatro títulos são rótulos: pequenos, maiúsculos, espaçados, com linha divisória e fora do alcance do toque', () => {
-    expect(titulos.map(t => t[2])).toEqual(['Planejar', 'Estudar', 'Acompanhar', 'Organizar'])
-    for (const [, classe, , linha] of titulos) {
-      for (const c of ['uppercase', 'tracking-widest', 'font-semibold', 'select-none', 'text-xs']) expect(classe).toContain(c)
-      expect(linha).toContain('h-px'); expect(linha).toContain('flex-1')
-      expect(classe).not.toContain('hover:'); expect(classe).not.toContain('rounded-xl')     // nada de visual de botão
-    }
+describe('menu lateral', () => {
+  it('as 5 seções e, no rodapé, Configurações e Ajuda; a seção da página atual fica acesa', () => {
+    h.path = '/semana'
+    const html = renderToStaticMarkup(<Sidebar />)
+    expect(links(html).map(l => l.href)).toEqual(['/inicio', '/calendario', '/banco', '/disciplinas', '/desempenho', '/configuracoes', '/ajuda'])
+    expect(links(html).filter(l => l.atual).map(l => l.href)).toEqual(['/calendario'])   // Meu tempo mora na Agenda
+    expect(texto(html)).toContain('Hoje Agenda Questões Matérias Progresso')
   })
-  it('os itens clicáveis usam a cor clara do app (os títulos usam o cinza), e têm destaque ao passar o dedo ou o mouse', () => {
-    const itens = links.map(l => ({ classe: l[1], nome: l[2] })); expect(itens.length).toBe(17)
-    for (const { classe, nome } of itens) { expect(classe, nome).not.toContain('text-muted'); expect(classe, nome).toContain('rounded-xl') }
-    for (const { classe, nome } of itens.filter(i => i.nome !== 'Calendário')) expect(classe, nome).toContain('hover:bg-line/50')
-    expect(itens.find(i => i.nome === 'Calendário')!.classe).toContain('text-brand')     // a página atual
-    for (const [, classe] of titulos) expect(classe).toContain('text-muted')
+  it('recolhido: só os ícones, com o nome para leitores de tela', () => {
+    const html = renderToStaticMarkup(<Sidebar recolhidoInicial />)
+    expect(html).toContain('aria-label="Questões"'); expect(texto(html)).not.toContain('Residência OS')
   })
-  it('há espaço maior entre os grupos para separá-los', () => { expect((html.match(/role="group" aria-label="[^"]+" class="mt-5 /g) ?? []).length).toBe(4) })
+})
+
+describe('celular', () => {
+  it('barra de baixo: as 5 seções, sem "Mais"', () => {
+    h.path = '/provas/tentativa/x'
+    const html = renderToStaticMarkup(<BottomNav />)
+    expect(links(html).map(l => l.href)).toEqual(['/inicio', '/calendario', '/banco', '/disciplinas', '/desempenho'])
+    expect(links(html).find(l => l.atual)?.href).toBe('/banco'); expect(texto(html)).not.toContain('Mais')
+  })
+})
+
+describe('abas no topo da página', () => {
+  it('mostram as páginas da seção, com a atual acesa, e a engrenagem/ajuda (no celular)', () => {
+    h.path = '/semana'
+    const html = renderToStaticMarkup(<SubNav />)
+    expect(texto(html)).toContain('Calendário Plano Meu tempo Compromissos')
+    expect(links(html).filter(l => l.atual).map(l => l.href)).toEqual(['/semana'])
+    expect(html).toContain('aria-label="Configurações"'); expect(html).toContain('aria-label="Ajuda"')
+  })
+  it('página filha acende a aba "mãe": importar o plano → Plano', () => {
+    h.path = '/importar'
+    expect(links(renderToStaticMarkup(<SubNav />)).filter(l => l.atual).map(l => l.href)).toEqual(['/cronograma'])
+  })
 })

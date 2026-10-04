@@ -1,33 +1,41 @@
 import { describe, it, expect } from 'vitest'
 import { existsSync, readdirSync } from 'fs'
-import { INICIO, GRUPOS, CONFIGURACOES, PAGINAS_DO_MENU, PRINCIPAIS, FILHAS, ativo } from './menu'
+import { SECOES, AJUSTES, TODAS_AS_ABAS, secaoDe, abaDe, dentro } from './menu'
 
 const pagina = (href: string) => existsSync(`src/app/(app)${href}/page.tsx`)
-const ESCONDIDAS = ['diagnostico'] // páginas de apoio, de propósito fora do menu
 
-describe('estrutura do menu', () => {
-  it('Início no topo, Configurações no fim, e 13 páginas no total, sem repetir', () => {
-    expect(PAGINAS_DO_MENU[0]).toEqual(INICIO); expect(PAGINAS_DO_MENU.at(-1)).toEqual(CONFIGURACOES); expect(PAGINAS_DO_MENU).toHaveLength(17)
-    const hrefs = PAGINAS_DO_MENU.map(([, h]) => h); expect(new Set(hrefs).size).toBe(hrefs.length)
+describe('o app em 5 seções', () => {
+  it('Hoje, Agenda, Questões, Matérias e Progresso, nesta ordem; cada uma abre na sua primeira aba', () => {
+    expect(SECOES.map(s => s.nome)).toEqual(['Hoje', 'Agenda', 'Questões', 'Matérias', 'Progresso'])
+    for (const s of SECOES) expect(s.href).toBe(s.abas[0][1])
+    expect(AJUSTES.abas.map(([n]) => n)).toEqual(['Configurações', 'Ajuda'])
   })
-  it('os quatro grupos, nesta ordem, cada um com itens', () => {
-    expect(GRUPOS.map(g => g.titulo)).toEqual(['Planejar', 'Estudar', 'Acompanhar', 'Organizar']); for (const g of GRUPOS) expect(g.itens.length).toBeGreaterThan(0)
-    expect(GRUPOS[0].itens.map(([n]) => n)).toEqual(['Meu Cronograma', 'Minha semana', 'Agenda pessoal', 'Calendário'])
-    expect(GRUPOS[1].itens.map(([n]) => n)).toEqual(['Revisões', 'Questões', 'Banco de questões', 'Simulados', 'Provas', 'Caderno de Erros'])
+  it('as abas de cada seção', () => {
+    expect(SECOES.map(s => s.abas.map(([n]) => n))).toEqual([
+      ['Hoje', 'Revisões'], ['Calendário', 'Plano', 'Meu tempo', 'Compromissos'], ['Praticar', 'Provas', 'Registrar', 'Erros'],
+      ['Disciplinas', 'Assuntos'], ['Desempenho', 'Metas', 'Simulados']])
   })
-  it('todo item do menu leva a uma página que existe', () => { for (const [nome, href] of PAGINAS_DO_MENU) expect(pagina(href), `${nome} → ${href}`).toBe(true) })
-  it('as abas fixas do celular estão no menu', () => { for (const h of PRINCIPAIS) expect(PAGINAS_DO_MENU.some(([, x]) => x === h)).toBe(true); expect(PRINCIPAIS).toEqual(['/inicio', '/calendario', '/revisoes', '/questoes']) })
-  it('"Importar cronograma" saiu do menu, mas a página existe e destaca o Cronograma', () => {
-    expect(PAGINAS_DO_MENU.some(([, h]) => h === '/importar')).toBe(false); expect(pagina('/importar')).toBe(true)
-    expect(ativo('/importar', '/cronograma')).toBe(true); expect(ativo('/importar/qualquer', '/cronograma')).toBe(true); expect(ativo('/importar', '/calendario')).toBe(false)
+  it('toda aba leva a uma página que existe, e nenhuma aparece duas vezes', () => {
+    for (const [nome, href] of TODAS_AS_ABAS) expect(pagina(href), `${nome} → ${href}`).toBe(true)
+    const hs = TODAS_AS_ABAS.map(([, h]) => h); expect(new Set(hs).size).toBe(hs.length)
   })
-  it('destaque do item atual: a página e as que moram dentro dela', () => {
-    expect(ativo('/conteudos/abc', '/conteudos')).toBe(true); expect(ativo('/provas/tentativa/x', '/provas')).toBe(true); expect(ativo('/cronograma', '/cronograma')).toBe(true); expect(ativo('/cronogramas', '/cronograma')).toBe(false); expect(ativo('/semana', '/cronograma')).toBe(false)
+  it('GUARDA: toda página do app pertence a uma seção (como aba ou como página "filha")', () => {
+    const paginas = readdirSync('src/app/(app)', { withFileTypes: true }).filter(d => d.isDirectory() && existsSync(`src/app/(app)/${d.name}/page.tsx`)).map(d => '/' + d.name)
+    expect(paginas.filter(p => !secaoDe(p)), 'página fora do menu: inclua como aba ou em "filhas" de uma seção').toEqual([])
   })
-  it('GUARDA: nenhuma página nova fica de fora do menu sem querer', () => {
-    const noMenu = new Set([...PAGINAS_DO_MENU.map(([, h]) => h.slice(1)), ...Object.keys(FILHAS).map(f => f.slice(1)), ...ESCONDIDAS])
-    const paginas = readdirSync('src/app/(app)', { withFileTypes: true }).filter(d => d.isDirectory() && existsSync(`src/app/(app)/${d.name}/page.tsx`)).map(d => d.name)
-    expect(paginas.filter(p => !noMenu.has(p)), 'página fora do menu: inclua em GRUPOS, em FILHAS ou em ESCONDIDAS').toEqual([])
+})
+
+describe('onde a pessoa está', () => {
+  const onde = (p: string) => { const s = secaoDe(p); return s ? `${s.nome} › ${abaDe(p, s)}` : null }
+  it('páginas internas acendem a seção e a aba certas', () => {
+    expect(onde('/inicio')).toBe('Hoje › /inicio'); expect(onde('/revisoes')).toBe('Hoje › /revisoes')
+    expect(onde('/importar')).toBe('Agenda › /cronograma')                         // importar o plano mora em "Plano de estudo"
+    expect(onde('/banco/praticar')).toBe('Questões › /banco'); expect(onde('/banco/importar')).toBe('Questões › /banco')
+    expect(onde('/provas/tentativa/abc')).toBe('Questões › /provas')
+    expect(onde('/conteudos/abc')).toBe('Matérias › /conteudos'); expect(onde('/disciplinas/x')).toBe('Matérias › /disciplinas')
+    expect(onde('/simulados')).toBe('Progresso › /simulados')
+    expect(onde('/diagnostico')).toBe('Ajustes › /configuracoes'); expect(onde('/ajuda')).toBe('Ajustes › /ajuda')
+    expect(onde('/login')).toBeNull()
   })
-  it('o resto de desenvolvimento ("Esta área será construída...") não existe mais', () => { expect(existsSync('src/app/(app)/[slug]')).toBe(false) })
+  it('"dentro" não confunde prefixos parecidos', () => { expect(dentro('/cronogramas', '/cronograma')).toBe(false); expect(dentro('/banco/x', '/banco')).toBe(true) })
 })

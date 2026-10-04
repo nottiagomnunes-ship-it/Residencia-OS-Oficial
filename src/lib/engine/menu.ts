@@ -1,24 +1,34 @@
-export type ItemMenu = readonly [nome: string, href: string]
+export type Aba = readonly [nome: string, href: string]
+export type Icone = 'hoje' | 'agenda' | 'questoes' | 'materias' | 'progresso' | 'ajustes'
 
-/** O menu, em grupos: o que a pessoa faz em cada momento. Início fica sozinho no topo e Configurações no rodapé. */
-export const INICIO: ItemMenu = ['Início', '/inicio']
-export const GRUPOS: readonly { titulo: string; itens: readonly ItemMenu[] }[] = [
-  { titulo: 'Planejar', itens: [['Meu Cronograma', '/cronograma'], ['Minha semana', '/semana'], ['Agenda pessoal', '/agenda'], ['Calendário', '/calendario']] },
-  { titulo: 'Estudar', itens: [['Revisões', '/revisoes'], ['Questões', '/questoes'], ['Banco de questões', '/banco'], ['Simulados', '/simulados'], ['Provas', '/provas'], ['Caderno de Erros', '/caderno-de-erros']] },
-  { titulo: 'Acompanhar', itens: [['Desempenho', '/desempenho'], ['Metas', '/metas']] },
-  { titulo: 'Organizar', itens: [['Disciplinas', '/disciplinas'], ['Conteúdos', '/conteudos']] },
+/**
+ * O app em 5 seções. Cada seção abre na primeira aba; as outras páginas dela aparecem como abas no topo da página (SubNav).
+ * `filhas`: páginas que não são abas, mas moram dentro de uma (ex.: /importar fica dentro de "Plano de estudo").
+ */
+export type Secao = { nome: string; href: string; icone: Icone; abas: readonly Aba[]; filhas?: Readonly<Record<string, string>> }
+export const SECOES: readonly Secao[] = [
+  { nome: 'Hoje', href: '/inicio', icone: 'hoje', abas: [['Hoje', '/inicio'], ['Revisões', '/revisoes']] },
+  { nome: 'Agenda', href: '/calendario', icone: 'agenda', abas: [['Calendário', '/calendario'], ['Plano', '/cronograma'], ['Meu tempo', '/semana'], ['Compromissos', '/agenda']],
+    filhas: { '/importar': '/cronograma' } },
+  { nome: 'Questões', href: '/banco', icone: 'questoes', abas: [['Praticar', '/banco'], ['Provas', '/provas'], ['Registrar', '/questoes'], ['Erros', '/caderno-de-erros']] },
+  { nome: 'Matérias', href: '/disciplinas', icone: 'materias', abas: [['Disciplinas', '/disciplinas'], ['Assuntos', '/conteudos']] },
+  { nome: 'Progresso', href: '/desempenho', icone: 'progresso', abas: [['Desempenho', '/desempenho'], ['Metas', '/metas'], ['Simulados', '/simulados']] },
 ]
-export const AJUDA: ItemMenu = ['Ajuda', '/ajuda']
-export const CONFIGURACOES: ItemMenu = ['Configurações', '/configuracoes']
-/** Rodapé do menu: Ajuda e Configurações. */
-export const RODAPE: readonly ItemMenu[] = [AJUDA, CONFIGURACOES]
-export const PAGINAS_DO_MENU: readonly ItemMenu[] = [INICIO, ...GRUPOS.flatMap(g => g.itens), ...RODAPE]
+/** Fora das 5 seções: no rodapé do menu (computador) e na engrenagem do topo (celular). */
+export const AJUSTES: Secao = { nome: 'Ajustes', href: '/configuracoes', icone: 'ajustes', abas: [['Configurações', '/configuracoes'], ['Ajuda', '/ajuda']], filhas: { '/diagnostico': '/configuracoes' } }
 
-/** As quatro abas fixas da barra inferior do celular; o resto fica em "Mais". */
-export const PRINCIPAIS = ['/inicio', '/calendario', '/revisoes', '/questoes']
+/** A página `path` é a página `href` ou mora dentro dela (/provas/tentativa/x está dentro de /provas). */
+export const dentro = (path: string, href: string) => path === href || path.startsWith(href + '/')
 
-/** Páginas que pertencem a um item do menu sem aparecer nele: nelas, o item "pai" fica destacado. */
-export const FILHAS: Record<string, string> = { '/importar': '/cronograma' }
+/** A aba (href) em que a página está, dentro da seção: a mais específica que casa, ou a "mãe" de uma página filha. */
+export function abaDe(path: string, s: Secao): string | null {
+  const direta = s.abas.map(([, h]) => h).filter(h => dentro(path, h)).sort((a, b) => b.length - a.length)[0]
+  if (direta) return direta
+  const filha = Object.entries(s.filhas ?? {}).find(([f]) => dentro(path, f))
+  return filha ? filha[1] : null
+}
+/** A seção da página (ou Ajustes; null se a página não pertence a nenhuma). */
+export const secaoDe = (path: string): Secao | null => [...SECOES, AJUSTES].find(s => abaDe(path, s) !== null) ?? null
 
-export const ativo = (path: string, href: string) =>
-  path === href || path.startsWith(href + '/') || Object.entries(FILHAS).some(([filha, pai]) => pai === href && (path === filha || path.startsWith(filha + '/')))
+/** Todas as páginas alcançáveis pelo menu (para conferir nos testes). */
+export const TODAS_AS_ABAS: readonly Aba[] = [...SECOES.flatMap(s => s.abas), ...AJUSTES.abas]

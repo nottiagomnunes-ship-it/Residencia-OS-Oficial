@@ -50,8 +50,8 @@ export function RitmoCompleto({ r }: { r: Ritmo }) {
           </div>
         : <p className="text-sm text-muted">Como referência, para terminar no prazo seriam cerca de {Math.ceil(r.necessario ?? 0)} assuntos por semana.</p>}
       {d.frase && <p className="text-sm text-muted">{d.frase}</p>}
-      {d.passo && feitos < (meta ?? 0) && <p className="text-sm">{d.passo} <span className="text-muted">Você pode também ajustar o tempo em <Link href="/semana" className="text-brand underline">Minha semana</Link>.</span></p>}
-      {(r.semData ?? 0) > 0 && (r.comData ?? 0) > 0 && <p className="text-sm text-muted">{r.semData} {r.semData === 1 ? 'assunto ainda não tem' : 'assuntos ainda não têm'} data no plano. Atualize o cronograma ou ajuste o tempo em Minha semana.</p>}
+      {d.passo && feitos < (meta ?? 0) && <p className="text-sm">{d.passo} <span className="text-muted">Você pode também ajustar o tempo em <Link href="/semana" className="text-brand underline">Meu tempo</Link>.</span></p>}
+      {(r.semData ?? 0) > 0 && (r.comData ?? 0) > 0 && <p className="text-sm text-muted">{r.semData} {r.semData === 1 ? 'assunto ainda não tem' : 'assuntos ainda não têm'} data no plano. Atualize o cronograma ou ajuste o tempo em Meu tempo.</p>}
       {r.atual != null && <p className="text-xs text-muted">Ritmo recente: {num(r.atual)} por semana · referência para o prazo: {num(r.necessario ?? 0)} por semana. Prazo para terminar os assuntos: {dm(r.prazo ?? '')}; os dias finais ficam para questões e simulados.</p>}
       {r.atual == null && <p className="text-xs text-muted">Prazo para terminar os assuntos: {dm(r.prazo ?? '')}; os dias finais ficam para questões e simulados.</p>}
       <p className="text-xs text-muted">Você escolhe como ver isto em <Link href="/configuracoes" className="underline">Configurações</Link>.</p>

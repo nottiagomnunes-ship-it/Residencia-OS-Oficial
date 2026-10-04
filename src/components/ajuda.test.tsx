@@ -38,7 +38,7 @@ describe('tutorial', () => {
   it('quem já viu: nada aparece sozinho', () => { expect(renderToStaticMarkup(<Tutorial primeiraVez={false} />)).toBe('') })
   it('a página Ajuda tem "Rever o tutorial" e as perguntas', () => {
     const html = renderToStaticMarkup(<Ajuda />)
-    expect(texto(html)).toContain('Rever o tutorial'); expect(texto(html)).toContain('Qual a diferença entre Minha semana e a Agenda pessoal?')
+    expect(texto(html)).toContain('Rever o tutorial'); expect(texto(html)).toContain('Qual a diferença entre Meu tempo e Compromissos?')
     expect(renderToStaticMarkup(<RevisarTutorial />)).toContain('type="button"')
     expect((renderToStaticMarkup(<BuscaAjuda />).match(/<details/g) ?? []).length).toBe(FAQ.reduce((n, s) => n + s.perguntas.length, 0))
   })

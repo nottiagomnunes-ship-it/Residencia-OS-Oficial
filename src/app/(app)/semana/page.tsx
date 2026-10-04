@@ -31,18 +31,18 @@ export default async function Semana() {
   return (
     <div className="max-w-4xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><h1 className="text-2xl font-semibold">Minha semana</h1><p className="text-muted">Diga quanto tempo você tem para estudar em cada dia. Sem horários: o app só monta o que cabe.</p></div>
+        <div><h1 className="text-2xl font-semibold">Meu tempo</h1><p className="text-muted">Diga quanto tempo você tem para estudar em cada dia. Sem horários: o app só monta o que cabe.</p></div>
         <form action={gerarCronogramaAction}><button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Atualizar meu cronograma</button></form>
       </div>
       <p className="text-sm text-muted">Escala mudou? É só tocar no tempo de cada dia. Os dias que você não preencher usam o seu tempo padrão ({formatarMinutos(padrao)} nos dias disponíveis). Para mudar o padrão, vá em <Link href="/configuracoes" className="text-brand underline">Configurações</Link>. Depois de mexer, toque em <b>Atualizar meu cronograma</b>.</p>
       {planoDesatualizado(pp?.capacidade_alterada_em, pp?.plano_gerado_em) && <p role="status" className="rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm">Você mudou o tempo desde a última atualização. Toque em <b>Atualizar meu cronograma</b> para o plano acompanhar.</p>}
       {a.dias.length > 0 && <CapacidadeSemana titulo="Esta semana" segunda={seg} {...a} agenda={ag.sugestoes} />}
       <CapacidadeSemana titulo="Próxima semana" segunda={prox} {...b} agenda={ag.sugestoes} />
-      {ag.disponivel && !ag.linhas.length && <p className="text-sm text-muted">Cadastre internato, plantões e academia na <Link href="/agenda" className="text-brand underline">Agenda pessoal</Link> e eu sugiro o tempo de estudo de cada dia pelo que sobra livre.</p>}
+      {ag.disponivel && !ag.linhas.length && <p className="text-sm text-muted">Cadastre internato, plantões e academia na <Link href="/agenda" className="text-brand underline">Compromissos</Link> e eu sugiro o tempo de estudo de cada dia pelo que sobra livre.</p>}
       {!!antigos && (
         <section className="space-y-2 rounded-2xl border border-line bg-surface p-5 text-sm">
           <h2 className="font-medium">Horários do modelo antigo</h2>
-          <p className="text-muted">Você tem {antigos} {antigos === 1 ? 'horário cadastrado' : 'horários cadastrados'} do modelo antigo de Minha semana. Eles não entram no estudo, mas podem ir para a <Link href="/agenda" className="text-brand underline">Agenda pessoal</Link>.</p>
+          <p className="text-muted">Você tem {antigos} {antigos === 1 ? 'horário cadastrado' : 'horários cadastrados'} do modelo antigo de Meu tempo. Eles não entram no estudo, mas podem ir para a <Link href="/agenda" className="text-brand underline">Compromissos</Link>.</p>
           <form action={apagarCompromissosAntigos}><button className="rounded-xl border border-line px-4 py-2 hover:border-danger hover:text-danger">Apagar horários antigos</button></form>
         </section>)}
     </div>

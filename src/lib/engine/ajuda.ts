@@ -4,21 +4,21 @@ export type Passo = { titulo: string; texto: string; link?: { rotulo: string; hr
 
 /** Tutorial: o caminho de uma semana de estudo, em poucos passos. Aparece uma vez para contas novas e pode ser revisto na Ajuda. */
 export const PASSOS_TUTORIAL: readonly Passo[] = [
-  { titulo: 'Bem-vindo ao Residência OS', texto: 'Em 1 minuto, o caminho para usar o app no dia a dia do internato. Você pode pular agora e rever quando quiser em Ajuda.' },
-  { titulo: '1. Seus assuntos', texto: 'Toda conta começa vazia. Importe o seu cronograma (texto ou PDF, com "# SEMANA 1", "## Disciplina" e os assuntos) ou adicione assuntos em Conteúdos.',
+  { titulo: 'Bem-vindo ao Residência OS', texto: 'O app tem 5 seções: Hoje, Agenda, Questões, Matérias e Progresso. Dentro de cada uma, as abas no topo mostram o resto. Em 1 minuto, o caminho do dia a dia; dá para pular e rever depois em Ajuda.' },
+  { titulo: '1. Seus assuntos', texto: 'Toda conta começa vazia. Em Agenda → Plano, importe o seu cronograma (texto ou PDF, com "# SEMANA 1", "## Disciplina" e os assuntos) ou adicione assuntos em Matérias → Assuntos.',
     link: { rotulo: 'Importar cronograma', href: '/importar' } },
-  { titulo: '2. Quanto tempo você tem', texto: 'Sem horários de relógio: em Minha semana você diz quanto tempo tem para estudar em cada dia. A escala mudou? É um toque por dia.',
-    link: { rotulo: 'Abrir Minha semana', href: '/semana' } },
-  { titulo: '3. O plano se monta sozinho', texto: 'Em Meu Cronograma, "Gerar ou atualizar cronograma" distribui os assuntos pelo tempo de cada dia. Atrasou? "Reorganizar atrasadas" mostra uma prévia antes de mudar.',
+  { titulo: '2. Quanto tempo você tem', texto: 'Sem horários de relógio: em Agenda → Meu tempo você diz quanto tempo tem para estudar em cada dia. A escala mudou? É um toque por dia.',
+    link: { rotulo: 'Abrir Meu tempo', href: '/semana' } },
+  { titulo: '3. O plano se monta sozinho', texto: 'Em Agenda → Plano, "Gerar ou atualizar cronograma" distribui os assuntos pelo tempo de cada dia. Atrasou? "Reorganizar atrasadas" mostra uma prévia antes de mudar.',
     link: { rotulo: 'Ver o cronograma', href: '/cronograma' } },
-  { titulo: '4. Todo dia, comece pelo Início', texto: 'O painel Hoje mostra só o que cabe no tempo de hoje. Conclua com um toque (ou deslize para a direita), adie deslizando para a esquerda e use o cronômetro se quiser contar o tempo real.' },
+  { titulo: '4. Todo dia, comece por Hoje', texto: 'A seção Hoje mostra só o que cabe no tempo de hoje. Conclua com um toque (ou deslize para a direita), adie deslizando para a esquerda e use o cronômetro se quiser contar o tempo real.' },
   { titulo: '5. Revisões automáticas', texto: 'Ao concluir um assunto, as revisões D1, D7, D30 e D60 são criadas sozinhas. Os intervalos mudam em Configurações e podem se ajustar ao seu acerto.',
     link: { rotulo: 'Ver revisões', href: '/revisoes' } },
-  { titulo: '6. Questões, provas e erros', texto: 'Importe questões para o Banco de questões (PDF, .docx ou pacote .json) e use "Praticar": uma por vez, com a resposta na hora. Faça provas inteiras em Provas e transforme os erros em revisão no Caderno de Erros. O Desempenho mostra onde focar.',
+  { titulo: '6. Questões, provas e erros', texto: 'Em Questões → Praticar, importe questões (PDF, .docx ou pacote .json) e responda uma por vez, com a resposta na hora. Em Provas, faça provas inteiras; em Erros, transforme os erros em revisão no Caderno de Erros. O Desempenho mostra onde focar.',
     link: { rotulo: 'Registrar questões', href: '/questoes' } },
-  { titulo: '7. Sua agenda', texto: 'Internato, plantões e academia vão na Agenda pessoal. Eles não viram tarefa de estudo: aparecem junto no Calendário e sugerem quanto estudar em cada dia.',
+  { titulo: '7. Sua agenda', texto: 'Internato, plantões e academia vão em Agenda → Compromissos. Eles não viram tarefa de estudo: aparecem junto no Calendário e sugerem quanto estudar em cada dia.',
     link: { rotulo: 'Abrir a agenda', href: '/agenda' } },
-  { titulo: 'Pronto!', texto: 'Dúvidas? A página Ajuda, no fim do menu, responde as perguntas mais comuns e tem este tutorial de novo.' },
+  { titulo: 'Pronto!', texto: 'Dúvidas? A Ajuda (no rodapé do menu ou no "?" do topo, no celular) responde as perguntas mais comuns e tem este tutorial de novo.' },
 ]
 
 export type Pergunta = { p: string; r: string; links?: { rotulo: string; href: string }[] }
@@ -26,29 +26,30 @@ export type Secao = { titulo: string; perguntas: Pergunta[] }
 
 export const FAQ: readonly Secao[] = [
   { titulo: 'Começando', perguntas: [
-    { p: 'Por onde eu começo?', r: 'Coloque seus assuntos (importando o cronograma ou em Conteúdos), diga quanto tempo tem em cada dia em Minha semana e toque em "Gerar ou atualizar cronograma". Depois disso, o dia a dia é pelo Início.',
-      links: [{ rotulo: 'Importar cronograma', href: '/importar' }, { rotulo: 'Minha semana', href: '/semana' }] },
+    { p: 'Onde fica cada coisa?', r: 'São 5 seções, no menu (ou na barra de baixo, no celular), e cada uma tem abas no topo. Hoje: o que fazer hoje e as revisões. Agenda: calendário, plano de estudo, o seu tempo de cada dia e os compromissos (internato, plantões, academia). Questões: praticar, provas, registrar questões feitas fora e o caderno de erros. Matérias: disciplinas e assuntos. Progresso: desempenho, metas e simulados. Configurações e Ajuda ficam no rodapé do menu (no celular, na engrenagem e no "?" do topo).' },
+    { p: 'Por onde eu começo?', r: 'Coloque seus assuntos (Agenda → Plano → Importar cronograma, ou Matérias → Assuntos), diga quanto tempo tem em cada dia em Agenda → Meu tempo e toque em "Gerar ou atualizar cronograma". Depois disso, o dia a dia é pela seção Hoje.',
+      links: [{ rotulo: 'Importar cronograma', href: '/importar' }, { rotulo: 'Meu tempo', href: '/semana' }] },
     { p: 'Qual formato o importador de cronograma aceita?', r: 'Texto colado ou PDF, organizado por semanas: uma linha "# SEMANA 1", depois "## Nome da disciplina" e os assuntos embaixo, um por linha. A ordem da importação vira a ordem de estudo.', links: [{ rotulo: 'Importar cronograma', href: '/importar' }] },
     { p: 'Dá para instalar no celular como aplicativo?', r: 'Sim. Abra o app no navegador do celular e use "Adicionar à tela inicial" (Chrome: menu ⋮; Safari: botão Compartilhar). O passo a passo também está em Configurações → Instalar no celular.', links: [{ rotulo: 'Configurações', href: '/configuracoes' }] },
     { p: 'Como eu revejo o tutorial?', r: 'No topo desta página, em "Rever o tutorial".' },
   ] },
   { titulo: 'Planejamento', perguntas: [
     { p: 'Por que o app não usa horários?', r: 'Porque a escala do internato muda toda semana. Você informa quanto tempo tem em cada dia e o app monta o que cabe nesse tempo, na ordem certa, sem tarefas em horários irreais.' },
-    { p: 'Qual a diferença entre Minha semana e a Agenda pessoal?', r: 'Minha semana é o tempo de ESTUDO de cada dia: é o que o cronograma usa. A Agenda pessoal guarda internato, plantões, academia e compromissos com horário; ela não entra no estudo, só aparece junto no Calendário e sugere quanto estudar (metade do tempo livre, até 4 h). A sugestão só vale se você tocar em "usar".',
-      links: [{ rotulo: 'Minha semana', href: '/semana' }, { rotulo: 'Agenda pessoal', href: '/agenda' }] },
-    { p: 'Mudei o tempo de um dia. O cronograma muda sozinho?', r: 'O tempo de hoje ajusta na hora a lista do Início. Para os outros dias, o app avisa que o plano ficou desatualizado; toque em "Atualizar meu cronograma" (Minha semana ou Meu Cronograma).' },
-    { p: 'O que acontece com uma tarefa que eu não fiz?', r: 'No fim do dia ela fica "Atrasada", sem cobrança. No Início, "Reorganizar atrasadas" mostra uma prévia e redistribui pelos próximos dias. Você também pode adiar uma tarefa (deslizando para a esquerda) e desfazer em até 8 segundos.' },
-    { p: 'Sobrou tempo hoje. Posso adiantar?', r: 'Sim. Quando você informa o tempo de hoje e tudo já cabe, o Início oferece trazer tarefas dos próximos dias.' },
-    { p: 'Como coloco a escala do internato de uma vez?', r: 'Na Agenda pessoal, em "Escala em texto", cole algo como "seg 7-13 Enfermaria; ter 19-7 PS; qua a sex 7-13 Ambulatório". Você vê a prévia antes de salvar. "Copiar a semana anterior" repete os horários de um dia só.', links: [{ rotulo: 'Agenda pessoal', href: '/agenda' }] },
-    { p: 'Como deixo livre um horário da agenda só num dia?', r: 'No Calendário (ou na semana da Agenda pessoal), toque no bloco do compromisso. "Liberar este horário" deixa aquele dia livre; num horário de "toda semana", só aquela data é liberada e as outras semanas continuam. Também dá para "Excluir de todas as semanas". O tempo livre do dia é recalculado na hora e o aviso tem "Desfazer" por alguns segundos.', links: [{ rotulo: 'Calendário', href: '/calendario' }] },
+    { p: 'Qual a diferença entre Meu tempo e Compromissos?', r: 'Meu tempo é o tempo de ESTUDO de cada dia: é o que o cronograma usa. Compromissos guarda internato, plantões, academia e compromissos com horário; ela não entra no estudo, só aparece junto no Calendário e sugere quanto estudar (metade do tempo livre, até 4 h). A sugestão só vale se você tocar em "usar".',
+      links: [{ rotulo: 'Meu tempo', href: '/semana' }, { rotulo: 'Compromissos', href: '/agenda' }] },
+    { p: 'Mudei o tempo de um dia. O cronograma muda sozinho?', r: 'O tempo de hoje ajusta na hora a lista de Hoje. Para os outros dias, o app avisa que o plano ficou desatualizado; toque em "Atualizar meu cronograma" (Meu tempo ou Plano de estudo).' },
+    { p: 'O que acontece com uma tarefa que eu não fiz?', r: 'No fim do dia ela fica "Atrasada", sem cobrança. Em Hoje, "Reorganizar atrasadas" mostra uma prévia e redistribui pelos próximos dias. Você também pode adiar uma tarefa (deslizando para a esquerda) e desfazer em até 8 segundos.' },
+    { p: 'Sobrou tempo hoje. Posso adiantar?', r: 'Sim. Quando você informa o tempo de hoje e tudo já cabe, Hoje oferece trazer tarefas dos próximos dias.' },
+    { p: 'Como coloco a escala do internato de uma vez?', r: 'Em Agenda → Compromissos, em "Escala em texto", cole algo como "seg 7-13 Enfermaria; ter 19-7 PS; qua a sex 7-13 Ambulatório". Você vê a prévia antes de salvar. "Copiar a semana anterior" repete os horários de um dia só.', links: [{ rotulo: 'Compromissos', href: '/agenda' }] },
+    { p: 'Como deixo livre um horário da agenda só num dia?', r: 'No Calendário (ou na semana de Compromissos), toque no bloco do compromisso. "Liberar este horário" deixa aquele dia livre; num horário de "toda semana", só aquela data é liberada e as outras semanas continuam. Também dá para "Excluir de todas as semanas". O tempo livre do dia é recalculado na hora e o aviso tem "Desfazer" por alguns segundos.', links: [{ rotulo: 'Calendário', href: '/calendario' }] },
     { p: 'Como excluo uma tarefa de estudo do calendário?', r: 'Toque na tarefa no Calendário e use "Excluir" no painel que abre. Excluir uma revisão remove a revisão; se preferir não perder o estudo, use "Adiar 1 dia" ou "Mover para esta data".', links: [{ rotulo: 'Calendário', href: '/calendario' }] },
-    { p: 'Coloquei uma escala nova e não quero que fique duplicada. Como substituo a antiga?', r: 'Na Agenda pessoal, vá para a semana certa. Se ela já tiver horários de um dia só, a "Escala em texto" e o "Copiar a semana anterior" oferecem "Substituir": os horários de um dia só daquela semana saem e os novos entram no lugar, tudo de uma vez (dá para ver antes o que sai). Os de "toda semana", como a academia, ficam. Mesmo sem substituir, o app não repete um horário igual (mesmo dia, horário e nome).', links: [{ rotulo: 'Agenda pessoal', href: '/agenda' }] },
+    { p: 'Coloquei uma escala nova e não quero que fique duplicada. Como substituo a antiga?', r: 'Em Agenda → Compromissos, vá para a semana certa. Se ela já tiver horários de um dia só, a "Escala em texto" e o "Copiar a semana anterior" oferecem "Substituir": os horários de um dia só daquela semana saem e os novos entram no lugar, tudo de uma vez (dá para ver antes o que sai). Os de "toda semana", como a academia, ficam. Mesmo sem substituir, o app não repete um horário igual (mesmo dia, horário e nome).', links: [{ rotulo: 'Compromissos', href: '/agenda' }] },
   ] },
   { titulo: 'Estudo e revisões', perguntas: [
     { p: 'Como funcionam as revisões?', r: 'Ao concluir um assunto, o app cria as revisões nos intervalos de Configurações (padrão: 1, 7, 30 e 60 dias). Com o ajuste pelo desempenho ligado, acerto abaixo de 60% ou dificuldade alta encurta a próxima revisão e 80% ou mais alonga.', links: [{ rotulo: 'Revisões', href: '/revisoes' }, { rotulo: 'Configurações', href: '/configuracoes' }] },
     { p: 'O que são as etapas de um assunto?', r: 'Um checklist do que fazer no estudo (ler, resumo, questões...). Cada revisão tem o seu próprio mini-checklist. Em Conteúdos dá para aplicar etapas em lote e desfazer o último lote por 24 horas.', links: [{ rotulo: 'Conteúdos', href: '/conteudos' }] },
     { p: 'Para que serve o cronômetro?', r: 'Para contar o tempo real de uma tarefa ou de um estudo livre. Ele fica numa barra fixa em qualquer página, continua certo se você trocar de aparelho e, ao finalizar, você confirma os minutos antes de gravar.' },
-    { p: 'Como organizo as disciplinas pelas 5 áreas da prova?', r: 'Em Disciplinas, "Organizar por áreas" sugere a área de cada disciplina pelo nome (Clínica, Cirurgia, Pediatria, GO, Preventiva); você confere antes de salvar. O Desempenho passa a mostrar o acerto por área.', links: [{ rotulo: 'Disciplinas', href: '/disciplinas' }] },
+    { p: 'Como organizo as disciplinas pelas 5 áreas da prova?', r: 'Em Matérias → Disciplinas, "Organizar por áreas" sugere a área de cada disciplina pelo nome (Clínica, Cirurgia, Pediatria, GO, Preventiva); você confere antes de salvar. O Desempenho passa a mostrar o acerto por área.', links: [{ rotulo: 'Disciplinas', href: '/disciplinas' }] },
   ] },
   { titulo: 'Questões, provas e erros', perguntas: [
     { p: 'Como registro questões?', r: 'Em Questões, escolha a disciplina ou o assunto, informe o total e os acertos. Se houver uma revisão pendente daquele assunto, a etapa "Fazer N questões" é marcada sozinha.', links: [{ rotulo: 'Questões', href: '/questoes' }] },

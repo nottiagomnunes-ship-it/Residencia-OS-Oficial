@@ -181,7 +181,7 @@ export function gerarCronograma(e: Entrada) {
   for (const b of blocos) { const g = b.tipo === 'estudo' && b.topic_id ? grupoDe.get(b.topic_id) : null; if (g && fimGrupo.has(g) && b.data > fimGrupo.get(g)!) passou.set(g, (passou.get(g) ?? 0) + 1) }
   passou.forEach((n, g) => avisos.push(`${n} ${n === 1 ? 'assunto' : 'assuntos'} de "${g}" não ${n === 1 ? 'coube' : 'couberam'} na semana e ${n === 1 ? 'foi' : 'foram'} para a seguinte. Libere mais tempo ou reduza os assuntos da semana.`))
   const naoAlocados = ordem.length - i, minutosFaltantes = falta(i)
-  if (naoAlocados) avisos.push(`Faltam cerca de ${Math.ceil(minutosFaltantes / 60)} h para cobrir ${naoAlocados} assuntos antes da prova. Informe mais tempo em "Minha semana", libere mais dias ou remova assuntos de baixa prioridade.`)
+  if (naoAlocados) avisos.push(`Faltam cerca de ${Math.ceil(minutosFaltantes / 60)} h para cobrir ${naoAlocados} assuntos antes da prova. Informe mais tempo em "Meu tempo", libere mais dias ou remova assuntos de baixa prioridade.`)
   if (!estudoDias.length && ordem.length) avisos.push('Nenhum dia disponível antes da prova: revise os dias da semana nas configurações.')
   return { blocos: finalizar(blocos), naoAlocados, minutosFaltantes, avisos }
 }

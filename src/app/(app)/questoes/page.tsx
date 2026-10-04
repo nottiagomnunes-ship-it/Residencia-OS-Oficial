@@ -24,9 +24,9 @@ export default async function Questoes({ searchParams }: { searchParams: Promise
   const card = (l: string, v: string, c = '') => <div className="rounded-2xl border border-line bg-surface p-4"><p className="text-sm text-muted">{l}</p><p className={`mt-1 text-2xl font-semibold ${c}`}>{v}</p></div>
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-semibold">Questões</h1>
-        <Link href="/banco" className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">Praticar no Banco de questões</Link></div>
-      <p className="text-sm text-muted">Aqui você registra questões feitas fora do app. Para responder dentro dele, com a correção na hora, use o Banco de questões.</p>
+      <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-semibold">Registrar questões</h1>
+        <Link href="/banco" className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">Praticar no app</Link></div>
+      <p className="text-sm text-muted">Aqui você registra questões feitas fora do app. Para responder dentro dele, com a correção na hora, use a aba Praticar.</p>
       {ok && t > 0 && <AvisoDaUrl tipo="ok" chaves={['ok', 'xp', 'etapas']}>Registrado: {t} questões, {aproveitamento(a, t)}% de aproveitamento.{xp && <b className="text-brand"> +{xp} XP.</b>}{etapas && +etapas > 0 && <> Marquei {etapas} {+etapas === 1 ? 'etapa' : 'etapas'} automaticamente.</>}{t - a > 0 && <> Você errou {t - a}: <Link href="/caderno-de-erros" className="text-brand underline">adicione ao Caderno de Erros</Link>.</>}</AvisoDaUrl>}
       {erro && <AvisoDaUrl tipo="erro" chaves={['erro']}>{erro}</AvisoDaUrl>}
       <div className="space-y-6 lg:grid lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start lg:gap-6 lg:space-y-0">

@@ -43,7 +43,7 @@ export default async function Disciplina({ params }: { params: Promise<{ id: str
               <td data-label="Questões:" className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]">{q}</td><td data-label="Acerto:" className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]">{q ? `${Math.round((a / q) * 100)}%` : '—'}</td><td data-label="Próxima revisão:" className="px-4 py-3 max-md:block max-md:px-0 max-md:py-0.5 max-md:before:mr-1 max-md:before:text-muted max-md:before:content-[attr(data-label)]">{fmtData(next)}</td></tr>)
           })}</tbody>
         </table>
-        {!topics.length && <p className="p-6 text-center text-muted">Nenhum assunto ainda. Importe o catálogo em Conteúdos.</p>}
+        {!topics.length && <p className="p-6 text-center text-muted">Nenhum assunto ainda. Importe o catálogo em Matérias → Assuntos.</p>}
       </div>
     </div>
   )

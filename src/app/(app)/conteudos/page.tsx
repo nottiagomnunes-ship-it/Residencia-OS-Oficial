@@ -30,7 +30,7 @@ export default async function Conteudos({ searchParams }: { searchParams: Promis
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Conteúdos</h1>
+        <h1 className="text-2xl font-semibold">Assuntos</h1>
         <Link href="/importar" className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Importar meu cronograma</Link>
         <form action={importCatalog}><button className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">Importar catálogo de assuntos</button></form>
       </div>

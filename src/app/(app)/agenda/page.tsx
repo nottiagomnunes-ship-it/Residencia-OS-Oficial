@@ -35,7 +35,7 @@ export default async function Agenda({ searchParams }: { searchParams: Promise<{
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold">Agenda pessoal</h1>
+        <h1 className="text-2xl font-semibold">Compromissos</h1>
         <p className="text-muted">Internato, plantões, academia, aulas e compromissos. Ficam separados do estudo: não viram tarefa, não contam nas horas estudadas e o cronograma não muda por causa deles. Eles aparecem junto no Calendário, com o tempo livre de cada dia.</p>
       </div>
       {ok && <AvisoDaUrl tipo="ok" chaves={['ok']}>{ok}</AvisoDaUrl>}
@@ -109,7 +109,7 @@ export default async function Agenda({ searchParams }: { searchParams: Promise<{
           {!!antigos && <form action={trazerHorariosAntigos} className="space-y-2 rounded-2xl border border-line bg-surface p-5 text-sm">
             <input type="hidden" name="semana" value={seg} />
             <h2 className="font-medium">Horários do modelo antigo</h2>
-            <p className="text-muted">Você tem {antigos} {antigos === 1 ? 'horário cadastrado' : 'horários cadastrados'} no modelo antigo de Minha semana. Quer trazê-los para a agenda? Depois é só apagar o que não vale mais.</p>
+            <p className="text-muted">Você tem {antigos} {antigos === 1 ? 'horário cadastrado' : 'horários cadastrados'} no modelo antigo de Meu tempo. Quer trazê-los para a agenda? Depois é só apagar o que não vale mais.</p>
             <button className={btn}>Trazer para a agenda</button>
           </form>}
         </div>
