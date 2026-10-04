@@ -26,7 +26,7 @@ export default async function Prova({ params, searchParams }: { params: Promise<
         <Link href="/provas" className="text-sm text-muted hover:text-brand">← Provas</Link>
         <h1 className="text-2xl font-semibold">{prova.nome}</h1>
         <p className="text-sm text-muted">{questoes.length} questões{prova.banca ? ` · ${prova.banca}` : ''}{prova.ano ? ` · ${prova.ano}` : ''}
-          {prova.tipo === 'prova' && <> · <Link href={`/contato?${new URLSearchParams({ pedir: 'prova', ...(prova.banca ? { banca: prova.banca } : {}), ...(prova.ano ? { ano: String(prova.ano) } : {}) })}#pedir-prova`} className="text-brand underline">Pedir esta prova para o banco de questões</Link></>}</p>
+          {prova.tipo === 'prova' && !prova.doBanco && <> · <Link href={`/contato?${new URLSearchParams({ pedir: 'prova', ...(prova.banca ? { banca: prova.banca } : {}), ...(prova.ano ? { ano: String(prova.ano) } : {}) })}#pedir-prova`} className="text-brand underline">Pedir esta prova para o banco de questões</Link></>}</p>
       </div>
       {ok && <AvisoDaUrl tipo="ok" chaves={['ok']}>{ok}</AvisoDaUrl>}
       {erro && <AvisoDaUrl tipo="erro" chaves={['erro']}>{erro}</AvisoDaUrl>}
@@ -37,7 +37,8 @@ export default async function Prova({ params, searchParams }: { params: Promise<
           : <form action={iniciarTentativa}><input type="hidden" name="prova" value={id} /><button className="rounded-xl bg-brand px-5 py-3 font-medium text-black">Começar a prova</button></form>}
       </div>
 
-      <div className="space-y-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6 lg:space-y-0">
+      {prova.doBanco && <p className="rounded-xl border border-line bg-surface p-3 text-sm text-muted">Prova montada a partir do banco de questões: o gabarito, as figuras e as explicações vêm do banco. Para fazer de novo com as correções mais recentes do banco, use &quot;Refazer a prova&quot; em Provas.</p>}
+      {!prova.doBanco && <div className="space-y-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6 lg:space-y-0">
         <form action={salvarGabarito} className={card}>
           <input type="hidden" name="prova" value={id} />
           <h2 className="font-medium">Gabarito</h2>
@@ -70,7 +71,7 @@ export default async function Prova({ params, searchParams }: { params: Promise<
               </li>))}</ul>
           </details>
         </section>
-      </div>
+      </div>}
 
       {(ts ?? []).length > 0 && (
         <section className="space-y-2">
@@ -86,7 +87,7 @@ export default async function Prova({ params, searchParams }: { params: Promise<
         <summary className="cursor-pointer text-sm text-danger">Excluir prova…</summary>
         <form action={excluirProva} className="mt-3 space-y-2">
           <input type="hidden" name="prova" value={id} />
-          <p className="text-sm text-muted">Apaga a prova, as tentativas e as figuras. Os resultados em Simulados e as anotações no Caderno de Erros continuam.</p>
+          <p className="text-sm text-muted">Apaga a prova e as tentativas{prova.doBanco ? '' : ' e as figuras'}. Os resultados em Simulados e as anotações no Caderno de Erros continuam.</p>
           <button className="rounded-xl border border-danger px-4 py-2 text-sm text-danger hover:bg-danger/10">Excluir definitivamente</button>
         </form>
       </details>

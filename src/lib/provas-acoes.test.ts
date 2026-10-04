@@ -26,7 +26,7 @@ vi.mock('@/lib/dates', () => ({ hojeBR: () => '2026-10-03' }))
 vi.mock('@/lib/gamificacao-data', () => ({ carregarGamificacao: async () => {} }))
 vi.mock('@/lib/xp', () => ({ resolverAlvo: async (_sb: unknown, v: string) => (v.startsWith('t:') ? { topic_id: v.slice(2), discipline_id: 'disc' } : { topic_id: null, discipline_id: v.slice(2) || null }) }))
 
-import { salvarProva, salvarGabarito, entregarProva, classificarErro, responderQuestao } from './provas'
+import { salvarGabarito, entregarProva, classificarErro, responderQuestao } from './provas'
 
 const UID = '11111111-1111-1111-1111-111111111111', PROVA = '22222222-2222-2222-2222-222222222222', TENT = '33333333-3333-3333-3333-333333333333'
 const fd = (o: Record<string, string>) => { const f = new FormData(); for (const [k, v] of Object.entries(o)) f.set(k, v); return f }
@@ -34,22 +34,6 @@ const redirecionou = async (p: Promise<unknown>) => { await expect(p).rejects.to
 const alts = (n: number) => 'ABCDE'.slice(0, n).split('').map(l => ({ letra: l, texto: l.toLowerCase() }))
 
 beforeEach(() => { h.user = { id: UID }; h.dados = {}; h.rpcs = []; h.updates = []; h.rpcErro = null; h.redirects = []; h.removidos = [] })
-
-describe('salvar a prova importada', () => {
-  const prova = { id: PROVA, nome: 'UEPA 2022', banca: 'UEPA', ano: '2022', questoes: [{ numero: 1, blocos: [{ tipo: 'imagem', caminho: `${UID}/${PROVA}/1.png` }], alternativas: alts(2), gabarito: 'B', anulada: false, area: 'go' }] }
-  it('confere e grava tudo numa chamada só', async () => {
-    expect(await salvarProva(prova)).toEqual({ ok: true, id: PROVA })
-    expect(h.rpcs).toEqual([{ nome: 'salvar_prova', args: { p_prova: { id: PROVA, nome: 'UEPA 2022', banca: 'UEPA', ano: 2022 }, p_questoes: [expect.objectContaining({ numero: 1, gabarito: 'B', area: 'go' })] } }])
-  })
-  it('figura de outra pasta é recusada antes de chegar ao banco', async () => {
-    const r = await salvarProva({ ...prova, questoes: [{ ...prova.questoes[0], blocos: [{ tipo: 'imagem', caminho: `outra/${PROVA}/1.png` }] }] })
-    expect(r.ok).toBe(false); expect(h.rpcs).toEqual([])
-  })
-  it('banco sem a 0028: diz o que fazer', async () => {
-    h.rpcErro = { message: 'Could not find the function public.salvar_prova in the schema cache', code: 'PGRST202' }
-    expect(await salvarProva(prova)).toEqual({ ok: false, erro: expect.stringContaining('0028_provas.sql') })
-  })
-})
 
 describe('gabarito', () => {
   it('grava só o lido e avisa a letra que não existe na questão', async () => {

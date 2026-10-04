@@ -78,14 +78,6 @@ export const ehCertoErrado = (as: Alternativa[]) => as.length === 2 && /^certo\.
 /** Texto corrido da questão (para o caderno de erros e para sugerir a área). Figuras viram "[figura]". */
 export const textoDosBlocos = (blocos: Bloco[]) => blocos.map(b => (b.tipo === 'texto' ? b.texto : '[figura]')).join('\n\n')
 
-/** "UEPA 2022" → banca "UEPA", ano 2022 (só um palpite para preencher a tela; a pessoa corrige). */
-export function palpiteDeNome(titulo: string | null, arquivo: string) {
-  const base = (titulo || arquivo.replace(/\.docx$/i, '').replace(/[_]+/g, ' ')).trim().slice(0, 120)
-  const ano = base.match(/\b(19[89]\d|20\d\d)\b/)?.[1]
-  const banca = base.split(/[\s_\-–—]+/)[0] ?? ''
-  return { nome: base || 'Prova', banca: /^[A-ZÀ-Ú0-9]{2,}$/.test(banca) ? banca : '', ano: ano ? Number(ano) : null }
-}
-
 // ---------- Gabarito ----------
 
 export type RespostaGabarito = Letra | 'X' // X = anulada
@@ -284,51 +276,11 @@ export const relogio = (seg: number) => {
   return `${h}:${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 }
 
-// ---------- Conferência do que chega ao servidor ----------
-
-export type QuestaoImportada = { numero: number; blocos: Bloco[]; alternativas: Alternativa[]; gabarito: Letra | null; anulada: boolean; area: Area | null }
-export type ProvaImportada = { id: string; nome: string; banca: string | null; ano: number | null; questoes: QuestaoImportada[] }
+// ---------- Identificadores ----------
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 export const ehUuid = (v: unknown): v is string => typeof v === 'string' && UUID.test(v)
-const texto = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
 
-/**
- * Confere a prova enviada pelo navegador antes de gravar: formato, limites de tamanho, letras em sequência, gabarito entre as alternativas da
- * questão e figuras só dentro da pasta desta pessoa e desta prova no armazenamento. Devolve a versão limpa ou o motivo da recusa.
- */
-export function validarProvaImportada(v: unknown, uid: string): { ok: true; prova: ProvaImportada } | { ok: false; erro: string } {
-  const p = v as Record<string, unknown>
-  if (!p || typeof p !== 'object') return { ok: false, erro: 'Dados da prova ausentes.' }
-  if (!ehUuid(p.id)) return { ok: false, erro: 'Identificador da prova inválido.' }
-  const nome = texto(p.nome, 120)
-  if (!nome) return { ok: false, erro: 'Dê um nome à prova.' }
-  const ano = p.ano == null || p.ano === '' ? null : Number(p.ano)
-  if (ano !== null && (!Number.isInteger(ano) || ano < 1980 || ano > 2100)) return { ok: false, erro: 'Ano inválido.' }
-  if (!Array.isArray(p.questoes) || !p.questoes.length) return { ok: false, erro: 'A prova não tem questões.' }
-  if (p.questoes.length > 300) return { ok: false, erro: 'A prova tem mais de 300 questões.' }
-  const pasta = `${uid}/${p.id}/`, numeros = new Set<number>(), questoes: QuestaoImportada[] = []
-  for (const bruta of p.questoes as Record<string, unknown>[]) {
-    const numero = Number(bruta?.numero)
-    if (!Number.isInteger(numero) || numero < 1 || numero > 999) return { ok: false, erro: 'Número de questão inválido.' }
-    if (numeros.has(numero)) return { ok: false, erro: `A questão ${numero} aparece duas vezes. Corrija o arquivo e importe de novo.` }
-    numeros.add(numero)
-    if (!Array.isArray(bruta.blocos) || bruta.blocos.length > 60) return { ok: false, erro: `Questão ${numero}: enunciado inválido.` }
-    const blocos: Bloco[] = []
-    for (const b of bruta.blocos as Record<string, unknown>[]) {
-      if (b?.tipo === 'texto') { const t = texto(b.texto, 20000); if (t) blocos.push({ tipo: 'texto', texto: t }) }
-      else if (b?.tipo === 'imagem' && typeof b.caminho === 'string' && b.caminho.startsWith(pasta) && /^[\w-]+\/[\w-]+\/[\w.-]{1,80}$/.test(b.caminho)) blocos.push({ tipo: 'imagem', caminho: b.caminho })
-      else return { ok: false, erro: `Questão ${numero}: figura ou trecho inválido.` }
-    }
-    if (!Array.isArray(bruta.alternativas) || bruta.alternativas.length < 2 || bruta.alternativas.length > 5) return { ok: false, erro: `Questão ${numero}: precisa ter de 2 a 5 alternativas.` }
-    const alternativas: Alternativa[] = (bruta.alternativas as Record<string, unknown>[]).map((a, i) => ({ letra: LETRAS[i], texto: texto(a?.texto, 5000) }))
-    if ((bruta.alternativas as Record<string, unknown>[]).some((a, i) => a?.letra !== LETRAS[i])) return { ok: false, erro: `Questão ${numero}: alternativas fora de ordem.` }
-    const gabarito = bruta.gabarito == null || bruta.gabarito === '' ? null : bruta.gabarito
-    if (gabarito !== null && !(ehLetra(gabarito) && alternativas.some(a => a.letra === gabarito))) return { ok: false, erro: `Questão ${numero}: o gabarito não é uma das alternativas.` }
-    questoes.push({ numero, blocos, alternativas, gabarito, anulada: bruta.anulada === true, area: ehArea(bruta.area) ? bruta.area : null })
-  }
-  return { ok: true, prova: { id: p.id as string, nome, banca: texto(p.banca, 60) || null, ano, questoes } }
-}
 
 /**
  * O que gravar a partir do gabarito lido: só as questões encontradas no texto (as outras ficam como estão). "X" = anulada (sem letra).

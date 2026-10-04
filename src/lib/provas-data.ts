@@ -26,14 +26,15 @@ export async function carregarProva(sb: SupabaseClient, provaId: string, comFigu
   const [{ data: prova }, { data: qs }, { data: tp }] = await Promise.all([
     sb.from('provas').select('id,nome,banca,ano,criada_em').eq('id', provaId).maybeSingle(),
     sb.from('prova_questoes').select('id,numero,blocos,alternativas,gabarito,anulada,area,discipline_id,topic_id').eq('prova_id', provaId).order('numero'),
-    sb.from('provas').select('tipo').eq('id', provaId).maybeSingle(), // lista do banco de questões? (consulta à parte: sem a 0034, tudo segue como prova)
+    sb.from('provas').select('*').eq('id', provaId).maybeSingle(), // tipo (lista do banco?) e do_banco (prova completa do banco?): '*' funciona antes da 0034 e da 0048
   ])
   if (!prova) return null
-  const tipo: 'prova' | 'lista' = tp?.tipo === 'lista' ? 'lista' : 'prova'
+  const tipo: 'prova' | 'lista' = tp?.tipo === 'lista' ? 'lista' : 'prova', doBanco = tp?.do_banco === true
   const extras = new Map<string, { comentario: string | null; gabarito_origem: string | null }>()
-  if (tipo === 'lista') {
-    const { data: lig } = await sb.from('prova_questoes').select('id,banco_questoes(comentario,gabarito_origem)').eq('prova_id', provaId)
-    for (const l of (lig ?? []) as unknown as { id: string; banco_questoes: { comentario: string | null; gabarito_origem: string | null } | null }[]) if (l.banco_questoes) extras.set(l.id, l.banco_questoes)
+  if (tipo === 'lista' || doBanco) { // questões do banco: a explicação (ou o seu comentário) e o aviso de gabarito da IA aparecem na correção
+    const { data: lig } = await sb.from('prova_questoes').select('id,banco_questoes(*)').eq('prova_id', provaId)
+    for (const l of (lig ?? []) as unknown as { id: string; banco_questoes: { comentario: string | null; explicacao?: string | null; gabarito_origem: string | null } | null }[])
+      if (l.banco_questoes) extras.set(l.id, { comentario: l.banco_questoes.explicacao || l.banco_questoes.comentario || null, gabarito_origem: l.banco_questoes.gabarito_origem })
   }
   const caminhos = comFiguras ? caminhosDasFiguras(qs ?? []) : []
   const urls = new Map<string, string>()
@@ -47,7 +48,7 @@ export async function carregarProva(sb: SupabaseClient, provaId: string, comFigu
     comentario: extras.get(q.id)?.comentario ?? null, gabaritoIA: extras.get(q.id)?.gabarito_origem === 'ia',
     blocos: lerBlocos(q.blocos).map(b => (b.tipo === 'imagem' ? { ...b, url: urls.get(b.caminho) ?? null } : b)),
   }))
-  return { prova: { ...(prova as { id: string; nome: string; banca: string | null; ano: number | null; criada_em: string }), tipo }, questoes }
+  return { prova: { ...(prova as { id: string; nome: string; banca: string | null; ano: number | null; criada_em: string }), tipo, doBanco }, questoes }
 }
 
 export type EstadoResposta = { alternativa: Letra | null; chute: boolean; marcada: boolean; riscadas: string }

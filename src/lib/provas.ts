@@ -8,7 +8,7 @@ import { xpQuestoes } from '@/lib/engine/questoes'
 import { ehArea } from '@/lib/engine/areas'
 import { MOTIVOS } from '@/lib/engine/questoes'
 import {
-  validarProvaImportada, lerGabarito, itensDoGabarito, faixas, corrigir, textoParaCaderno, ehLetra, ehUuid, type Letra,
+  lerGabarito, itensDoGabarito, faixas, corrigir, textoParaCaderno, ehLetra, ehUuid, type Letra,
 } from '@/lib/engine/provas'
 import { carregarProva, caminhosDasFiguras, BUCKET } from '@/lib/provas-data'
 import { carregarGamificacao } from '@/lib/gamificacao-data'
@@ -24,18 +24,6 @@ const refresh = () => ['/provas', '/simulados', '/questoes', '/caderno-de-erros'
 const com = (url: string, k: string, v: string) => `${url}${url.includes('?') ? '&' : '?'}${k}=${encodeURIComponent(v)}`
 const SEM_TABELA = 'Falta atualizar o banco: rode supabase/migrations/0028_provas.sql no SQL Editor do Supabase.'
 const semTabela = (e: { code?: string; message?: string } | null) => !!e && (e.code === '42P01' || e.code === 'PGRST205' || e.code === 'PGRST202' || /does not exist|schema cache/i.test(e.message ?? ''))
-
-/** Grava a prova importada (as figuras já foram enviadas pelo navegador para a pasta da pessoa). */
-export async function salvarProva(dados: unknown): Promise<{ ok: true; id: string } | { ok: false; erro: string }> {
-  const { sb, uid } = await ctx()
-  const v = validarProvaImportada(dados, uid)
-  if (!v.ok) return v
-  const { id, nome, banca, ano, questoes } = v.prova
-  const { error } = await sb.rpc('salvar_prova', { p_prova: { id, nome, banca, ano }, p_questoes: questoes })
-  if (error) return { ok: false, erro: semTabela(error) ? SEM_TABELA : 'Não foi possível gravar a prova. Nada foi salvo; tente de novo.' }
-  refresh()
-  return { ok: true, id }
-}
 
 /** Lê o gabarito colado e grava só as questões encontradas. Com `tentativa`, tenta corrigir logo em seguida. */
 export async function salvarGabarito(fd: FormData) {
@@ -143,7 +131,7 @@ async function corrigirTentativa(tentativa: string): Promise<string> {
   const lista = dados.prova.tipo === 'lista'
   const { error } = await sb.rpc(lista ? 'corrigir_lista' : 'corrigir_tentativa', { p_tentativa: tentativa, p_dia: hojeBR(), p_xp: lista ? xpQuestoes(c.total, c.acertos) : xpSimulado(c.total, c.acertos), p_total: c.total, p_acertos: c.acertos, p_textos: textos })
   if (error) return /mudou/.test(error.message) ? 'O gabarito mudou durante a correção. Recarregue a página e tente de novo.' : 'Não foi possível corrigir. Nada foi gravado; tente de novo.'
-  if (lista) { // acertos no chute também vão para "refazer" (os erros já vão sozinhos)
+  if (lista || dados.prova.doBanco) { // questões do banco: acertos no chute também vão para "refazer" (os erros já vão sozinhos)
     const ids = c.itens.filter(i => i.chute && i.situacao === 'certa').map(i => i.id)
     if (ids.length) {
       const { data: qs } = await sb.from('prova_questoes').select('banco_questao_id').in('id', ids)

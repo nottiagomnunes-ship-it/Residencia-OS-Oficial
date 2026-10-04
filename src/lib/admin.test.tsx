@@ -195,6 +195,26 @@ describe('Banco (tela de busca)', () => {
   })
 })
 
+describe('prova completa (Banco e reimportação)', () => {
+  it('busca por uma banca e um ano: botão "Fazer como prova" com as questões dessa prova (com gabarito ou anuladas)', async () => {
+    const linhas = [...Array(25)].map((_, i) => ({ id: `q${i}`, banca: 'UFMA', ano: 2024, gabarito: i < 23 ? 'A' : null, anulada: i === 24 }))
+    h.resp = (t, f, c) => (t === 'banco_questoes' && c.startsWith('id,discipline_id') ? { data: linhas, error: null } : { data: [], count: 0, error: null })
+    const html = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({ banca: 'UFMA', de: '2024', ate: '2024' }) }))
+    expect(html).toContain('Fazer como prova (24)'); expect(html).toContain('name="banca" value="UFMA"')
+    const sem = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({ banca: 'UFMA', de: '2023', ate: '2024' }) }))
+    expect(sem).not.toContain('Fazer como prova')
+  })
+  it('reimportar com o número na prova preenche o número das que já estavam sem (e não mexe nas que já têm)', async () => {
+    const q = (n: number, numero: number) => ({ blocos: [{ tipo: 'texto', texto: `Questão ${n}` }], alternativas: [{ letra: 'A', texto: 'a' }, { letra: 'B', texto: 'b' }], gabarito: 'A', numero })
+    const hash = (n: number) => createHash('sha256').update(textoParaHash([{ tipo: 'texto', texto: `Questão ${n}` }] as any, [{ letra: 'A', texto: 'a' }, { letra: 'B', texto: 'b' }] as any)).digest('hex')
+    h.resp = (t, f, c) => (t === 'banco_questoes' && c === 'id,hash,numero' ? { data: [{ id: 'x1', hash: hash(1), numero: null }, { id: 'x2', hash: hash(2), numero: 9 }], error: null } : { data: [], error: null })
+    const r = await importarNoBanco({ questoes: [q(1, 1), q(2, 2)] })
+    expect(r).toMatchObject({ ok: true, novas: 0, numeros: expect.stringContaining('1 questão que já estava no banco ganhou o número') })
+    expect(updates().map(u => [u.dados, u.filtros])).toEqual([[{ numero: 1 }, ['eq(id,x1)']]])
+    expect(h.rpcs.find(x => x.nome === 'importar_banco')!.args.p_itens.map((i: any) => i.numero)).toEqual([1, 2])
+  })
+})
+
 describe('só a administradora (regra única)', () => {
   it('conta comum ou banco sem a função eh_admin: não lê PDF nem importa', async () => {
     h.admin = false

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { supabaseServer } from '@/lib/supabase/server'
-import { excluirDoBanco, restaurarDoBancoGeral } from '@/lib/banco'
+import { excluirDoBanco, restaurarDoBancoGeral, fazerProvaCompleta } from '@/lib/banco'
+import { provasDoBanco, type LinhaDoBanco } from '@/lib/engine/provas-banco'
 import { aplicarFiltros, assuntoDoFiltro, sincronizarBancoGeral, ehAdmin, avisoDoBancoGeral, carregarTemas } from '@/lib/banco-data'
 import OpcoesDeAssunto from '@/components/banco/OpcoesDeAssunto'
 import { lerFiltros, filtrosParaUrl, type Filtros } from '@/lib/engine/banco'
@@ -24,7 +25,7 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
   const aviso = avisoDoBancoGeral(sync), daPagina = <T,>(q: T) => (aplicarFiltros(q, f, topico) as any).order('ano', { ascending: false, nullsFirst: false }).order('criada_em', { ascending: false }).range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1)
   // separadas: sem a 0037/0040/0042, estas falham e a página segue sem elas
   const [{ data: todas, error }, { data: lista, count }, { count: removidas }, temas, { data: comTema }, { data: explDaPagina }] = await Promise.all([
-    sb.from('banco_questoes').select('id,discipline_id,assunto,banca,ano').limit(20000),
+    sb.from('banco_questoes').select('id,discipline_id,assunto,banca,ano,gabarito,anulada').limit(20000),
     daPagina(sb.from('banco_questoes').select('id,blocos,alternativas,gabarito,gabarito_origem,anulada,comentario,area,discipline_id,topic_id,assunto,banca,ano,vezes,acertos,ultimo_certo', { count: 'exact' })),
     sync ? sb.from('banco_geral_removidas').select('geral_id', { count: 'exact', head: true }) : Promise.resolve({ count: 0 }),
     carregarTemas(sb),
@@ -55,6 +56,8 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
     return qs ? `/banco/questoes?${qs}` : '/banco/questoes'
   }
   const volta = url({ p: pagina }), filtrado = !!(f.area || f.disciplina || f.assunto || f.topico || f.banca || f.anoDe || f.anoAte || f.situacao !== 'todas')
+  // busca por uma banca e um ano: dá para fazer como prova (todas as questões dessa prova no banco, na ordem)
+  const provaDaBusca = f.banca && f.anoDe && f.anoDe === f.anoAte ? provasDoBanco(T as LinhaDoBanco[]).find(p => p.banca === f.banca && p.ano === f.anoDe) ?? null : null
   const praticar = `/banco/praticar${filtrosParaUrl(f) ? `?${filtrosParaUrl(f)}` : ''}`
   const sel = inputCls + ' w-full', btn = 'rounded-xl border border-line px-4 py-2 text-sm hover:border-brand'
   return (
@@ -94,6 +97,8 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <h2 className="mr-auto text-lg font-medium">{total} {total === 1 ? 'questão' : 'questões'}</h2>
+          {provaDaBusca && <form action={fazerProvaCompleta}><input type="hidden" name="banca" value={provaDaBusca.banca} /><input type="hidden" name="ano" value={provaDaBusca.ano} /><input type="hidden" name="volta" value={volta} />
+            <button className="rounded-xl border border-brand px-5 py-2 font-medium text-brand hover:bg-brand/10" title="Todas as questões desta banca e ano, na ordem da prova, com cronômetro; o resultado vai para Simulados">Fazer como prova ({provaDaBusca.questoes})</button></form>}
           {total > 0 && <Link href={praticar} className="rounded-xl bg-brand px-5 py-2 font-medium text-black">Praticar {total === 1 ? 'esta' : `estas ${total}`} →</Link>}
         </div>
 

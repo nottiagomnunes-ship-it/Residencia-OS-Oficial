@@ -5,7 +5,7 @@ import { zipSync, strToU8 } from 'fflate'
 import { lerDocx, lerParagrafos, lerRelacionamentos, decodificar, tipoDaImagem, ArquivoInvalido } from './provas-docx'
 import {
   montarQuestoes, lerGabarito, faixas, sugerirAreas, sugerirAreaDaQuestao, textoDosBlocos, corrigir, resultadoPorArea, textoParaCaderno, relogio,
-  validarProvaImportada, palpiteDeNome, type QuestaoParaCorrigir,
+  type QuestaoParaCorrigir,
 } from './provas'
 
 const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="r" xmlns:a="a"'
@@ -69,10 +69,6 @@ describe('montar as questões', () => {
     const r = montarQuestoes(ps(['QUESTÃO 1', 'x', 'A) a', 'B) b', 'C) c', 'D) d', 'QUESTÃO 3', 'A) a', 'B) b', 'C) c', 'D) d', 'QUESTÃO 3', 'enunciado']))
     expect(r.avisos).toEqual(['Depois da questão 1 vem a 3: confira se faltou alguma.', 'Questão 3: sem enunciado.', 'A questão 3 aparece mais de uma vez.',
       'Questão 3: nenhuma alternativa reconhecida (elas precisam começar com "A)", "B)"...).'])
-  })
-  it('palpite de nome, banca e ano', () => {
-    expect(palpiteDeNome('UEPA 2022', 'x.docx')).toEqual({ nome: 'UEPA 2022', banca: 'UEPA', ano: 2022 })
-    expect(palpiteDeNome(null, 'Prova_SUS-SP_2023.docx')).toEqual({ nome: 'Prova SUS-SP 2023', banca: '', ano: 2023 })
   })
 })
 
@@ -165,31 +161,6 @@ describe('correção', () => {
     const tx = textoParaCaderno('UEPA 2022', { numero: 4, blocos: [{ tipo: 'texto', texto: 'Enunciado' }, { tipo: 'imagem', caminho: 'x' }], alternativas: [{ letra: 'A', texto: 'um' }, { letra: 'B', texto: 'dois' }] }, null, 'B')
     expect(tx).toBe('UEPA 2022 · Questão 4\n\nEnunciado\n\n[figura]\n\nA) um\nB) dois\n\nSua resposta: em branco · Gabarito: B')
     expect(relogio(0)).toBe('0:00:00'); expect(relogio(3725)).toBe('1:02:05'); expect(relogio(-5)).toBe('0:00:00')
-  })
-})
-
-describe('conferência no servidor', () => {
-  const uid = '11111111-1111-1111-1111-111111111111', id = '22222222-2222-2222-2222-222222222222'
-  const q = (o: Record<string, unknown> = {}) => ({ numero: 1, blocos: [{ tipo: 'texto', texto: ' Enunciado ' }], alternativas: [{ letra: 'A', texto: 'a' }, { letra: 'B', texto: 'b' }], gabarito: 'B', anulada: false, area: 'go', ...o })
-  const base = (o: Record<string, unknown> = {}) => ({ id, nome: 'UEPA 2022', banca: 'UEPA', ano: 2022, questoes: [q()], ...o })
-  it('aceita e limpa', () => {
-    const r = validarProvaImportada(base({ questoes: [q({ blocos: [{ tipo: 'texto', texto: ' x ' }, { tipo: 'imagem', caminho: `${uid}/${id}/image1.png` }], area: 'nada' })] }), uid)
-    expect(r.ok && r.prova.questoes[0]).toEqual({ numero: 1, blocos: [{ tipo: 'texto', texto: 'x' }, { tipo: 'imagem', caminho: `${uid}/${id}/image1.png` }],
-      alternativas: [{ letra: 'A', texto: 'a' }, { letra: 'B', texto: 'b' }], gabarito: 'B', anulada: false, area: null })
-  })
-  it('recusa o que não deve ser gravado', () => {
-    const erro = (v: unknown) => { const r = validarProvaImportada(v, uid); return r.ok ? null : r.erro }
-    expect(erro(null)).toMatch(/ausentes/)
-    expect(erro(base({ id: 'x' }))).toMatch(/Identificador/)
-    expect(erro(base({ nome: '  ' }))).toMatch(/nome/)
-    expect(erro(base({ ano: 1500 }))).toMatch(/Ano/)
-    expect(erro(base({ questoes: [] }))).toMatch(/não tem questões/)
-    expect(erro(base({ questoes: [q(), q()] }))).toMatch(/duas vezes/)
-    expect(erro(base({ questoes: [q({ blocos: [{ tipo: 'imagem', caminho: `outra-pessoa/${id}/a.png` }] })] }))).toMatch(/figura/)
-    expect(erro(base({ questoes: [q({ blocos: [{ tipo: 'imagem', caminho: `${uid}/${id}/../a.png` }] })] }))).toMatch(/figura/)
-    expect(erro(base({ questoes: [q({ alternativas: [{ letra: 'A', texto: 'a' }] })] }))).toMatch(/2 a 5/)
-    expect(erro(base({ questoes: [q({ alternativas: [{ letra: 'B', texto: 'a' }, { letra: 'A', texto: 'b' }] })] }))).toMatch(/fora de ordem/)
-    expect(erro(base({ questoes: [q({ gabarito: 'E' })] }))).toMatch(/gabarito/)
   })
 })
 

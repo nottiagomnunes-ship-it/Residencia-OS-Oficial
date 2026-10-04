@@ -23,18 +23,21 @@ export default function ImportarBanco({ admin = false, temasLista = [] }: { admi
   const [lido, setLido] = useState<Lido | null>(null), [erro, setErro] = useState<string | null>(null), [lendo, setLendo] = useState(false)
   const [fonte, setFonte] = useState('')
   const [salvando, setSalvando] = useState<string | null>(null), [aberta, setAberta] = useState<number | null>(null)
-  const [resultado, setResultado] = useState<{ novas: number; repetidas: number; publicacao?: string; erroPublicacao?: string; temas?: string; explicacoes?: string; figuras?: string } | null>(null)
+  const [resultado, setResultado] = useState<{ novas: number; repetidas: number; publicacao?: string; erroPublicacao?: string; temas?: string; explicacoes?: string; figuras?: string; numeros?: string } | null>(null)
   // administrador: publicar no banco geral junto com a importação (já vai para todas as contas)
   const [publicar, setPublicar] = useState(true), [colecao, setColecao] = useState(''), [criarTemas, setCriarTemas] = useState(true)
   // tema para as questões que vieram sem tema (ex.: PDF de um assunto só); '' = deixar sem tema e classificar depois
   const [temaTodas, setTemaTodas] = useState('')
+  // PDF/.docx de uma prova inteira: guarda o número de cada questão (para a prova completa sair na ordem). Pacote: usa o campo "numero", se vier.
+  const [provaInteira, setProvaInteira] = useState(false), [ehPacote, setEhPacote] = useState(false)
 
   async function abrir(f: File | undefined) {
-    setErro(null); setLido(null); setResultado(null); setTemaTodas('')
+    setErro(null); setLido(null); setResultado(null); setTemaTodas(''); setProvaInteira(false)
     if (!f) return
     setLendo(true)
     try {
       const ext = f.name.toLowerCase().split('.').pop()
+      setEhPacote(ext === 'json')
       let itens: ItemLido[] = [], avisos: string[] = [], semResposta: number[] = [], imagens: Record<string, Blob> = {}, fonteLote: string | null = null
       const enviadas: Record<string, string> = {}, urlsProntas: Record<string, string> = {}
       if (ext === 'pdf') {
@@ -84,7 +87,7 @@ export default function ImportarBanco({ admin = false, temasLista = [] }: { admi
     total: lido.itens.length, comGabarito: lido.itens.filter(i => i.gabarito && !i.anulada).length,
     anuladas: lido.itens.filter(i => i.anulada).map(i => i.questao.numero), semGabarito: lido.itens.filter(i => !i.gabarito && !i.anulada).map(i => i.questao.numero),
     ia: lido.itens.filter(i => i.gabarito_origem === 'ia').length, comFigura: lido.itens.filter(i => i.questao.blocos.some(b => b.tipo === 'imagem')).length,
-    comTema: classificados.filter(i => i.tema).length, semTema: classificados.filter(i => !i.tema).length, comExplicacao: lido.itens.filter(i => i.explicacao).length,
+    comTema: classificados.filter(i => i.tema).length, semTema: classificados.filter(i => !i.tema).length, comExplicacao: lido.itens.filter(i => i.explicacao).length, comNumero: lido.itens.filter(i => i.numeroNaProva).length,
     temasNovos: [...new Set(lido.itens.flatMap(i => (i.tema && !temasLista.some(t => normalizar(t.especialidade) === normalizar(i.tema!.especialidade) && normalizar(t.nome) === normalizar(i.tema!.nome)) ? [`${i.tema.especialidade} › ${i.tema.nome}`] : [])))],
   }
 
@@ -113,14 +116,14 @@ export default function ImportarBanco({ admin = false, temasLista = [] }: { admi
         blocos: i.questao.blocos.flatMap((b): Bloco[] => (b.tipo === 'texto' ? [b] : destino[b.caminho] ? [{ tipo: 'imagem', caminho: destino[b.caminho] }] : []))
           .concat(i.questao.blocos.some(b => b.tipo === 'texto') ? [] : [{ tipo: 'texto', texto: '[Figura que não pôde ser importada]' }]),
         alternativas: i.questao.alternativas, gabarito: i.anulada ? null : i.gabarito, gabarito_origem: i.anulada ? null : i.gabarito_origem, anulada: i.anulada,
-        comentario: i.comentario, area: i.area, discipline_id: null, topic_id: null, assunto: i.tema?.nome ?? i.assunto, banca: i.banca, ano: i.ano, fonte: fonte.trim() || null,
+        comentario: i.comentario, area: i.area, discipline_id: null, topic_id: null, assunto: i.tema?.nome ?? i.assunto, banca: i.banca, ano: i.ano, fonte: fonte.trim() || null, numero: ehPacote || provaInteira ? i.numeroNaProva ?? null : null,
         tema: i.tema ? `${i.tema.especialidade} > ${i.tema.nome}` : null,
         explicacao: i.explicacao?.texto ?? null, explicacao_origem: i.explicacao?.origem ?? null,
       }))
       if (admin && publicar) setSalvando('Gravando e publicando no banco geral…')
       const r = await importarNoBanco({ questoes }, admin && publicar ? { colecao: colecao.trim() || fonte.trim() || null } : null, { criarTemas })
       if (!r.ok) throw new Error(r.erro)
-      setResultado({ novas: r.novas, repetidas: r.repetidas, publicacao: r.publicacao, erroPublicacao: r.erroPublicacao, temas: r.temas, explicacoes: r.explicacoes, figuras: r.figuras }); setLido(null); setSalvando(null)
+      setResultado({ novas: r.novas, repetidas: r.repetidas, publicacao: r.publicacao, erroPublicacao: r.erroPublicacao, temas: r.temas, explicacoes: r.explicacoes, figuras: r.figuras, numeros: r.numeros }); setLido(null); setSalvando(null)
       router.refresh()
     } catch (e) {
       if (enviados.length) await sb.storage.from('provas').remove(enviados).catch(() => {})
@@ -143,6 +146,7 @@ export default function ImportarBanco({ admin = false, temasLista = [] }: { admi
         {resultado.temas && <span className="mt-1 block">{resultado.temas}</span>}
         {resultado.explicacoes && <span className="mt-1 block">{resultado.explicacoes}</span>}
         {resultado.figuras && <span className="mt-1 block">{resultado.figuras}</span>}
+        {resultado.numeros && <span className="mt-1 block">{resultado.numeros}</span>}
         {resultado.publicacao && <span className="mt-1 block">{resultado.publicacao}</span>}</p>}
       {resultado?.erroPublicacao && <p role="alert" className="rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm text-warn">{resultado.erroPublicacao}</p>}
 
@@ -189,6 +193,9 @@ export default function ImportarBanco({ admin = false, temasLista = [] }: { admi
           {resumo.temasNovos.length > 0 && <label className="flex items-start gap-2"><input type="checkbox" checked={criarTemas} onChange={e => setCriarTemas(e.target.checked)} className="mt-0.5 size-4 accent-brand" />
             <span>Criar na Lista de temas os {resumo.temasNovos.length} que ainda não existem <span className="text-muted">({resumo.temasNovos.slice(0, 6).join('; ')}{resumo.temasNovos.length > 6 ? '…' : ''}). Sem marcar, as questões desses temas ficam sem tema.</span></span></label>}
         </section>}
+        {admin && !ehPacote && <label className={`${card} flex items-start gap-2 text-sm`}><input type="checkbox" checked={provaInteira} onChange={e => setProvaInteira(e.target.checked)} className="mt-0.5 size-4 accent-brand" />
+          <span><b className="font-medium">Este arquivo é uma prova inteira</b> <span className="text-muted">— guarda o número de cada questão, para a &quot;prova completa&quot; (Questões → Provas) sair na ordem da prova. Não marque em apostilas ou listas por tema.</span></span></label>}
+        {admin && ehPacote && resumo.comNumero > 0 && <p className={`${card} text-sm text-muted`}><b className="font-medium text-inherit">{resumo.comNumero} {resumo.comNumero === 1 ? 'questão vem' : 'questões vêm'} com o número na prova.</b> A prova completa sai nessa ordem.</p>}
         {admin && <section className={`${card} space-y-2 text-sm`}>
           <label className="flex items-start gap-2"><input type="checkbox" checked={publicar} onChange={e => setPublicar(e.target.checked)} className="mt-0.5 size-4 accent-brand" />
             <span><b className="font-medium">Publicar também no banco geral</b> <span className="text-muted">— todas as contas recebem estas questões (enunciado, figuras, alternativas, gabarito, tema e explicação; o comentário não vai).</span></span></label>

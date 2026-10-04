@@ -7,6 +7,7 @@ export type QuestaoDoBanco = {
   blocos: Bloco[]; alternativas: Alternativa[]; gabarito: Letra | null; gabarito_origem: 'oficial' | 'ia' | null; anulada: boolean
   comentario: string | null; area: Area | null; discipline_id: string | null; topic_id: string | null; assunto: string | null
   banca: string | null; ano: number | null; fonte: string | null
+  numero?: number | null // número da questão na prova original (para a prova completa, na ordem)
   tema?: TemaEscrito | null // tema da lista geral pelo nome (só a conta administradora aplica)
   explicacao?: Explicacao | null // explicação original (IA ou revisada); diferente do comentário, pode ir para o banco geral
 }
@@ -46,6 +47,8 @@ export type ItemLido = {
   disciplina: string | null; assunto: string | null; area: Area | null; banca: string | null; ano: number | null
   tema?: TemaEscrito | null
   explicacao?: Explicacao | null
+  /** número da questão na prova original: o do PDF/.docx de uma prova inteira, ou o campo "numero" do pacote */
+  numeroNaProva?: number | null
 }
 export type LoteLido = { itens: ItemLido[]; imagens: Record<string, string>; fonte: string | null; disciplina: string | null; avisos: string[] }
 
@@ -82,18 +85,25 @@ export function lerPacote(json: unknown): LoteLido {
       area: lerArea(q.area), banca: str(q.banca, 60), ano: Number.isInteger(ano) && ano > 1980 && ano < 2100 ? ano : null,
       tema: lerTemaEscrito(q.tema, str(q.disciplina, 120) ?? str(p.disciplina, 120)),
       explicacao: lerExplicacao(q.explicacao, q.explicacao_origem),
+      numeroNaProva: numeroValido(q.numero),
     })
   })
   return { itens, imagens, fonte: str(p.fonte, 120), disciplina: str(p.disciplina, 120), avisos }
 }
 
 /** Questões de um PDF ou .docx (já montadas) + o gabarito lido → itens do lote. Banca e ano saem da linha "UFMA 2018 ACESSO DIRETO". */
+/** Número de questão aceitável (1 a 999; aceita "12" em texto). */
+export function numeroValido(v: unknown): number | null {
+  const n = typeof v === 'string' && /^\d{1,3}$/.test(v.trim()) ? Number(v) : v
+  return typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= 999 ? n : null
+}
+
 export function itensDeQuestoes(questoes: QuestaoLida[], gabarito: Map<number, Letra | 'X'>): ItemLido[] {
   return questoes.map(q0 => {
     const { questao, banca, ano } = extrairOrigem(q0)
     const g = gabarito.get(q0.numero)
     return { questao, gabarito: g && g !== 'X' ? g : null, gabarito_origem: g && g !== 'X' ? 'oficial' : null, anulada: !!q0.anulada || g === 'X',
-      comentario: null, disciplina: null, assunto: null, area: null, banca, ano }
+      comentario: null, disciplina: null, assunto: null, area: null, banca, ano, numeroNaProva: numeroValido(q0.numero) }
   })
 }
 
@@ -125,6 +135,7 @@ export function validarLote(v: unknown, uid: string): { ok: true; questoes: Ques
       comentario: str(b.comentario, 5000), area: ehArea(b.area) ? b.area : null,
       discipline_id: ehUuid(b.discipline_id) ? b.discipline_id : null, topic_id: ehUuid(b.topic_id) ? b.topic_id : null,
       assunto: str(b.assunto, 120), banca: str(b.banca, 60), ano: ano !== null && Number.isInteger(ano) && ano > 1980 && ano < 2100 ? ano : null, fonte: str(b.fonte, 120),
+      numero: numeroValido(b.numero),
       tema: lerTemaEscrito(b.tema),
       explicacao: lerExplicacao(b.explicacao, b.explicacao_origem),
     })

@@ -78,7 +78,7 @@ export async function lerPdfDeQuestoes(fd: FormData): Promise<{ paginas?: string
 
 /** Grava o lote: confere, calcula a impressão digital de cada questão e deixa o banco ignorar as repetidas. */
 export async function importarNoBanco(dados: unknown, publicar: { colecao: string | null } | null = null, opcoes: { criarTemas?: boolean } = {}):
-  Promise<{ ok: true; novas: number; repetidas: number; publicacao?: string; erroPublicacao?: string; temas?: string; explicacoes?: string; figuras?: string } | { ok: false; erro: string }> {
+  Promise<{ ok: true; novas: number; repetidas: number; publicacao?: string; erroPublicacao?: string; temas?: string; explicacoes?: string; figuras?: string; numeros?: string } | { ok: false; erro: string }> {
   const { sb, uid } = await ctx()
   if (!(await ehAdmin(sb))) return { ok: false, erro: SO_ADMIN }
   const v = validarLote(dados, uid)
@@ -100,7 +100,8 @@ export async function importarNoBanco(dados: unknown, publicar: { colecao: strin
   const temas = itens.some(q => q.tema) ? await aplicarTemasDoLote(sb, itens, idPorHash, !!opcoes.criarTemas) : undefined
   const explicacoes = itens.some(q => q.explicacao) ? await aplicarExplicacoesDoLote(sb, itens, idPorHash) : undefined
   const figuras = novas < itens.length && itens.some(temFigura) ? await aplicarFigurasDoLote(sb, itens) : undefined
-  const extras = { ...(temas ? { temas } : {}), ...(explicacoes ? { explicacoes } : {}), ...(figuras ? { figuras } : {}) }
+  const numeros = novas < itens.length && itens.some(q => q.numero) ? await aplicarNumerosDoLote(sb, itens) : undefined
+  const extras = { ...(temas ? { temas } : {}), ...(explicacoes ? { explicacoes } : {}), ...(figuras ? { figuras } : {}), ...(numeros ? { numeros } : {}) }
   if (!publicar) return { ok: true, novas, repetidas: itens.length - novas, ...extras }
   // "Publicar também no banco geral" (depois dos temas, para o tema ir junto)
   const ids = [...new Set(idPorHash.values())]
@@ -128,6 +129,37 @@ async function aplicarFigurasDoLote(sb: Awaited<ReturnType<typeof supabaseServer
     }
   }
   return n ? `${n} ${n === 1 ? 'questão que já estava no banco ganhou a figura' : 'questões que já estavam no banco ganharam as figuras'}.` : undefined
+}
+
+/** Questões do arquivo que JÁ estavam no banco sem o número na prova (vieram antes da 0048, ou de uma apostila): recebem o número do arquivo. */
+async function aplicarNumerosDoLote(sb: Awaited<ReturnType<typeof supabaseServer>>, itens: { hash: string; numero?: number | null }[]) {
+  const numero = new Map(itens.filter(q => q.numero).map(q => [q.hash, q.numero!]))
+  const hashes = [...numero.keys()]
+  let n = 0
+  for (let i = 0; i < hashes.length; i += 200) {
+    const { data } = await sb.from('banco_questoes').select('id,hash,numero').in('hash', hashes.slice(i, i + 200))
+    for (const q of (data ?? []) as { id: string; hash: string; numero: number | null }[]) {
+      if (q.numero) continue
+      const { error } = await sb.from('banco_questoes').update({ numero: numero.get(q.hash) }).eq('id', q.id)
+      if (!error) n++
+    }
+  }
+  return n ? `${n} ${n === 1 ? 'questão que já estava no banco ganhou o número na prova' : 'questões que já estavam no banco ganharam o número na prova'} (publique de novo para chegar às outras contas).` : undefined
+}
+
+/** A prova completa de uma banca e ano, a partir do banco: todas as questões, na ordem da prova, com cronômetro; o resultado vai para Simulados. */
+export async function fazerProvaCompleta(fd: FormData) {
+  const { sb } = await ctx()
+  const banca = String(fd.get('banca') ?? '').trim().slice(0, 60), ano = Number(fd.get('ano'))
+  const volta = String(fd.get('volta') ?? '/provas')
+  const destino = /^\/(provas|banco\/questoes)(\?|$)/.test(volta) ? volta : '/provas'
+  const erro = (m: string) => redirect(`${destino}${destino.includes('?') ? '&' : '?'}erro=${encodeURIComponent(m)}`)
+  if (!banca || !Number.isInteger(ano)) erro('Escolha a banca e o ano da prova.')
+  const { data: tent, error } = await sb.rpc('montar_prova_completa', { p_banca: banca, p_ano: ano })
+  if (error || !tent) erro(/montar_prova_completa|function/.test(error?.message ?? '') ? 'Falta atualizar o banco: rode supabase/migrations/0048_prova_completa.sql no SQL Editor do Supabase.'
+    : /Nenhuma/.test(error?.message ?? '') ? 'Nenhuma questão com gabarito dessa prova no banco.' : /grande/.test(error?.message ?? '') ? 'Essa prova tem mais de 200 questões no banco.' : 'Não foi possível montar a prova. Tente de novo.')
+  refresh()
+  redirect(`/provas/tentativa/${tent}`)
 }
 
 /** Sorteia as questões que batem com os filtros e abre a lista na tela de prova. */

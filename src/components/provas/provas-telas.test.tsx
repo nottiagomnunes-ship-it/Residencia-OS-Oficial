@@ -1,10 +1,9 @@
 import { describe, it, expect, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: () => {}, push: () => {} }), usePathname: () => '/provas' }))
-vi.mock('@/lib/provas', () => ({ responderQuestao: vi.fn(), entregarProva: vi.fn(), classificarErro: vi.fn(), salvarProva: vi.fn() }))
+vi.mock('@/lib/provas', () => ({ responderQuestao: vi.fn(), entregarProva: vi.fn(), classificarErro: vi.fn() }))
 import FazerProva from './FazerProva'
 import CorrecaoErros from './CorrecaoErros'
-import ImportarProva from './ImportarProva'
 import { Enunciado } from './Enunciado'
 
 const texto = (h: string) => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
@@ -46,9 +45,5 @@ describe('enunciado e correção', () => {
     expect((h.match(/aria-pressed="true"/g) ?? []).length).toBe(1)
     expect(h).toMatch(/aria-pressed="true"[^>]*>Falta de atenção</)
     expect((h.match(/name="alvo"/g) ?? []).length).toBe(2)
-  })
-  it('importar: começa só com a escolha do arquivo', () => {
-    const h = renderToStaticMarkup(<ImportarProva />)
-    expect(h).toContain('accept=".docx'); expect(texto(h)).toContain('Escolher o arquivo da prova (.docx)'); expect(texto(h)).not.toContain('Salvar prova')
   })
 })
