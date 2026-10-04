@@ -15,6 +15,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
         <p className="text-right text-sm"><Link href="/recuperar-senha" className="text-brand underline">Esqueci minha senha</Link></p>
         <button className="w-full rounded-xl bg-brand py-3 font-medium text-black">Entrar</button>
         <p className="text-center text-sm text-muted">Ainda não tem conta? <Link href="/cadastro" className="text-brand underline">Criar conta</Link></p>
+        <p className="text-center text-xs text-muted"><Link href="/termos" className="underline hover:text-brand">Termos de uso</Link> · <Link href="/privacidade" className="underline hover:text-brand">Privacidade</Link></p>
       </form>
     </main>
   )

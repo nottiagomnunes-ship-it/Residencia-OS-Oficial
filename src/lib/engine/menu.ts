@@ -1,5 +1,5 @@
 export type Aba = readonly [nome: string, href: string]
-export type Icone = 'hoje' | 'agenda' | 'questoes' | 'materias' | 'progresso' | 'ajustes' | 'admin'
+export type Icone = 'hoje' | 'agenda' | 'questoes' | 'materias' | 'progresso' | 'ajustes' | 'admin' | 'mensagem'
 
 /**
  * O app em 5 seções. Cada seção abre na primeira aba; as outras páginas dela aparecem como abas no topo da página (SubNav).
@@ -15,11 +15,11 @@ export const SECOES: readonly Secao[] = [
   { nome: 'Progresso', href: '/desempenho', icone: 'progresso', abas: [['Desempenho', '/desempenho'], ['Metas', '/metas'], ['Simulados', '/simulados']] },
 ]
 /** Fora das 5 seções: no rodapé do menu (computador) e na engrenagem do topo (celular). */
-export const AJUSTES: Secao = { nome: 'Ajustes', href: '/configuracoes', icone: 'ajustes', abas: [['Configurações', '/configuracoes'], ['Ajuda', '/ajuda']], filhas: { '/diagnostico': '/configuracoes' } }
+export const AJUSTES: Secao = { nome: 'Ajustes', href: '/configuracoes', icone: 'ajustes', abas: [['Configurações', '/configuracoes'], ['Ajuda', '/ajuda'], ['Sugestões', '/contato']], filhas: { '/diagnostico': '/configuracoes' } }
 
 /** Só para a conta administradora: cuidar do banco geral (questões, temas, explicações). Fica no rodapé do menu e no topo, no celular. */
 export const ADMIN: Secao = { nome: 'Administração', href: '/admin', icone: 'admin',
-  abas: [['Pendências', '/admin'], ['Questões', '/admin/questoes'], ['Importar', '/admin/importar'], ['Temas', '/admin/temas']] }
+  abas: [['Pendências', '/admin'], ['Questões', '/admin/questoes'], ['Importar', '/admin/importar'], ['Temas', '/admin/temas'], ['Mensagens', '/admin/mensagens']] }
 
 /** A página `path` é a página `href` ou mora dentro dela (/provas/tentativa/x está dentro de /provas). */
 export const dentro = (path: string, href: string) => path === href || path.startsWith(href + '/')

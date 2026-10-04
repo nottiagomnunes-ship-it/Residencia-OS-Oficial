@@ -14,6 +14,7 @@ export default async function Cadastro({ searchParams }: { searchParams: Promise
         <label className="block space-y-1"><span className="text-sm">Repita a senha</span><input name="confirmar" type="password" required minLength={8} autoComplete="new-password" className={input} /></label>
         {erro && <p role="alert" className="text-sm text-danger">{erro}</p>}
         <button className="w-full rounded-xl bg-brand py-3 font-medium text-black">Criar conta</button>
+        <p className="text-center text-xs text-muted">Ao criar a conta, você concorda com os <Link href="/termos" className="underline hover:text-brand">Termos de uso</Link> e a <Link href="/privacidade" className="underline hover:text-brand">Política de privacidade</Link>.</p>
         <p className="text-center text-sm text-muted">Já tem conta? <Link href="/login" className="text-brand underline">Entrar</Link></p>
       </form>
     </main>

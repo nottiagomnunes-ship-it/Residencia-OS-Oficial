@@ -1,8 +1,11 @@
 'use client'
+import { useEffect } from 'react'
 import './globals.css'
+import { avisarErro } from '@/lib/avisar-erro'
 
 /** Último recurso: um erro no próprio esqueleto do app (nem o menu carrega). Fica com visual simples, no mesmo tema escuro. */
-export default function ErroGlobal({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function ErroGlobal({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  useEffect(() => { avisarErro(error) }, [error])
   return (
     <html lang="pt-BR">
       <body className="font-sans antialiased">

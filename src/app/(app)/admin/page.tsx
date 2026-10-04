@@ -18,8 +18,11 @@ export default async function Pendencias() {
   if (!(await ehAdmin(sb))) redirect('/banco')
   await sincronizarBancoGeral(sb)
   const contar = (adm: FiltroAdmin) => aplicarFiltroAdmin(sb.from('banco_questoes').select('id', { count: 'exact', head: true }), adm)
-  const [{ count: total }, { data: reportes, error: eRep }, ...cs] = await Promise.all([
+  const desde = new Date(Date.now() - 24 * 3600e3).toISOString()
+  const [{ count: total }, { count: nMsgs, error: eMsgs }, { count: nErros }, { data: reportes, error: eRep }, ...cs] = await Promise.all([
     sb.from('banco_questoes').select('id', { count: 'exact', head: true }),
+    sb.from('mensagens').select('id', { count: 'exact', head: true }).is('resolvida_em', null),
+    sb.from('erros_app').select('id', { count: 'exact', head: true }).gte('criado_em', desde),
     sb.from('explicacao_reportes').select('id,hash,motivo,criado_em').is('resolvido_em', null).order('criado_em').limit(50),
     ...PENDENCIAS.map(p => contar(p.adm)),
   ])
@@ -30,12 +33,18 @@ export default async function Pendencias() {
   const porHash = new Map(((dosReportes ?? []) as { id: string; hash: string; blocos: Bloco[]; banca: string | null; ano: number | null }[]).map(q => [q.hash, q]))
   const n = PENDENCIAS.map((p, k) => ({ ...p, n: cs[k].error ? null : cs[k].count ?? 0 }))
   const faltaMigracao = !!eRep || n.some(p => p.n === null)
-  const nada = !abertos.length && n.every(p => !p.n || p.adm === 'so-meu')
+  const nada = !abertos.length && n.every(p => !p.n || p.adm === 'so-meu') && !nMsgs && !nErros
   return (
     <div className="space-y-6">
       <div><h1 className="text-2xl font-semibold">Pendências</h1>
         <p className="text-sm text-muted">O que falta fazer nas questões do banco ({total ?? 0} no total). Clique para ver só aquelas.</p></div>
       {faltaMigracao && <p className="rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm text-warn">Algumas contagens precisam das migrations novas: rode <code>supabase/migrations/0043_admin_pendencias.sql</code> (depois da 0040 e da 0042) no SQL Editor do Supabase.</p>}
+
+      {!eMsgs && (!!nMsgs || !!nErros) && <Link href="/admin/mensagens" className="flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-2xl border border-brand/40 bg-surface p-4 text-sm hover:border-brand">
+        <span className="font-medium">Mensagens</span>
+        {!!nMsgs && <span><b className="text-lg text-warn">{nMsgs}</b> em aberto</span>}
+        {!!nErros && <span><b className="text-lg text-danger">{nErros}</b> erro{nErros > 1 ? 's' : ''} do site nas últimas 24 h</span>}
+        <span className="ml-auto text-muted">Abrir →</span></Link>}
 
       {abertos.length > 0 && <section className="space-y-3 rounded-2xl border border-danger/40 bg-surface p-5 text-sm">
         <h2 className="font-medium text-danger">Explicações reportadas ({abertos.length})</h2>
@@ -55,7 +64,7 @@ export default async function Pendencias() {
           <span className="block text-sm text-muted">{p.dica}</span>
         </Link></li>))}</ul>
 
-      {nada && !faltaMigracao && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-3 text-sm">Tudo em dia: nenhuma questão alterada sem publicar, sem tema, sem explicação ou com reporte aberto.</p>}
+      {nada && !faltaMigracao && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-3 text-sm">Tudo em dia: nenhuma questão alterada sem publicar, sem tema, sem explicação ou com reporte aberto, e nenhuma mensagem em aberto.</p>}
 
       <div className="flex flex-wrap gap-2 text-sm">
         <Link href="/admin/questoes" className="rounded-xl border border-line px-4 py-2 hover:border-brand">Ver todas as questões</Link>

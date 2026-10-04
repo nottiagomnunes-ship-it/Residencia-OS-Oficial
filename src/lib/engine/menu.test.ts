@@ -8,7 +8,7 @@ describe('o app em 5 seções', () => {
   it('Hoje, Agenda, Questões, Matérias e Progresso, nesta ordem; cada uma abre na sua primeira aba', () => {
     expect(SECOES.map(s => s.nome)).toEqual(['Hoje', 'Agenda', 'Questões', 'Matérias', 'Progresso'])
     for (const s of SECOES) expect(s.href).toBe(s.abas[0][1])
-    expect(AJUSTES.abas.map(([n]) => n)).toEqual(['Configurações', 'Ajuda'])
+    expect(AJUSTES.abas.map(([n]) => n)).toEqual(['Configurações', 'Ajuda', 'Sugestões'])
   })
   it('as abas de cada seção', () => {
     expect(SECOES.map(s => s.abas.map(([n]) => n))).toEqual([
@@ -19,8 +19,8 @@ describe('o app em 5 seções', () => {
     for (const [nome, href] of TODAS_AS_ABAS) expect(pagina(href), `${nome} → ${href}`).toBe(true)
     const hs = TODAS_AS_ABAS.map(([, h]) => h); expect(new Set(hs).size).toBe(hs.length)
   })
-  it('Administração (só a conta administradora): Pendências, Questões, Importar e Temas, todas existem', () => {
-    expect(ADMIN.abas.map(([n]) => n)).toEqual(['Pendências', 'Questões', 'Importar', 'Temas'])
+  it('Administração (só a conta administradora): Pendências, Questões, Importar, Temas e Mensagens, todas existem', () => {
+    expect(ADMIN.abas.map(([n]) => n)).toEqual(['Pendências', 'Questões', 'Importar', 'Temas', 'Mensagens'])
     for (const [nome, href] of ADMIN.abas) expect(pagina(href), `${nome} → ${href}`).toBe(true)
     expect(pagina('/admin/questoes/[id]')).toBe(true)
   })
