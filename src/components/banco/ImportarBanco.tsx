@@ -8,6 +8,7 @@ import { montarQuestoes, lerGabarito, textoDosBlocos, faixas, type Bloco } from 
 import { lerPacote, itensDeQuestoes, type ItemLido } from '@/lib/engine/banco'
 import { SIGLA_AREA, normalizar } from '@/lib/engine/areas'
 import { porEspecialidade } from '@/lib/engine/temas'
+import { palpiteDaProva } from '@/lib/engine/provas-banco'
 import { lerPdfDeQuestoes, importarNoBanco } from '@/lib/banco'
 import { inputCls } from '@/components/ui'
 import { Enunciado } from '@/components/provas/Enunciado'
@@ -23,22 +24,25 @@ export default function ImportarBanco({ admin = false, temasLista = [] }: { admi
   const [lido, setLido] = useState<Lido | null>(null), [erro, setErro] = useState<string | null>(null), [lendo, setLendo] = useState(false)
   const [fonte, setFonte] = useState('')
   const [salvando, setSalvando] = useState<string | null>(null), [aberta, setAberta] = useState<number | null>(null)
-  const [resultado, setResultado] = useState<{ novas: number; repetidas: number; publicacao?: string; erroPublicacao?: string; temas?: string; explicacoes?: string; figuras?: string; numeros?: string } | null>(null)
+  const [resultado, setResultado] = useState<{ novas: number; repetidas: number; publicacao?: string; erroPublicacao?: string; temas?: string; explicacoes?: string; figuras?: string; numeros?: string; prova?: string; erroProva?: string } | null>(null)
   // administrador: publicar no banco geral junto com a importação (já vai para todas as contas)
   const [publicar, setPublicar] = useState(true), [colecao, setColecao] = useState(''), [criarTemas, setCriarTemas] = useState(true)
   // tema para as questões que vieram sem tema (ex.: PDF de um assunto só); '' = deixar sem tema e classificar depois
   const [temaTodas, setTemaTodas] = useState('')
   // PDF/.docx de uma prova inteira: guarda o número de cada questão (para a prova completa sair na ordem). Pacote: usa o campo "numero", se vier.
   const [provaInteira, setProvaInteira] = useState(false), [ehPacote, setEhPacote] = useState(false)
+  // o cadastro da prova (Questões → Provas): nome, banca, ano e total, com um palpite a partir das questões
+  const [cad, setCad] = useState({ nome: '', banca: '', ano: '', total: '' })
 
   async function abrir(f: File | undefined) {
-    setErro(null); setLido(null); setResultado(null); setTemaTodas(''); setProvaInteira(false)
+    setErro(null); setLido(null); setResultado(null); setTemaTodas(''); setProvaInteira(false); setCad({ nome: '', banca: '', ano: '', total: '' })
     if (!f) return
     setLendo(true)
     try {
       const ext = f.name.toLowerCase().split('.').pop()
       setEhPacote(ext === 'json')
       let itens: ItemLido[] = [], avisos: string[] = [], semResposta: number[] = [], imagens: Record<string, Blob> = {}, fonteLote: string | null = null
+      let pacoteProva: { nome: string | null; total: number | null } | null = null
       const enviadas: Record<string, string> = {}, urlsProntas: Record<string, string> = {}
       if (ext === 'pdf') {
         const fd = new FormData()
@@ -68,11 +72,14 @@ export default function ImportarBanco({ admin = false, temasLista = [] }: { admi
       } else if (ext === 'json') {
         const p = lerPacote(JSON.parse(await f.text()))
         itens = p.itens; avisos = p.avisos; fonteLote = p.fonte
+        if (p.prova) { pacoteProva = p.prova; setProvaInteira(p.itens.some(i => i.numeroNaProva)) }
         for (const [nome, d] of Object.entries(p.imagens)) imagens[nome] = await (await fetch(d)).blob()
       } else throw new ArquivoInvalido('Use um PDF, um .docx ou um pacote .json.')
       if (!itens.length) throw new ArquivoInvalido(avisos[0] ?? 'Nenhuma questão encontrada no arquivo.')
       const urls = { ...urlsProntas, ...Object.fromEntries(Object.entries(imagens).map(([k, b]) => [k, URL.createObjectURL(b)])) }
       const figurasFaltando = ext === 'pdf' ? itens.filter(i => pareceTerFigura(i.questao) && !i.questao.blocos.some(b => b.tipo === 'imagem')).map(i => i.questao.numero) : []
+      const palpite = palpiteDaProva(itens.map(i => ({ banca: i.banca, ano: i.ano, numero: i.numeroNaProva ?? null })))
+      setCad({ nome: pacoteProva?.nome ?? palpite.nome, banca: palpite.banca, ano: palpite.ano ? String(palpite.ano) : '', total: String(pacoteProva?.total ?? palpite.total) })
       setLido({ itens, avisos, figurasFaltando, semResposta, arquivo: f.name, imagens, urls, enviadas })
       setFonte(fonteLote ?? f.name.replace(/\.[^.]+$/, ''))
     } catch (e) {
@@ -121,9 +128,9 @@ export default function ImportarBanco({ admin = false, temasLista = [] }: { admi
         explicacao: i.explicacao?.texto ?? null, explicacao_origem: i.explicacao?.origem ?? null,
       }))
       if (admin && publicar) setSalvando('Gravando e publicando no banco geral…')
-      const r = await importarNoBanco({ questoes }, admin && publicar ? { colecao: colecao.trim() || fonte.trim() || null } : null, { criarTemas })
+      const r = await importarNoBanco({ questoes }, admin && publicar ? { colecao: colecao.trim() || fonte.trim() || null } : null, { criarTemas, prova: admin && provaInteira ? { nome: cad.nome, banca: cad.banca, ano: Number(cad.ano), total: Number(cad.total) } : null })
       if (!r.ok) throw new Error(r.erro)
-      setResultado({ novas: r.novas, repetidas: r.repetidas, publicacao: r.publicacao, erroPublicacao: r.erroPublicacao, temas: r.temas, explicacoes: r.explicacoes, figuras: r.figuras, numeros: r.numeros }); setLido(null); setSalvando(null)
+      setResultado({ novas: r.novas, repetidas: r.repetidas, publicacao: r.publicacao, erroPublicacao: r.erroPublicacao, temas: r.temas, explicacoes: r.explicacoes, figuras: r.figuras, numeros: r.numeros, prova: r.prova, erroProva: r.erroProva }); setLido(null); setSalvando(null)
       router.refresh()
     } catch (e) {
       if (enviados.length) await sb.storage.from('provas').remove(enviados).catch(() => {})
@@ -147,6 +154,8 @@ export default function ImportarBanco({ admin = false, temasLista = [] }: { admi
         {resultado.explicacoes && <span className="mt-1 block">{resultado.explicacoes}</span>}
         {resultado.figuras && <span className="mt-1 block">{resultado.figuras}</span>}
         {resultado.numeros && <span className="mt-1 block">{resultado.numeros}</span>}
+        {resultado.prova && <span className="mt-1 block">{resultado.prova}</span>}
+        {resultado.erroProva && <span className="mt-1 block text-warn">{resultado.erroProva}</span>}
         {resultado.publicacao && <span className="mt-1 block">{resultado.publicacao}</span>}</p>}
       {resultado?.erroPublicacao && <p role="alert" className="rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm text-warn">{resultado.erroPublicacao}</p>}
 
@@ -193,9 +202,17 @@ export default function ImportarBanco({ admin = false, temasLista = [] }: { admi
           {resumo.temasNovos.length > 0 && <label className="flex items-start gap-2"><input type="checkbox" checked={criarTemas} onChange={e => setCriarTemas(e.target.checked)} className="mt-0.5 size-4 accent-brand" />
             <span>Criar na Lista de temas os {resumo.temasNovos.length} que ainda não existem <span className="text-muted">({resumo.temasNovos.slice(0, 6).join('; ')}{resumo.temasNovos.length > 6 ? '…' : ''}). Sem marcar, as questões desses temas ficam sem tema.</span></span></label>}
         </section>}
-        {admin && !ehPacote && <label className={`${card} flex items-start gap-2 text-sm`}><input type="checkbox" checked={provaInteira} onChange={e => setProvaInteira(e.target.checked)} className="mt-0.5 size-4 accent-brand" />
-          <span><b className="font-medium">Este arquivo é uma prova inteira</b> <span className="text-muted">— guarda o número de cada questão, para a &quot;prova completa&quot; (Questões → Provas) sair na ordem da prova. Não marque em apostilas ou listas por tema.</span></span></label>}
-        {admin && ehPacote && resumo.comNumero > 0 && <p className={`${card} text-sm text-muted`}><b className="font-medium text-inherit">{resumo.comNumero} {resumo.comNumero === 1 ? 'questão vem' : 'questões vêm'} com o número na prova.</b> A prova completa sai nessa ordem.</p>}
+        {admin && <section className={`${card} space-y-3 text-sm`}>
+          <label className="flex items-start gap-2"><input type="checkbox" checked={provaInteira} disabled={ehPacote && !resumo.comNumero} onChange={e => setProvaInteira(e.target.checked)} className="mt-0.5 size-4 accent-brand" />
+            <span><b className="font-medium">Este arquivo é uma prova inteira: cadastrar em Questões → Provas</b> <span className="text-muted">— guarda o número de cada questão e cria a prova (nome, banca, ano, total), que as contas podem fazer inteira, na ordem. Não marque em apostilas ou listas por tema.{ehPacote && !resumo.comNumero ? ' (Este pacote não traz o número das questões: não dá para cadastrar como prova.)' : ''}</span></span></label>
+          {provaInteira && <div className="grid gap-2 sm:grid-cols-[2fr_1fr_6rem_6rem]">
+            <label className="text-muted">Nome da prova<input value={cad.nome} onChange={e => setCad({ ...cad, nome: e.target.value })} maxLength={120} placeholder="USP-SP 2025 – Acesso direto" className={inputCls + ' mt-1 w-full'} /></label>
+            <label className="text-muted">Banca<input value={cad.banca} onChange={e => setCad({ ...cad, banca: e.target.value })} maxLength={60} className={inputCls + ' mt-1 w-full'} /></label>
+            <label className="text-muted">Ano<input value={cad.ano} onChange={e => setCad({ ...cad, ano: e.target.value.replace(/\D/g, '').slice(0, 4) })} inputMode="numeric" className={inputCls + ' mt-1 w-full'} /></label>
+            <label className="text-muted">Questões<input value={cad.total} onChange={e => setCad({ ...cad, total: e.target.value.replace(/\D/g, '').slice(0, 3) })} inputMode="numeric" className={inputCls + ' mt-1 w-full'} /></label>
+            <p className="text-xs text-muted sm:col-span-4">Duas provas da mesma banca e ano (ex.: acesso direto e R+) ficam separadas pelo nome. Importar de novo com o mesmo nome completa a mesma prova. {!publicar && <b className="text-warn">Marque também &quot;Publicar no banco geral&quot;: a prova é de todas as contas.</b>}</p>
+          </div>}
+        </section>}
         {admin && <section className={`${card} space-y-2 text-sm`}>
           <label className="flex items-start gap-2"><input type="checkbox" checked={publicar} onChange={e => setPublicar(e.target.checked)} className="mt-0.5 size-4 accent-brand" />
             <span><b className="font-medium">Publicar também no banco geral</b> <span className="text-muted">— todas as contas recebem estas questões (enunciado, figuras, alternativas, gabarito, tema e explicação; o comentário não vai).</span></span></label>

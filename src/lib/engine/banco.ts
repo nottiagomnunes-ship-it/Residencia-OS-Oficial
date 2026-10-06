@@ -50,7 +50,9 @@ export type ItemLido = {
   /** número da questão na prova original: o do PDF/.docx de uma prova inteira, ou o campo "numero" do pacote */
   numeroNaProva?: number | null
 }
-export type LoteLido = { itens: ItemLido[]; imagens: Record<string, string>; fonte: string | null; disciplina: string | null; avisos: string[] }
+export type LoteLido = { itens: ItemLido[]; imagens: Record<string, string>; fonte: string | null; disciplina: string | null; avisos: string[]
+  /** o pacote é uma prova inteira: { "prova": { "nome": "USP-SP 2025 – Acesso direto", "total": 100 } } (cadastro em Questões → Provas) */
+  prova?: { nome: string | null; total: number | null } | null }
 
 const str = (v: unknown, max: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null)
 const IMAGEM_DATA = /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/
@@ -88,7 +90,10 @@ export function lerPacote(json: unknown): LoteLido {
       numeroNaProva: numeroValido(q.numero),
     })
   })
-  return { itens, imagens, fonte: str(p.fonte, 120), disciplina: str(p.disciplina, 120), avisos }
+  const pr = p.prova && typeof p.prova === 'object' ? p.prova as Record<string, unknown> : null
+  const total = pr ? Number(pr.total) : NaN
+  return { itens, imagens, fonte: str(p.fonte, 120), disciplina: str(p.disciplina, 120), avisos,
+    prova: pr ? { nome: str(pr.nome, 120), total: Number.isInteger(total) && total >= 1 && total <= 300 ? total : null } : null }
 }
 
 /** Questões de um PDF ou .docx (já montadas) + o gabarito lido → itens do lote. Banca e ano saem da linha "UFMA 2018 ACESSO DIRETO". */

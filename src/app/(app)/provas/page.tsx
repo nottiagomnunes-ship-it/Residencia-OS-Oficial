@@ -1,8 +1,9 @@
 import Link from 'next/link'
 import { supabaseServer } from '@/lib/supabase/server'
 import { iniciarTentativa } from '@/lib/provas'
-import { fazerProvaCompleta } from '@/lib/banco'
-import { provasDoBanco, MINIMO_PROVA, type LinhaDoBanco } from '@/lib/engine/provas-banco'
+import { fazerProvaDoBanco } from '@/lib/banco'
+import { sincronizarBancoGeral } from '@/lib/banco-data'
+import { provasParaFazer, type ProvaGeral, type Ligacao, type MinhaQuestao } from '@/lib/engine/provas-banco'
 import { relogio } from '@/lib/engine/provas'
 import { pct } from '@/lib/engine/desempenho'
 import { fmtData } from '@/components/ui'
@@ -11,26 +12,22 @@ import AvisoDaUrl from '@/components/AvisoDaUrl'
 export default async function Provas({ searchParams }: { searchParams: Promise<{ ok?: string; erro?: string }> }) {
   const { ok, erro } = await searchParams
   const sb = await supabaseServer()
+  await sincronizarBancoGeral(sb) // as questões novas do banco geral (e das provas) chegam antes de contar
   // só as provas (as listas do banco de questões ficam na página do banco); sem a 0034, o campo "tipo" não existe e vêm todas
   let { data: provas, error } = await sb.from('provas').select('*').eq('tipo', 'prova').order('criada_em', { ascending: false })
   if (error) ({ data: provas, error } = await sb.from('provas').select('*').order('criada_em', { ascending: false }))
-  const [{ data: qs }, { data: ts }, { data: banco }] = await Promise.all([
+  const [{ data: qs }, { data: ts }, { data: pgs, error: ePg }, { data: ligs }, { data: minhas }] = await Promise.all([
     sb.from('prova_questoes').select('prova_id,gabarito,anulada').limit(20000),
     sb.from('prova_tentativas').select('id,prova_id,status,tempo_seg,atual,total,acertos,corrigida_em,iniciada_em').order('iniciada_em', { ascending: false }),
-    sb.from('banco_questoes').select('banca,ano,gabarito,anulada').not('banca', 'is', null).not('ano', 'is', null).limit(20000),
+    sb.from('provas_geral').select('id,nome,banca,ano,total'),
+    sb.from('prova_geral_questoes').select('prova_id,geral_id,numero').limit(30000),
+    sb.from('banco_questoes').select('origem_geral,gabarito,anulada').not('origem_geral', 'is', null).limit(30000),
   ])
-  const doBanco = provasDoBanco((banco ?? []) as LinhaDoBanco[]), inteiras = doBanco.filter(p => p.questoes >= MINIMO_PROVA), poucas = doBanco.filter(p => p.questoes < MINIMO_PROVA)
-  // a última vez que cada prova do banco foi feita (pela banca e ano das provas montadas do banco)
-  const ultimaDe = (banca: string, ano: number) => {
-    const ids = new Set((provas ?? []).filter(p => p.do_banco && p.banca === banca && p.ano === ano).map(p => p.id))
-    return (ts ?? []).find(t => ids.has(t.prova_id) && t.status === 'corrigida')
-  }
-  const abertaDe = (banca: string, ano: number) => {
-    const ids = new Set((provas ?? []).filter(p => p.do_banco && p.banca === banca && p.ano === ano).map(p => p.id))
-    return (ts ?? []).find(t => ids.has(t.prova_id) && t.status !== 'corrigida')
-  }
-  const fazer = (p: { banca: string; ano: number }, rotulo: string, cls: string) => (
-    <form action={fazerProvaCompleta}><input type="hidden" name="banca" value={p.banca} /><input type="hidden" name="ano" value={p.ano} /><input type="hidden" name="volta" value="/provas" />
+  const doBanco = ePg ? [] : provasParaFazer((pgs ?? []) as ProvaGeral[], (ligs ?? []) as Ligacao[], (minhas ?? []) as MinhaQuestao[])
+  // a última nota e a tentativa em andamento de cada prova do banco (pelas provas da conta montadas a partir dela)
+  const tentativasDe = (id: string) => { const ids = new Set((provas ?? []).filter(p => p.prova_geral === id).map(p => p.id)); return (ts ?? []).filter(t => ids.has(t.prova_id)) }
+  const fazer = (id: string, rotulo: string, cls: string) => (
+    <form action={fazerProvaDoBanco}><input type="hidden" name="prova" value={id} /><input type="hidden" name="volta" value="/provas" />
       <button className={cls}>{rotulo}</button></form>)
   const btn = 'rounded-xl px-4 py-2 text-sm'
   return (
@@ -43,20 +40,15 @@ export default async function Provas({ searchParams }: { searchParams: Promise<{
 
       {!error && <section className="space-y-3">
         <h2 className="font-medium">Provas do banco</h2>
-        {!inteiras.length && <p className="rounded-2xl border border-dashed border-line p-6 text-center text-sm text-muted">Ainda não há prova inteira no banco. As provas vão sendo adicionadas pela administração.</p>}
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{inteiras.map(p => { const u = ultimaDe(p.banca, p.ano), a = abertaDe(p.banca, p.ano); return (
-          <li key={`${p.banca}|${p.ano}`} className="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-4">
-            <div className="flex flex-wrap items-baseline justify-between gap-2"><b className="font-medium">{p.banca} {p.ano}</b><span className="text-sm text-muted">{p.questoes} questões</span></div>
+        {!doBanco.length && <p className="rounded-2xl border border-dashed border-line p-6 text-center text-sm text-muted">{ePg ? 'As provas do banco ainda não estão ativas (falta atualizar o banco de dados).' : 'Ainda não há provas no banco. Elas vão sendo adicionadas pela administração.'}</p>}
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{doBanco.map(p => { const tt = tentativasDe(p.id), u = tt.find(t => t.status === 'corrigida'), a = tt.find(t => t.status !== 'corrigida'); return (
+          <li key={p.id} className="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-4">
+            <b className="font-medium">{p.nome}</b>
+            <p className="text-sm text-muted">{p.completa ? `${p.total} questões` : <span className="text-warn">{p.disponiveis} de {p.total} questões (incompleta)</span>}</p>
             {u && <p className="text-sm text-muted">Última: <b className="text-inherit">{u.acertos}/{u.total} ({pct(u.acertos ?? 0, u.total ?? 0)}%)</b> em {fmtData(u.corrigida_em?.slice(0, 10))}</p>}
             <div className="mt-auto">{a ? <Link href={`/provas/tentativa/${a.id}`} className={`${btn} inline-block bg-brand font-medium text-black`}>Continuar · questão {a.atual}</Link>
-              : fazer(p, u ? 'Refazer a prova' : 'Fazer a prova', `${btn} bg-brand font-medium text-black`)}</div>
+              : fazer(p.id, u ? 'Refazer a prova' : 'Fazer a prova', `${btn} bg-brand font-medium text-black`)}</div>
           </li>) })}</ul>
-        {poucas.length > 0 && <details className="text-sm">
-          <summary className="cursor-pointer text-muted">Provas com poucas questões no banco ({poucas.length})</summary>
-          <p className="mt-2 text-xs text-muted">Têm menos de {MINIMO_PROVA} questões no banco (em geral, vieram de listas por tema): dá para fazer, mas não é a prova inteira.</p>
-          <ul className="mt-2 flex flex-wrap gap-2">{poucas.map(p => (
-            <li key={`${p.banca}|${p.ano}`}>{fazer(p, `${p.banca} ${p.ano} · ${p.questoes}`, 'rounded-lg border border-line px-3 py-1.5 hover:border-brand')}</li>))}</ul>
-        </details>}
         <p className="text-sm text-muted">Não achou a prova que queria? <Link href="/contato?pedir=prova#pedir-prova" className="text-brand underline">Peça a prova</Link>.</p>
       </section>}
 

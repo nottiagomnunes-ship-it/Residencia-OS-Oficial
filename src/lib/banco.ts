@@ -8,7 +8,7 @@ import { textoDosBlocos, ehLetra, type Alternativa, type Bloco } from '@/lib/eng
 import { sugerirArea, normalizar, lerArea } from '@/lib/engine/areas'
 import { lerPdfComFiguras } from '@/lib/pdf-figuras'
 import { MARCA_FIGURA } from '@/lib/engine/provas-pdf'
-import { aplicarFiltros, assuntoDoFiltro, SO_ADMIN, ehAdmin, carregarTemas, aplicarFiltroAdmin, lerFiltroAdmin, hashesReportados } from '@/lib/banco-data'
+import { aplicarFiltros, assuntoDoFiltro, SO_ADMIN, ehAdmin, carregarTemas, aplicarFiltroAdmin, lerFiltroAdmin, hashesReportados, sincronizarBancoGeral } from '@/lib/banco-data'
 import { lerListaDeTemas, sugerirTemas, type Tema } from '@/lib/engine/temas'
 
 async function ctx() {
@@ -77,12 +77,17 @@ export async function lerPdfDeQuestoes(fd: FormData): Promise<{ paginas?: string
 }
 
 /** Grava o lote: confere, calcula a impressão digital de cada questão e deixa o banco ignorar as repetidas. */
-export async function importarNoBanco(dados: unknown, publicar: { colecao: string | null } | null = null, opcoes: { criarTemas?: boolean } = {}):
-  Promise<{ ok: true; novas: number; repetidas: number; publicacao?: string; erroPublicacao?: string; temas?: string; explicacoes?: string; figuras?: string; numeros?: string } | { ok: false; erro: string }> {
+export async function importarNoBanco(dados: unknown, publicar: { colecao: string | null } | null = null,
+  opcoes: { criarTemas?: boolean; prova?: { nome: string; banca: string; ano: number; total: number } | null } = {}):
+  Promise<{ ok: true; novas: number; repetidas: number; publicacao?: string; erroPublicacao?: string; temas?: string; explicacoes?: string; figuras?: string; numeros?: string; prova?: string; erroProva?: string } | { ok: false; erro: string }> {
   const { sb, uid } = await ctx()
   if (!(await ehAdmin(sb))) return { ok: false, erro: SO_ADMIN }
   const v = validarLote(dados, uid)
   if (!v.ok) return v
+  const cad = opcoes.prova ? lerCadastroDeProva(opcoes.prova) : null
+  if (opcoes.prova && typeof cad === 'string') return { ok: false, erro: cad }
+  if (cad && !publicar) return { ok: false, erro: 'Para cadastrar a prova, marque também "Publicar no banco geral" (a prova é de todas as contas).' }
+  if (cad && !v.questoes.some(q => q.numero)) return { ok: false, erro: 'Para cadastrar a prova, as questões precisam do número na prova.' }
   const itens = v.questoes.map(q => ({ ...q, hash: createHash('sha256').update(textoParaHash(q.blocos, q.alternativas)).digest('hex') }))
   let novas = 0
   for (let i = 0; i < itens.length; i += 200) {
@@ -106,6 +111,14 @@ export async function importarNoBanco(dados: unknown, publicar: { colecao: strin
   // "Publicar também no banco geral" (depois dos temas, para o tema ir junto)
   const ids = [...new Set(idPorHash.values())]
   const r = await publicarIds(sb, ids, publicar.colecao?.trim().slice(0, 120) || null)
+  if (r.ok && cad && typeof cad !== 'string') { // a prova: liga cada questão (já publicada) ao seu número
+    const ligar = itens.filter(q => q.numero && idPorHash.get(q.hash)).map(q => ({ id: idPorHash.get(q.hash), numero: q.numero }))
+    const { data: pr, error: ep } = await sb.rpc('cadastrar_prova_geral', { p_prova: cad, p_itens: ligar })
+    const ligadas = Number((pr as { ligadas?: number } | null)?.ligadas ?? 0)
+    const provaMsg = ep ? { erroProva: semTabela(ep) || /cadastrar_prova_geral/.test(ep.message) ? 'As questões foram publicadas, mas a prova não foi cadastrada: rode supabase/migrations/0050_provas_do_banco.sql no SQL Editor do Supabase e importe de novo.' : 'As questões foram publicadas, mas não foi possível cadastrar a prova. Importe de novo (não duplica) ou cadastre em Administração → Provas.' }
+      : { prova: `Prova "${cad.nome}" cadastrada: ${ligadas} de ${cad.total} questões${ligadas < cad.total ? ` (faltam ${cad.total - ligadas}; veja em Administração → Provas)` : ''}.` }
+    return { ok: true, novas, repetidas: itens.length - novas, publicacao: resumoDaPublicacao(r), ...extras, ...provaMsg }
+  }
   return r.ok ? { ok: true, novas, repetidas: itens.length - novas, publicacao: resumoDaPublicacao(r), ...extras }
     : { ok: true, novas, repetidas: itens.length - novas, ...extras, erroPublicacao: `As questões entraram no seu banco, mas a publicação falhou: ${r.erro} Publique pelo Banco → Organizar.` }
 }
@@ -147,17 +160,29 @@ async function aplicarNumerosDoLote(sb: Awaited<ReturnType<typeof supabaseServer
   return n ? `${n} ${n === 1 ? 'questão que já estava no banco ganhou o número na prova' : 'questões que já estavam no banco ganharam o número na prova'} (publique de novo para chegar às outras contas).` : undefined
 }
 
-/** A prova completa de uma banca e ano, a partir do banco: todas as questões, na ordem da prova, com cronômetro; o resultado vai para Simulados. */
-export async function fazerProvaCompleta(fd: FormData) {
+/** Confere o cadastro de uma prova (nome, banca, ano, total). Devolve o cadastro limpo ou a mensagem do problema. */
+function lerCadastroDeProva(p: { nome?: unknown; banca?: unknown; ano?: unknown; total?: unknown }) {
+  const nome = String(p.nome ?? '').replace(/\s+/g, ' ').trim().slice(0, 120), banca = String(p.banca ?? '').trim().slice(0, 60)
+  const ano = Number(p.ano), total = Number(p.total)
+  if (nome.length < 2) return 'Dê um nome à prova (ex.: "USP-SP 2025 – Acesso direto").'
+  if (!banca) return 'Diga a banca da prova.'
+  if (!Number.isInteger(ano) || ano < 1990 || ano > 2100) return 'Confira o ano da prova.'
+  if (!Number.isInteger(total) || total < 1 || total > 300) return 'Diga quantas questões a prova tem (1 a 300).'
+  return { nome, banca, ano, total }
+}
+
+/** Fazer uma prova cadastrada no banco: as questões dela, na ordem da prova, com cronômetro; o resultado vai para Simulados. */
+export async function fazerProvaDoBanco(fd: FormData) {
   const { sb } = await ctx()
-  const banca = String(fd.get('banca') ?? '').trim().slice(0, 60), ano = Number(fd.get('ano'))
-  const volta = String(fd.get('volta') ?? '/provas')
+  const prova = String(fd.get('prova') ?? ''), volta = String(fd.get('volta') ?? '/provas')
   const destino = /^\/(provas|banco\/questoes)(\?|$)/.test(volta) ? volta : '/provas'
   const erro = (m: string) => redirect(`${destino}${destino.includes('?') ? '&' : '?'}erro=${encodeURIComponent(m)}`)
-  if (!banca || !Number.isInteger(ano)) erro('Escolha a banca e o ano da prova.')
-  const { data: tent, error } = await sb.rpc('montar_prova_completa', { p_banca: banca, p_ano: ano })
-  if (error || !tent) erro(/montar_prova_completa|function/.test(error?.message ?? '') ? 'Falta atualizar o banco: rode supabase/migrations/0048_prova_completa.sql no SQL Editor do Supabase.'
-    : /Nenhuma/.test(error?.message ?? '') ? 'Nenhuma questão com gabarito dessa prova no banco.' : /grande/.test(error?.message ?? '') ? 'Essa prova tem mais de 200 questões no banco.' : 'Não foi possível montar a prova. Tente de novo.')
+  if (!/^[0-9a-f-]{36}$/i.test(prova)) erro('Escolha a prova.')
+  await sincronizarBancoGeral(sb) // as questões mais novas da prova já entram
+  const { data: tent, error } = await sb.rpc('montar_prova_do_banco', { p_prova: prova })
+  const m = error?.message ?? ''
+  if (error || !tent) erro(/montar_prova_do_banco|function|schema cache/.test(m) ? 'Falta atualizar o banco: rode supabase/migrations/0050_provas_do_banco.sql no SQL Editor do Supabase.'
+    : /Nenhuma/.test(m) ? 'Nenhuma questão com gabarito dessa prova no seu banco.' : /não encontrada/.test(m) ? 'Essa prova não está mais no banco.' : 'Não foi possível montar a prova. Tente de novo.')
   refresh()
   redirect(`/provas/tentativa/${tent}`)
 }

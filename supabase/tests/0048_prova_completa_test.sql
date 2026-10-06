@@ -13,13 +13,16 @@ select importar_banco('[
 do $$ declare t uuid; t2 uuid; p uuid; q1 uuid; q3 uuid; r jsonb; begin
   assert (select numero from banco_questoes where hash = 'pc2') = 2, 'número em texto também vale';
   assert (select numero from banco_questoes where hash = 'pc4') is null, 'número inválido fica vazio';
-  t := montar_prova_completa('TESTE', 2025);
+  -- (desde a 0050, a prova é cadastrada no banco geral e montada pelo cadastro)
+  perform publicar_no_banco_geral((select jsonb_agg(jsonb_build_object('id', id)) from banco_questoes where hash in ('pc1', 'pc2', 'pc3', 'pc4')), null);
+  perform cadastrar_prova_geral('{"nome":"TESTE 2025","banca":"TESTE","ano":2025,"total":4}', (select jsonb_agg(jsonb_build_object('id', id, 'numero', numero)) from banco_questoes where hash like 'pc_'));
+  t := montar_prova_do_banco((select id from provas_geral where nome = 'TESTE 2025'));
   select prova_id into p from prova_tentativas where id = t;
   assert (select do_banco and tipo = 'prova' and nome = 'TESTE 2025' and banca = 'TESTE' and ano = 2025 from provas where id = p), 'é uma prova (Simulados), do banco';
   assert (select string_agg(blocos->0->>'texto', ',' order by numero) from prova_questoes where prova_id = p) = 'Questão um,Questão dois,Questão três', 'na ordem da prova, sem a que não tem gabarito';
-  t2 := montar_prova_completa('TESTE', 2025);
+  t2 := montar_prova_do_banco((select id from provas_geral where nome = 'TESTE 2025'));
   assert t2 = t, 'com tentativa em andamento, continua nela';
-  begin perform montar_prova_completa('TESTE', 1999); assert false; exception when raise_exception then null; end;
+  begin perform montar_prova_do_banco(gen_random_uuid()); assert false; exception when raise_exception then null; end;
   -- faz a prova: acerta a 1, erra a 3
   select id into q1 from prova_questoes where prova_id = p and numero = 1;
   select id into q3 from prova_questoes where prova_id = p and numero = 3;
@@ -31,12 +34,13 @@ do $$ declare t uuid; t2 uuid; p uuid; q1 uuid; q3 uuid; r jsonb; begin
   assert (select vezes = 1 and acertos = 0 and ultimo_certo = false from banco_questoes where hash = 'pc3');
   assert (select banco_questao_id from error_notebook e join prova_respostas x on x.erro_id = e.id where x.questao_id = q3) = (select id from banco_questoes where hash = 'pc3'), 'Caderno ligado à questão';
   assert exists (select 1 from revisao_questoes where questao_id = (select id from banco_questoes where hash = 'pc3')), 'errada vai para refazer';
-  t2 := montar_prova_completa('TESTE', 2025);
+  t2 := montar_prova_do_banco((select id from provas_geral where nome = 'TESTE 2025'));
   assert t2 <> t, 'depois de corrigida, uma nova tentativa';
   assert (select prova_id from prova_tentativas where id = t2) = p, 'mesmas questões: refaz na mesma prova';
   delete from prova_tentativas where id = t2;
-  update banco_questoes set gabarito = 'A' where hash = 'pc4'; -- entrou mais uma questão com gabarito
-  t2 := montar_prova_completa('TESTE', 2025);
+  update banco_questoes set gabarito = 'A', numero = 4 where hash = 'pc4'; -- entrou mais uma questão com gabarito
+  perform cadastrar_prova_geral('{"nome":"TESTE 2025","banca":"TESTE","ano":2025,"total":4}', (select jsonb_agg(jsonb_build_object('id', id, 'numero', 4)) from banco_questoes where hash = 'pc4'));
+  t2 := montar_prova_do_banco((select id from provas_geral where nome = 'TESTE 2025'));
   assert (select prova_id from prova_tentativas where id = t2) <> p, 'questões mudaram: prova nova';
   assert (select count(*) from prova_questoes q join prova_tentativas x on x.prova_id = q.prova_id where x.id = t2) = 4;
   -- mudar só o número marca como alterada

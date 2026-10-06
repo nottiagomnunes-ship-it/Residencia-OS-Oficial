@@ -15,10 +15,10 @@ do $$ begin
   exception when insufficient_privilege then null; end;
   perform set_config('request.path', '/rest/v1/provas', true);
   begin insert into provas (user_id, nome) values (auth.uid(), 'Minha prova'); assert false; exception when insufficient_privilege then null; end;
-  -- por uma função do app: continua (prova completa da 0048, banca TESTE 2025)
-  perform set_config('request.path', '/rpc/montar_prova_completa', true);
+  -- por uma função do app: continua (a prova TESTE 2025 do teste da 0048)
+  perform set_config('request.path', '/rpc/montar_prova_do_banco', true);
   perform sincronizar_banco_geral();
-  assert montar_prova_completa('TESTE', 2025) is not null, 'função do app continua inserindo';
+  assert montar_prova_do_banco((select id from provas_geral where nome = 'TESTE 2025')) is not null, 'função do app continua inserindo';
   -- sem request.path (SQL Editor, servidor): nada muda
   perform set_config('request.path', '', true);
   insert into provas (user_id, nome) values (auth.uid(), 'pelo SQL');

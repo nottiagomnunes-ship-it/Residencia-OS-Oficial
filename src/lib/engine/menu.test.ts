@@ -19,8 +19,8 @@ describe('o app em 5 seções', () => {
     for (const [nome, href] of TODAS_AS_ABAS) expect(pagina(href), `${nome} → ${href}`).toBe(true)
     const hs = TODAS_AS_ABAS.map(([, h]) => h); expect(new Set(hs).size).toBe(hs.length)
   })
-  it('Administração (só a conta administradora): Pendências, Questões, Importar, Temas e Mensagens, todas existem', () => {
-    expect(ADMIN.abas.map(([n]) => n)).toEqual(['Pendências', 'Questões', 'Importar', 'Temas', 'Mensagens'])
+  it('Administração (só a conta administradora): Pendências, Questões, Provas, Importar, Temas e Mensagens, todas existem', () => {
+    expect(ADMIN.abas.map(([n]) => n)).toEqual(['Pendências', 'Questões', 'Provas', 'Importar', 'Temas', 'Mensagens'])
     for (const [nome, href] of ADMIN.abas) expect(pagina(href), `${nome} → ${href}`).toBe(true)
     expect(pagina('/admin/questoes/[id]')).toBe(true)
   })

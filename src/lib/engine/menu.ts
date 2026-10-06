@@ -19,7 +19,7 @@ export const AJUSTES: Secao = { nome: 'Ajustes', href: '/configuracoes', icone: 
 
 /** Só para a conta administradora: cuidar do banco geral (questões, temas, explicações). Fica no rodapé do menu e no topo, no celular. */
 export const ADMIN: Secao = { nome: 'Administração', href: '/admin', icone: 'admin',
-  abas: [['Pendências', '/admin'], ['Questões', '/admin/questoes'], ['Importar', '/admin/importar'], ['Temas', '/admin/temas'], ['Mensagens', '/admin/mensagens']] }
+  abas: [['Pendências', '/admin'], ['Questões', '/admin/questoes'], ['Provas', '/admin/provas'], ['Importar', '/admin/importar'], ['Temas', '/admin/temas'], ['Mensagens', '/admin/mensagens']] }
 
 /** A página `path` é a página `href` ou mora dentro dela (/provas/tentativa/x está dentro de /provas). */
 export const dentro = (path: string, href: string) => path === href || path.startsWith(href + '/')

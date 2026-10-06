@@ -196,13 +196,29 @@ describe('Banco (tela de busca)', () => {
 })
 
 describe('prova completa (Banco e reimportação)', () => {
-  it('busca por uma banca e um ano: botão "Fazer como prova" com as questões dessa prova (com gabarito ou anuladas)', async () => {
-    const linhas = [...Array(25)].map((_, i) => ({ id: `q${i}`, banca: 'UFMA', ano: 2024, gabarito: i < 23 ? 'A' : null, anulada: i === 24 }))
-    h.resp = (t, f, c) => (t === 'banco_questoes' && c.startsWith('id,discipline_id') ? { data: linhas, error: null } : { data: [], count: 0, error: null })
+  it('busca por banca: um botão para cada prova cadastrada dessa banca (nos anos escolhidos)', async () => {
+    const vistos: string[][] = []
+    h.resp = (t, f, c) => { if (t === 'provas_geral') { vistos.push(f); return { data: [{ id: 'pa', nome: 'UFMA 2024 – Acesso direto', ano: 2024 }, { id: 'pb', nome: 'UFMA 2024 – R+', ano: 2024 }], error: null } }
+      return t === 'banco_questoes' && c.startsWith('id,discipline_id') ? { data: [{ id: 'q1', banca: 'UFMA', ano: 2024 }], error: null } : { data: [], count: 0, error: null } }
     const html = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({ banca: 'UFMA', de: '2024', ate: '2024' }) }))
-    expect(html).toContain('Fazer como prova (24)'); expect(html).toContain('name="banca" value="UFMA"')
-    const sem = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({ banca: 'UFMA', de: '2023', ate: '2024' }) }))
-    expect(sem).not.toContain('Fazer como prova')
+    const sem = (x: string) => x.replace(/<!-- -->/g, '')
+    expect(sem(html)).toContain('Fazer a prova: UFMA 2024 – Acesso direto'); expect(sem(html)).toContain('Fazer a prova: UFMA 2024 – R+'); expect(html).toContain('name="prova" value="pb"')
+    expect(vistos[0]).toEqual(['eq(banca,UFMA)', 'gte(ano,2024)', 'lte(ano,2024)'])
+    vistos.length = 0
+    const nada = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({}) }))
+    expect(nada).not.toContain('Fazer a prova'); expect(vistos).toEqual([])
+  })
+  it('importar como prova inteira: publica e cadastra a prova com o número de cada questão', async () => {
+    const q = (n: number) => ({ blocos: [{ tipo: 'texto', texto: `Questão ${n}` }], alternativas: [{ letra: 'A', texto: 'a' }, { letra: 'B', texto: 'b' }], gabarito: 'A', numero: n, banca: 'X', ano: 2025 })
+    const hash = (n: number) => createHash('sha256').update(textoParaHash([{ tipo: 'texto', texto: `Questão ${n}` }] as any, [{ letra: 'A', texto: 'a' }, { letra: 'B', texto: 'b' }] as any)).digest('hex')
+    h.resp = (t, f, c) => (t === 'banco_questoes' && c === 'id,hash' ? { data: [{ id: 'x1', hash: hash(1) }, { id: 'x2', hash: hash(2) }], error: null } : { data: [], error: null })
+    const prova = { nome: 'X 2025 – Acesso direto', banca: 'X', ano: 2025, total: 3 }
+    expect(await importarNoBanco({ questoes: [q(1), q(2)] }, null, { prova })).toEqual({ ok: false, erro: expect.stringContaining('Publicar no banco geral') })
+    expect(await importarNoBanco({ questoes: [q(1)] }, { colecao: null }, { prova: { ...prova, total: 0 } })).toMatchObject({ ok: false, erro: expect.stringContaining('quantas questões') })
+    expect(h.rpcs.find(x => x.nome === 'importar_banco')).toBeUndefined() // nada foi gravado
+    const r = await importarNoBanco({ questoes: [q(1), q(2)] }, { colecao: null }, { prova })
+    expect(h.rpcs.find(x => x.nome === 'cadastrar_prova_geral')!.args).toEqual({ p_prova: prova, p_itens: [{ id: 'x1', numero: 1 }, { id: 'x2', numero: 2 }] })
+    expect(r).toMatchObject({ ok: true, prova: expect.stringContaining('Prova "X 2025 – Acesso direto" cadastrada') })
   })
   it('reimportar com o número na prova preenche o número das que já estavam sem (e não mexe nas que já têm)', async () => {
     const q = (n: number, numero: number) => ({ blocos: [{ tipo: 'texto', texto: `Questão ${n}` }], alternativas: [{ letra: 'A', texto: 'a' }, { letra: 'B', texto: 'b' }], gabarito: 'A', numero })
