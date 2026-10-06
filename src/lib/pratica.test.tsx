@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 const h = vi.hoisted(() => ({ dados: {} as Record<string, any>, filtros: [] as string[], rpcs: [] as { nome: string; args: any }[], rpcRes: null as any }))
 const cadeia = (t: string) => {
   const r: any = {}
-  for (const m of ['select', 'order', 'limit']) r[m] = () => r
+  for (const m of ['select', 'order', 'limit', 'range']) r[m] = () => r
   for (const m of ['eq', 'not', 'or', 'lte', 'in']) r[m] = (...a: any[]) => { h.filtros.push(`${m}(${a.join(',')})`); return r }
   r.maybeSingle = async () => { const v = h.dados[t + ':um']; return { data: (Array.isArray(v) ? v.shift() : v) ?? null, error: null } } // lista: uma resposta por chamada
   r.then = (ok: any) => Promise.resolve({ data: h.dados[t] ?? [], error: null }).then(ok)

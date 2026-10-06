@@ -11,6 +11,7 @@ import { carregarAreas, comArea } from '@/lib/areas-data'
 import { carregarTemas, carregarFilaRefazer } from '@/lib/banco-data'
 import { BUCKET } from '@/lib/provas-data'
 import type { Bloco } from '@/lib/engine/provas'
+import { todasAsLinhas } from '@/lib/paginar'
 
 type Ligada = { id: string; blocos: Bloco[]; tema_id: string | null }
 type Fila = { questao_id: string; etapa: number; proxima: string | null }
@@ -27,7 +28,7 @@ export default async function CadernoDeErros({ searchParams }: { searchParams: P
   ])
   const erros = (todos ?? []) as any[], est = estatisticasErros(erros)
   // de qual prova veio cada erro (consulta à parte: sem a atualização 0028 do banco, só não aparece o link)
-  const { data: dasProvas } = erros.length ? await sb.from('prova_respostas').select('erro_id,tentativa_id,prova_questoes(numero)').not('erro_id', 'is', null).limit(5000) : { data: [] }
+  const { data: dasProvas } = erros.length ? await todasAsLinhas((de, ate) => sb.from('prova_respostas').select('erro_id,tentativa_id,prova_questoes(numero)').not('erro_id', 'is', null).order('id').range(de, ate), 5000) : { data: [] }
   const origem = new Map(((dasProvas ?? []) as any[]).map(r => [r.erro_id, { tentativa: r.tentativa_id as string, numero: r.prova_questoes?.numero as number | undefined }]))
   // a questão do banco de cada erro (0045; sem ela, a consulta falha e o caderno segue como antes), o tema e a fila de refazer
   const [{ data: ligs }, temas, refazer] = await Promise.all([

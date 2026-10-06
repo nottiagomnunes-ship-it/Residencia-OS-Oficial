@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
 import { hojeBR } from '@/lib/dates'
 import { parseCronograma, norm, type ItemImportado } from '@/lib/engine/importar'
+import { todasAsLinhas } from '@/lib/paginar'
 
 const CORES = ['#22C55E', '#3B82F6', '#F59E0B', '#EC4899', '#A855F7', '#EF4444', '#14B8A6', '#F97316']
 async function ctx() {
@@ -22,7 +23,7 @@ async function idsSemHistorico(sb: SB) {
   const { data: ts } = await sb.from('topics').select('id,status')
   const comHist = new Set<string>()
   for (const tab of ['question_sets', 'reviews', 'study_sessions', 'error_notebook', 'topic_tasks']) {
-    const { data } = await sb.from(tab).select('topic_id').not('topic_id', 'is', null).limit(20000)
+    const { data } = await todasAsLinhas<{ topic_id: string }>((de, ate) => sb.from(tab).select('topic_id').not('topic_id', 'is', null).order('id').range(de, ate), 20000)
     data?.forEach(r => comHist.add(r.topic_id))
   }
   const ids = (ts ?? []).filter(t => (t.status === 'nao_iniciado' || t.status === 'planejado') && !comHist.has(t.id)).map(t => t.id as string)

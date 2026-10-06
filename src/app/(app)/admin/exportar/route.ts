@@ -3,6 +3,7 @@ import { aplicarFiltros, assuntoDoFiltro, aplicarFiltroAdmin, lerFiltroAdmin, ha
 import { lerFiltros, pacoteDoBanco } from '@/lib/engine/banco'
 import type { Alternativa, Bloco } from '@/lib/engine/provas'
 import { hojeBR } from '@/lib/dates'
+import { todasAsLinhas, emBlocos } from '@/lib/paginar'
 
 /**
  * Exporta as questões dos filtros como pacote .json (formato do importador), para classificar fora do app (ex.: mandar ao Claude) e importar de
@@ -14,14 +15,15 @@ export async function GET(req: Request) {
   if (!user) return new Response('Entre na sua conta.', { status: 401 })
   if (!(await ehAdmin(sb))) return new Response('Só a conta administradora exporta o banco.', { status: 403 })
   const ps = Object.fromEntries(new URL(req.url).searchParams), f = lerFiltros(ps), adm = lerFiltroAdmin(ps.adm) // adm: filtro da Administração (ex.: sem tema)
-  const base = aplicarFiltros(sb.from('banco_questoes').select('id,blocos,alternativas,gabarito,gabarito_origem,anulada,comentario,area,discipline_id,assunto,banca,ano'), f, await assuntoDoFiltro(sb, f))
-  const { data, error } = await aplicarFiltroAdmin(base, adm, adm === 'reportadas' ? await hashesReportados(sb) : []).order('criada_em').limit(3000)
+  const [topico, reportados] = await Promise.all([assuntoDoFiltro(sb, f), adm === 'reportadas' ? hashesReportados(sb) : Promise.resolve([])])
+  const { data, error } = await todasAsLinhas((de, ate) => aplicarFiltroAdmin(aplicarFiltros(sb.from('banco_questoes').select('id,blocos,alternativas,gabarito,gabarito_origem,anulada,comentario,area,discipline_id,assunto,banca,ano'), f, topico), adm, reportados)
+    .order('criada_em').order('id').range(de, ate), 20000)
   if (error) return new Response('Não foi possível ler o banco.', { status: 500 })
   const qs = (data ?? []) as any[]
   const [{ data: ds }, { data: comTema }, { data: comExpl }] = await Promise.all([
     sb.from('disciplines').select('id,nome'),
-    sb.from('banco_questoes').select('id,temas(especialidade,nome)').in('id', qs.map(q => q.id).slice(0, 3000)).not('tema_id', 'is', null), // sem a 0040: nada
-    sb.from('banco_questoes').select('id,explicacao,explicacao_origem').in('id', qs.map(q => q.id).slice(0, 3000)).not('explicacao', 'is', null), // sem a 0042: nada
+    emBlocos(qs.map(q => q.id), ids => sb.from('banco_questoes').select('id,temas(especialidade,nome)').in('id', ids).not('tema_id', 'is', null)), // sem a 0040: nada
+    emBlocos(qs.map(q => q.id), ids => sb.from('banco_questoes').select('id,explicacao,explicacao_origem').in('id', ids).not('explicacao', 'is', null)), // sem a 0042: nada
   ])
   const disc = new Map((ds ?? []).map(d => [d.id as string, d.nome as string]))
   const tema = new Map(((comTema ?? []) as any[]).filter(q => q.temas).map(q => [q.id as string, `${q.temas.especialidade} > ${q.temas.nome}`]))

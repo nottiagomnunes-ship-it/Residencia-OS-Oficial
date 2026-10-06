@@ -3,6 +3,7 @@ import { SEM_ASSUNTO, type Filtros } from './engine/banco'
 import { ehLetra, type Alternativa, type Bloco } from './engine/provas'
 import { BUCKET } from './provas-data'
 import type { Tema } from './engine/temas'
+import { todasAsLinhas } from '@/lib/paginar'
 
 /** O assunto de Conteúdos usado no filtro "topico": as questões ligadas a ele ou, sem ligação, com o mesmo nome na mesma disciplina. */
 export async function assuntoDoFiltro(sb: SupabaseClient, f: Filtros) {
@@ -99,9 +100,9 @@ export async function carregarFilaRefazer(sb: SupabaseClient, hoje: string, em7d
 
 /** A lista geral de temas (vazia sem a 0040). */
 export async function carregarTemas(sb: SupabaseClient): Promise<Tema[]> {
-  const { data, error } = await sb.from('temas').select('id,area,especialidade,nome,palavras').limit(5000)
+  const { data, error } = await todasAsLinhas((de, ate) => sb.from('temas').select('id,area,especialidade,nome,palavras').order('id').range(de, ate), 5000)
   if (!error) return (data ?? []) as Tema[]
-  const { data: d2, error: e2 } = await sb.from('temas').select('id,area,especialidade,nome').limit(5000) // sem a 0041 (sem palavras-chave)
+  const { data: d2, error: e2 } = await todasAsLinhas((de, ate) => sb.from('temas').select('id,area,especialidade,nome').order('id').range(de, ate), 5000) // sem a 0041 (sem palavras-chave)
   return e2 ? [] : ((d2 ?? []) as Tema[])
 }
 
@@ -127,6 +128,6 @@ export function aplicarFiltroAdmin<Q>(q: Q, adm: FiltroAdmin | null, hashesRepor
 
 /** As impressões digitais das questões com explicação reportada e ainda não resolvida (sem a 0042: nenhuma). */
 export async function hashesReportados(sb: SupabaseClient) {
-  const { data } = await sb.from('explicacao_reportes').select('hash').is('resolvido_em', null).limit(2000)
+  const { data } = await todasAsLinhas((de, ate) => sb.from('explicacao_reportes').select('hash').is('resolvido_em', null).order('id').range(de, ate), 2000)
   return [...new Set(((data ?? []) as { hash: string }[]).map(r => r.hash))]
 }

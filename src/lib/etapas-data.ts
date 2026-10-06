@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { MODELOS_INICIAIS, ultimoLote, podeDesfazer, minutosRestantes, type LinhaLote, type Modelo } from './engine/etapas'
+import { todasAsLinhas } from '@/lib/paginar'
 
 /** Padrões do usuário. Na primeira vez cria os iniciais (uma única vez, para ele poder apagar ou trocar todos). */
 export async function carregarModelos(sb: SupabaseClient): Promise<Modelo[]> {
@@ -14,7 +15,7 @@ export async function carregarModelos(sb: SupabaseClient): Promise<Modelo[]> {
 
 /** Resumo do último lote aplicado em Conteúdos (ou null). */
 export async function carregarUltimoLote(sb: SupabaseClient) {
-  const { data } = await sb.from('topic_tasks').select('lote_id,created_at,concluida,topic_id').not('lote_id', 'is', null).order('created_at', { ascending: false }).limit(5000)
+  const { data } = await todasAsLinhas((de, ate) => sb.from('topic_tasks').select('lote_id,created_at,concluida,topic_id').not('lote_id', 'is', null).order('created_at', { ascending: false }).order('id').range(de, ate), 5000)
   const u = ultimoLote((data ?? []) as LinhaLote[])
   return u ? { ...u, desfazivel: podeDesfazer(u.em), minutosRestantes: minutosRestantes(u.em) } : null
 }

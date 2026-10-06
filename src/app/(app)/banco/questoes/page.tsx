@@ -9,6 +9,7 @@ import { BUCKET } from '@/lib/provas-data'
 import { inputCls } from '@/components/ui'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
 import ExplicacaoDaQuestao from '@/components/banco/ExplicacaoDaQuestao'
+import { todasAsLinhas } from '@/lib/paginar'
 
 const POR_PAGINA = 30
 type Linha = { id: string; blocos: Bloco[]; alternativas: { letra: string; texto: string }[]; gabarito: string | null; gabarito_origem: string | null; anulada: boolean
@@ -24,11 +25,11 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
   const aviso = avisoDoBancoGeral(sync), daPagina = <T,>(q: T) => (aplicarFiltros(q, f, topico) as any).order('ano', { ascending: false, nullsFirst: false }).order('criada_em', { ascending: false }).range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1)
   // separadas: sem a 0037/0040/0042, estas falham e a página segue sem elas
   const [{ data: todas, error }, { data: lista, count }, { count: removidas }, temas, { data: comTema }, { data: explDaPagina }] = await Promise.all([
-    sb.from('banco_questoes').select('id,discipline_id,assunto,banca,ano').limit(20000),
+    todasAsLinhas((de, ate) => sb.from('banco_questoes').select('id,discipline_id,assunto,banca,ano').order('id').range(de, ate), 20000),
     daPagina(sb.from('banco_questoes').select('id,blocos,alternativas,gabarito,gabarito_origem,anulada,comentario,area,discipline_id,topic_id,assunto,banca,ano,vezes,acertos,ultimo_certo', { count: 'exact' })),
     sync ? sb.from('banco_geral_removidas').select('geral_id', { count: 'exact', head: true }) : Promise.resolve({ count: 0 }),
     carregarTemas(sb),
-    sb.from('banco_questoes').select('id,tema_id').not('tema_id', 'is', null).limit(20000),
+    todasAsLinhas((de, ate) => sb.from('banco_questoes').select('id,tema_id').not('tema_id', 'is', null).order('id').range(de, ate), 20000),
     daPagina(sb.from('banco_questoes').select('id,explicacao,explicacao_origem')),
   ])
   if (error) return (

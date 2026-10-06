@@ -6,6 +6,7 @@ import { lerArquivoDeBackup, LIMITE_ENVIO } from '@/lib/backup-arquivo'
 import { validarBackup, prepararRestauracao, compararContagens, avisosDaPrevia, PALAVRA_DE_CONFIRMACAO } from '@/lib/engine/restauracao'
 import { contarAtuais, montarCopiaDeSeguranca } from '@/lib/backup-restauracao-data'
 import { PAGINAS_AFETADAS } from '@/lib/backup-paginas'
+import { todasAsLinhas } from '@/lib/paginar'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
   // erros ligados a uma questão do banco (0045): o banco de questões não faz parte do backup; se a questão não existe mais, o erro volta sem a ligação
   const erros = (preparado.dados as Record<string, Record<string, unknown>[] | undefined>).error_notebook
   if (erros?.some(e => e.banco_questao_id)) {
-    const { data: qs } = await sb.from('banco_questoes').select('id').limit(50000)
+    const { data: qs } = await todasAsLinhas((de, ate) => sb.from('banco_questoes').select('id').order('id').range(de, ate), 50000)
     const existe = new Set(((qs ?? []) as { id: string }[]).map(q => q.id))
     for (const e of erros) if (e.banco_questao_id && !existe.has(String(e.banco_questao_id))) e.banco_questao_id = null
   }

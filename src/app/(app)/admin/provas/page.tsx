@@ -6,6 +6,7 @@ import { cadastrarProvaExistente } from '@/lib/provas-geral'
 import { gruposSemProva, type GeralComNumero } from '@/lib/engine/provas-banco'
 import { inputCls } from '@/components/ui'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
+import { todasAsLinhas } from '@/lib/paginar'
 
 /** Administração → Provas: as provas cadastradas no banco geral (o que aparece em Questões → Provas) e o que dá para cadastrar. */
 export default async function ProvasAdmin({ searchParams }: { searchParams: Promise<{ ok?: string; erro?: string }> }) {
@@ -14,8 +15,8 @@ export default async function ProvasAdmin({ searchParams }: { searchParams: Prom
   if (!(await ehAdmin(sb))) redirect('/banco')
   const [{ data: ps, error }, { data: ligs }, { data: geral }] = await Promise.all([
     sb.from('provas_geral').select('id,nome,banca,ano,total').order('ano', { ascending: false }).order('nome'),
-    sb.from('prova_geral_questoes').select('prova_id,geral_id').limit(30000),
-    sb.from('banco_geral').select('id,banca,ano,colecao,numero').not('numero', 'is', null).limit(30000),
+    todasAsLinhas((de, ate) => sb.from('prova_geral_questoes').select('prova_id,geral_id').order('prova_id').order('numero').range(de, ate), 30000),
+    todasAsLinhas((de, ate) => sb.from('banco_geral').select('id,banca,ano,colecao,numero').not('numero', 'is', null).order('id').range(de, ate), 30000),
   ])
   const provas = (ps ?? []) as { id: string; nome: string; banca: string; ano: number; total: number }[]
   const ligadas = new Map<string, number>()

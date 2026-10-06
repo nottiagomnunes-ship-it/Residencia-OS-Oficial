@@ -7,6 +7,7 @@ import { fmtData } from '@/components/ui'
 import QuestoesForm from '@/components/QuestoesForm'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
 import { carregarAreas, comArea } from '@/lib/areas-data'
+import { todasAsLinhas } from '@/lib/paginar'
 
 const corAcerto = (p: number | null) => (p == null ? '' : p >= 75 ? 'text-brand' : p >= 60 ? 'text-warn' : 'text-danger')
 
@@ -16,7 +17,7 @@ export default async function Questoes({ searchParams }: { searchParams: Promise
   const areas = await carregarAreas(sb)
   const [{ data: ds }, { data: ts }, { data: todas }, { data: hist }] = await Promise.all([
     sb.from('disciplines').select('id,nome').order('ordem'), sb.from('topics').select('id,nome,discipline_id').order('nome'),
-    sb.from('question_sets').select('total,acertos').limit(10000),
+    todasAsLinhas((de, ate) => sb.from('question_sets').select('total,acertos').order('id').range(de, ate), 10000),
     sb.from('question_sets').select('id,total,acertos,erros,banca,prova,ano,tempo_min,realizado_em,mock_exam_id,disciplines(nome),topics(nome)').order('realizado_em', { ascending: false }).limit(50),
   ])
   const total = (todas ?? []).reduce((s, x) => s + x.total, 0), acertos = (todas ?? []).reduce((s, x) => s + x.acertos, 0)

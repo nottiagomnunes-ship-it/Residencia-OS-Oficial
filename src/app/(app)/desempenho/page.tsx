@@ -10,13 +10,14 @@ import { carregarAreas } from '@/lib/areas-data'
 import { areaDeMenorAcerto, resumoPorArea, SIGLA_AREA } from '@/lib/engine/areas'
 import { carregarTemas } from '@/lib/banco-data'
 import { desempenhoPorTema } from '@/lib/engine/temas'
+import { todasAsLinhas } from '@/lib/paginar'
 
 const corAcerto = (p: number | null) => (p == null ? 'var(--c-muted)' : p >= 75 ? 'var(--c-brand)' : p >= 65 ? 'var(--c-warn)' : 'var(--c-danger)')
 
 export default async function Desempenho() {
   const sb = await supabaseServer()
   const [d, areas, temas, { data: feitas }] = await Promise.all([carregarDesempenho(sb, hojeBR()), carregarAreas(sb), carregarTemas(sb),
-    sb.from('banco_questoes').select('tema_id,vezes,acertos').gt('vezes', 0).not('tema_id', 'is', null).limit(20000)]) // sem a 0040: vazio
+    todasAsLinhas((de, ate) => sb.from('banco_questoes').select('tema_id,vezes,acertos').gt('vezes', 0).not('tema_id', 'is', null).order('id').range(de, ate), 20000)]) // sem a 0040: vazio
   const porTema = desempenhoPorTema((feitas ?? []) as { tema_id: string; vezes: number; acertos: number }[], temas)
   const porArea = areas.disponivel ? resumoPorArea(d.disciplinas.map(x => ({ area: areas.mapa[x.id] ?? null, total: x.total, acertos: x.acertos }))) : null
   const nenhumaOrganizada = d.disciplinas.length > 0 && d.disciplinas.every(x => !areas.mapa[x.id])

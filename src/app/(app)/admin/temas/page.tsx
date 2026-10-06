@@ -6,6 +6,7 @@ import { porEspecialidade } from '@/lib/engine/temas'
 import { AREAS, ROTULO_AREA, SIGLA_AREA } from '@/lib/engine/areas'
 import { inputCls } from '@/components/ui'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
+import { todasAsLinhas } from '@/lib/paginar'
 
 /**
  * Lista de temas (só a conta administradora): a etiqueta das questões do banco geral. Não mexe em Matérias nem no plano de ninguém;
@@ -15,7 +16,7 @@ export default async function Temas({ searchParams }: { searchParams: Promise<{ 
   const sp = await searchParams
   const sb = await supabaseServer()
   if (!(await ehAdmin(sb))) redirect('/banco/questoes')
-  const [temas, { data: usos, error }] = await Promise.all([carregarTemas(sb), sb.from('banco_questoes').select('tema_id').not('tema_id', 'is', null).limit(20000)])
+  const [temas, { data: usos, error }] = await Promise.all([carregarTemas(sb), todasAsLinhas((de, ate) => sb.from('banco_questoes').select('tema_id').not('tema_id', 'is', null).order('id').range(de, ate), 20000)])
   const n = new Map<string, number>()
   for (const u of (usos ?? []) as { tema_id: string }[]) n.set(u.tema_id, (n.get(u.tema_id) ?? 0) + 1)
   const grupos = porEspecialidade(temas), btn = 'rounded-lg border border-line px-3 py-1.5 text-sm hover:border-brand'

@@ -1,13 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { addDays } from './engine/review'
 import { agregarPor, pct, prioridadeAssunto, recomendacoes, serieSemanal, type SetQ } from './engine/desempenho'
+import { todasAsLinhas } from '@/lib/paginar'
 
 /** Carrega e calcula tudo que Desempenho, Início e o gerador de cronograma precisam. */
 export async function carregarDesempenho(sb: SupabaseClient, hoje: string) {
   const [{ data: ds }, { data: ts }, { data: sets }, { data: rv }, { data: er }, { data: st }, { data: pf }] = await Promise.all([
     sb.from('disciplines').select('id,nome,cor').order('ordem'),
     sb.from('topics').select('id,nome,discipline_id,status'),
-    sb.from('question_sets').select('discipline_id,topic_id,total,acertos,realizado_em').order('realizado_em', { ascending: false }).limit(10000),
+    todasAsLinhas((de, ate) => sb.from('question_sets').select('discipline_id,topic_id,total,acertos,realizado_em').order('realizado_em', { ascending: false }).order('id').range(de, ate), 10000),
     sb.from('reviews').select('topic_id').eq('status', 'pendente').lt('due_date', hoje),
     sb.from('error_notebook').select('topic_id').eq('motivo', 'falta_conteudo').not('topic_id', 'is', null),
     sb.from('daily_stats').select('data,minutos').gte('data', addDays(hoje, -56)),

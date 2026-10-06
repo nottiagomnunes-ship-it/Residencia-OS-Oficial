@@ -7,6 +7,7 @@ import { fmtData, inputCls } from '@/components/ui'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
 import { sincronizarBancoGeral, avisoDoBancoGeral, carregarTemas, ehAdmin } from '@/lib/banco-data'
 import OpcoesDeAssunto from '@/components/banco/OpcoesDeAssunto'
+import { todasAsLinhas } from '@/lib/paginar'
 
 /** Praticar: escolher o que estudar e começar (uma por vez ou lista como prova). Editar e publicar as questões fica na Administração (/admin). */
 export default async function PraticarInicio({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
@@ -15,9 +16,9 @@ export default async function PraticarInicio({ searchParams }: { searchParams: P
   const [sync, gestor] = await Promise.all([sincronizarBancoGeral(sb), ehAdmin(sb)])
   const aviso = avisoDoBancoGeral(sync) // questões novas e correções do banco geral, antes de contar
   const [{ data: todas, error }, { data: listas }, temas, { data: comTema }] = await Promise.all([
-    sb.from('banco_questoes').select('id,discipline_id,assunto,banca,ano,vezes,acertos,gabarito,anulada').limit(20000),
+    todasAsLinhas((de, ate) => sb.from('banco_questoes').select('id,discipline_id,assunto,banca,ano,vezes,acertos,gabarito,anulada').order('id').range(de, ate), 20000),
     sb.from('provas').select('id,nome,criada_em,prova_tentativas(id,status,total,acertos)').eq('tipo', 'lista').order('criada_em', { ascending: false }).limit(8),
-    carregarTemas(sb), sb.from('banco_questoes').select('id,tema_id').not('tema_id', 'is', null).limit(20000), // sem a 0040: vazias
+    carregarTemas(sb), todasAsLinhas((de, ate) => sb.from('banco_questoes').select('id,tema_id').not('tema_id', 'is', null).order('id').range(de, ate), 20000), // sem a 0040: vazias
   ])
   if (error) return (
     <div className="space-y-4"><h1 className="text-2xl font-semibold">Praticar</h1>

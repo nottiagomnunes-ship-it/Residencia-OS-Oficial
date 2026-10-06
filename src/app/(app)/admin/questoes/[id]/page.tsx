@@ -9,6 +9,7 @@ import { LETRAS, ehLetra, type Alternativa } from '@/lib/engine/provas'
 import { inputCls, fmtData } from '@/components/ui'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
 import NovaFigura from '@/components/admin/NovaFigura'
+import { todasAsLinhas } from '@/lib/paginar'
 
 type Extra = { tema_id: string | null; explicacao: string | null; explicacao_origem: string | null; pendente_publicar: boolean | null }
 
@@ -39,8 +40,8 @@ export default async function EditarQuestao({ params, searchParams }: { params: 
     assuntoDoFiltro(sb, f), adm === 'reportadas' ? hashesReportados(sb) : Promise.resolve([]),
     sb.from('explicacao_reportes').select('id,motivo,criado_em').eq('hash', q.hash).is('resolvido_em', null).order('criado_em'),
   ])
-  const { data: ordem } = await aplicarFiltroAdmin(aplicarFiltros(sb.from('banco_questoes').select('id'), f, topico), adm, reportadosAdm)
-    .order('ano', { ascending: false, nullsFirst: false }).order('criada_em', { ascending: false }).limit(2000)
+  const { data: ordem } = await todasAsLinhas((de, ate) => aplicarFiltroAdmin(aplicarFiltros(sb.from('banco_questoes').select('id'), f, topico), adm, reportadosAdm)
+    .order('ano', { ascending: false, nullsFirst: false }).order('criada_em', { ascending: false }).order('id').range(de, ate), 20000)
   const ids = ((ordem ?? []) as { id: string }[]).map(r => r.id), pos = ids.indexOf(id)
   const comLista = (qid: string) => `/admin/questoes/${qid}${lista ? `?lista=${encodeURIComponent(lista)}` : ''}`
   const anterior = pos > 0 ? ids[pos - 1] : null, proxima = pos >= 0 && pos < ids.length - 1 ? ids[pos + 1] : null

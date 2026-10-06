@@ -3,6 +3,7 @@ import { CONQUISTAS, assuntoCompleto, desbloqueadas, disciplinaCompleta, nivelDo
 import { pct } from './engine/desempenho'
 import { carregarMetas } from './metas-data'
 import { rankDoProgresso } from './engine/rank'
+import { todasAsLinhas } from '@/lib/paginar'
 
 /** Total de assuntos e quantos estão concluídos (contagem no banco, sem o limite de linhas). */
 export async function contarAssuntos(sb: SupabaseClient) {
@@ -21,10 +22,10 @@ export async function carregarGamificacao(sb: SupabaseClient, hoje: string) {
   const [{ data: p }, { data: st }, { data: qs }, { data: ts }, { data: et }, { data: er }, { data: ms }, { count: revisoes }, { data: ac }, metas, assuntos] = await Promise.all([
     sb.from('profiles').select('id,xp').single(),
     sb.from('daily_stats').select('data,minutos,questoes').order('data', { ascending: false }).limit(1000),
-    sb.from('question_sets').select('total,acertos').limit(10000),
+    todasAsLinhas((de, ate) => sb.from('question_sets').select('total,acertos').order('id').range(de, ate), 10000),
     sb.from('topics').select('discipline_id,status'),
-    sb.from('topic_tasks').select('topic_id,concluida').limit(20000),
-    sb.from('error_notebook').select('revisado').limit(20000),
+    todasAsLinhas((de, ate) => sb.from('topic_tasks').select('topic_id,concluida').order('id').range(de, ate), 20000),
+    todasAsLinhas((de, ate) => sb.from('error_notebook').select('revisado').order('id').range(de, ate), 20000),
     sb.from('mock_exams').select('total,acertos'),
     sb.from('reviews').select('id', { count: 'exact', head: true }).eq('status', 'concluida'),
     sb.from('achievements').select('codigo,desbloqueada_em,visto'),

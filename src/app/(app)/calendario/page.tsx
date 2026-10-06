@@ -8,6 +8,7 @@ import { carregarModelos } from '@/lib/etapas-data'
 import { etapasDasRevisoes } from '@/lib/revisao-etapas-data'
 import type { Etapa } from '@/lib/engine/etapas'
 import CalendarBoard, { type Item } from '@/components/CalendarBoard'
+import { todasAsLinhas } from '@/lib/paginar'
 
 export default async function Calendario({ searchParams }: { searchParams: Promise<{ v?: string; d?: string }> }) {
   const sp = await searchParams, hoje = hojeBR()
@@ -19,7 +20,7 @@ export default async function Calendario({ searchParams }: { searchParams: Promi
   const [{ data }, { data: et }, modelos, { ocupados, livres }] = await Promise.all([
     sb.from('schedule_items').select('id,tipo,titulo,data,hora_ini,hora_fim,duracao_min,qtd_questoes,status,origem,review_id,topic_id')
       .gte('data', dias[0]).lte('data', dias[dias.length - 1]).order('hora_ini', { nullsFirst: false }).order('ordem_dia', { nullsFirst: false }).order('titulo'),
-    sb.from('topic_tasks').select('id,topic_id,tipo,titulo,qtd_questoes,concluida').order('ordem').order('created_at').limit(5000), carregarModelos(sb),
+    todasAsLinhas((de, ate) => sb.from('topic_tasks').select('id,topic_id,tipo,titulo,qtd_questoes,concluida').order('ordem').order('created_at').order('id').range(de, ate), 5000), carregarModelos(sb),
     agendaDosDias(sb, dias[0], dias[dias.length - 1]), // agenda pessoal (internato, academia...): só aparece junto, com o tempo livre do dia
   ])
   const comTopico = new Set((data ?? []).map((i: any) => i.topic_id).filter(Boolean))

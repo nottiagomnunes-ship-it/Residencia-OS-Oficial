@@ -8,6 +8,7 @@ import { relogio } from '@/lib/engine/provas'
 import { pct } from '@/lib/engine/desempenho'
 import { fmtData } from '@/components/ui'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
+import { todasAsLinhas } from '@/lib/paginar'
 
 export default async function Provas({ searchParams }: { searchParams: Promise<{ ok?: string; erro?: string }> }) {
   const { ok, erro } = await searchParams
@@ -17,11 +18,11 @@ export default async function Provas({ searchParams }: { searchParams: Promise<{
   let { data: provas, error } = await sb.from('provas').select('*').eq('tipo', 'prova').order('criada_em', { ascending: false })
   if (error) ({ data: provas, error } = await sb.from('provas').select('*').order('criada_em', { ascending: false }))
   const [{ data: qs }, { data: ts }, { data: pgs, error: ePg }, { data: ligs }, { data: minhas }] = await Promise.all([
-    sb.from('prova_questoes').select('prova_id,gabarito,anulada').limit(20000),
+    todasAsLinhas((de, ate) => sb.from('prova_questoes').select('prova_id,gabarito,anulada').order('id').range(de, ate), 20000),
     sb.from('prova_tentativas').select('id,prova_id,status,tempo_seg,atual,total,acertos,corrigida_em,iniciada_em').order('iniciada_em', { ascending: false }),
     sb.from('provas_geral').select('id,nome,banca,ano,total'),
-    sb.from('prova_geral_questoes').select('prova_id,geral_id,numero').limit(30000),
-    sb.from('banco_questoes').select('origem_geral,gabarito,anulada').not('origem_geral', 'is', null).limit(30000),
+    todasAsLinhas((de, ate) => sb.from('prova_geral_questoes').select('prova_id,geral_id,numero').order('prova_id').order('numero').range(de, ate), 30000),
+    todasAsLinhas((de, ate) => sb.from('banco_questoes').select('origem_geral,gabarito,anulada').not('origem_geral', 'is', null).order('id').range(de, ate), 30000),
   ])
   const doBanco = ePg ? [] : provasParaFazer((pgs ?? []) as ProvaGeral[], (ligs ?? []) as Ligacao[], (minhas ?? []) as MinhaQuestao[])
   // a última nota e a tentativa em andamento de cada prova do banco (pelas provas da conta montadas a partir dela)

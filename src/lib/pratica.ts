@@ -6,6 +6,7 @@ import { lerFiltros, escolherProxima } from '@/lib/engine/banco'
 import { ehLetra, ehUuid, textoParaCaderno, type Alternativa, type Bloco } from '@/lib/engine/provas'
 import { aplicarFiltros, assuntoDoFiltro, carregarQuestaoPratica, type QuestaoPratica } from '@/lib/banco-data'
 import { carregarGamificacao } from '@/lib/gamificacao-data'
+import { todasAsLinhas } from '@/lib/paginar'
 
 const sessao = async () => {
   const sb = await supabaseServer()
@@ -20,16 +21,21 @@ export async function proximaQuestao(filtrosBrutos: Record<string, string | unde
   const f = lerFiltros(filtrosBrutos), topico = await assuntoDoFiltro(sb, f)
   const ja = vistos.filter(ehUuid).slice(-300)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let q: any = aplicarFiltros(sb.from('banco_questoes').select('id,vezes,ultimo_certo,ultima_em').eq('anulada', false).not('gabarito', 'is', null), f, topico)
-  if (ja.length) q = q.not('id', 'in', `(${ja.join(',')})`)
+  let ids: string[] | null = null
   if (f.revisao) { // "Refazer as erradas": só as que estão para refazer hoje (ou atrasadas)
-    const { data: fila, error: e } = await sb.from('revisao_questoes').select('questao_id').not('proxima', 'is', null).lte('proxima', hojeBR()).limit(1000)
+    const { data: fila, error: e } = await sb.from('revisao_questoes').select('questao_id').not('proxima', 'is', null).lte('proxima', hojeBR()).limit(1000) // a fila do dia; ids vão na URL
     if (e) return { questao: null, restantes: 0, erro: 'Falta atualizar o banco: rode supabase/migrations/0039_refazer_erradas.sql no SQL Editor do Supabase.' }
-    const ids = (fila ?? []).map((r: { questao_id: string }) => r.questao_id)
+    ids = (fila ?? []).map((r: { questao_id: string }) => r.questao_id)
     if (!ids.length) return { questao: null, restantes: 0 }
-    q = q.in('id', ids)
   }
-  const { data, error } = (await q.limit(2000)) as { data: { id: string; vezes: number; ultimo_certo: boolean | null; ultima_em: string | null }[] | null; error: unknown }
+  const consulta = () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let q: any = aplicarFiltros(sb.from('banco_questoes').select('id,vezes,ultimo_certo,ultima_em').eq('anulada', false).not('gabarito', 'is', null), f, topico)
+    if (ja.length) q = q.not('id', 'in', `(${ja.join(',')})`)
+    if (ids) q = q.in('id', ids)
+    return q.order('id')
+  }
+  const { data, error } = await todasAsLinhas<{ id: string; vezes: number; ultimo_certo: boolean | null; ultima_em: string | null }>((de, ate) => consulta().range(de, ate), 20000)
   if (error) return { questao: null, restantes: 0, erro: 'Não foi possível buscar a próxima questão. Confira a internet.' }
   const escolhida = escolherProxima(data ?? [])
   if (!escolhida) return { questao: null, restantes: 0 }

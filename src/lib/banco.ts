@@ -10,6 +10,7 @@ import { lerPdfComFiguras } from '@/lib/pdf-figuras'
 import { MARCA_FIGURA } from '@/lib/engine/provas-pdf'
 import { aplicarFiltros, assuntoDoFiltro, SO_ADMIN, ehAdmin, carregarTemas, aplicarFiltroAdmin, lerFiltroAdmin, hashesReportados, sincronizarBancoGeral } from '@/lib/banco-data'
 import { lerListaDeTemas, sugerirTemas, type Tema } from '@/lib/engine/temas'
+import { todasAsLinhas } from '@/lib/paginar'
 
 async function ctx() {
   const sb = await supabaseServer()
@@ -194,8 +195,8 @@ export async function montarLista(fd: FormData) {
   const f = lerFiltros({ area: campo('area'), disciplina: campo('disciplina'), assunto: campo('assunto'), banca: campo('banca'), situacao: campo('situacao'), busca: campo('busca'), topico: campo('topico'), de: campo('de'), ate: campo('ate') })
   const qtd = Math.min(100, Math.max(1, Number(fd.get('quantidade')) || 10))
   const topico = await assuntoDoFiltro(sb, f)
-  const q = aplicarFiltros(sb.from('banco_questoes').select('id,assunto,discipline_id').eq('anulada', false).not('gabarito', 'is', null).limit(5000), f, topico)
-  const { data, error } = await q
+  const { data, error } = await todasAsLinhas<{ id: string; assunto: string | null; discipline_id: string | null }>((de, ate) =>
+    aplicarFiltros(sb.from('banco_questoes').select('id,assunto,discipline_id').eq('anulada', false).not('gabarito', 'is', null), f, topico).order('id').range(de, ate), 20000)
   const volta = `/banco?erro=`
   if (error) redirect(volta + encodeURIComponent(semTabela(error) ? SEM_TABELA : 'Não foi possível buscar as questões.'))
   if (!data?.length) redirect(volta + encodeURIComponent('Nenhuma questão com gabarito bate com esses filtros.'))
@@ -223,8 +224,8 @@ const SEM_GERAL = 'Falta atualizar o banco: rode supabase/migrations/0037_banco_
 async function idsDoFormulario(sb: Awaited<ReturnType<typeof supabaseServer>>, fd: FormData) {
   if (fd.get('todas') !== '1') return fd.getAll('sel').map(String).filter(x => /^[0-9a-f-]{36}$/i.test(x))
   const ps = Object.fromEntries(new URLSearchParams(String(fd.get('filtros') || ''))), f = lerFiltros(ps), adm = lerFiltroAdmin(ps.adm)
-  const base = aplicarFiltros(sb.from('banco_questoes').select('id'), f, await assuntoDoFiltro(sb, f))
-  const { data } = await aplicarFiltroAdmin(base, adm, adm === 'reportadas' ? await hashesReportados(sb) : []).limit(2000)
+  const [topico, reportados] = await Promise.all([assuntoDoFiltro(sb, f), adm === 'reportadas' ? hashesReportados(sb) : Promise.resolve([])])
+  const { data } = await todasAsLinhas<{ id: string }>((de, ate) => aplicarFiltroAdmin(aplicarFiltros(sb.from('banco_questoes').select('id'), f, topico), adm, reportados).order('id').range(de, ate), 2000)
   return (data ?? []).map((q: { id: string }) => q.id)
 }
 
@@ -382,7 +383,7 @@ export async function excluirTema(fd: FormData) {
 async function gravarTema(sb: Awaited<ReturnType<typeof supabaseServer>>, ids: string[], tema: Tema | null) {
   let muda: Record<string, unknown> = { tema_id: null }
   if (tema) {
-    const [{ data: ds }, { data: ts }] = await Promise.all([sb.from('disciplines').select('id,nome').limit(500), sb.from('topics').select('id,nome,discipline_id').limit(5000)])
+    const [{ data: ds }, { data: ts }] = await Promise.all([sb.from('disciplines').select('id,nome').limit(500), todasAsLinhas((de, ate) => sb.from('topics').select('id,nome,discipline_id').order('id').range(de, ate), 5000)])
     const d = (ds ?? []).find(x => normalizar(x.nome) === normalizar(tema.especialidade)) ?? null
     const t = d ? (ts ?? []).find(x => x.discipline_id === d.id && normalizar(x.nome) === normalizar(tema.nome)) ?? null : null
     muda = { tema_id: tema.id, assunto: tema.nome, ...(tema.area ? { area: tema.area } : {}), ...(d ? { discipline_id: d.id } : {}), topic_id: t?.id ?? null }
@@ -423,9 +424,8 @@ export async function sugerirTemasPeloTexto(fd: FormData) {
   const temas = await carregarTemas(sb)
   if (!temas.length) redirect(comAviso(volta, 'erro', 'A lista de temas está vazia. Cadastre os temas primeiro (Organizar → Lista de temas).'))
   const marcadas = fd.get('todas') === '1' || fd.getAll('sel').length ? await idsDoFormulario(sb, fd) : null
-  let q = sb.from('banco_questoes').select('id,blocos,alternativas,assunto,discipline_id,disciplines(nome)').is('tema_id', null)
-  if (marcadas) q = q.in('id', marcadas.slice(0, 2000))
-  const { data: qs, error } = await q.limit(5000)
+  const consulta = () => { const q = sb.from('banco_questoes').select('id,blocos,alternativas,assunto,discipline_id,disciplines(nome)').is('tema_id', null); return marcadas ? q.in('id', marcadas.slice(0, 2000)) : q }
+  const { data: qs, error } = await todasAsLinhas((de, ate) => consulta().order('id').range(de, ate), 5000)
   if (error) redirect(comAviso(volta, 'erro', SEM_TEMAS))
   // por especialidade: cada questão concorre só com os temas da especialidade dela (pela disciplina ou pelo assunto atual, como "Anestesiologia")
   const lotes = new Map<string, { id: string; texto: string }[]>()

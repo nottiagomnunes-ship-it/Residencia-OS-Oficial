@@ -11,6 +11,7 @@ import { inputCls } from '@/components/ui'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
 import MarcarTodas from '@/components/banco/MarcarTodas'
 import BarraDoLote from '@/components/admin/BarraDoLote'
+import { todasAsLinhas } from '@/lib/paginar'
 
 const POR_PAGINA = 30
 type Linha = { id: string; blocos: Bloco[]; gabarito: string | null; anulada: boolean; assunto: string | null; banca: string | null; ano: number | null
@@ -25,12 +26,12 @@ export default async function AdminQuestoes({ searchParams }: { searchParams: Pr
   const consulta = (campos: string) => aplicarFiltroAdmin(aplicarFiltros(sb.from('banco_questoes').select(campos, { count: 'exact' }), f, topico), adm, reportados)
     .order('ano', { ascending: false, nullsFirst: false }).order('criada_em', { ascending: false }).range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1)
   const [{ data: todas, error }, primeira, temas, { data: colecoes }, { count: removidas }, { data: comTema }] = await Promise.all([
-    sb.from('banco_questoes').select('id,assunto,banca,ano').limit(20000),
+    todasAsLinhas((de, ate) => sb.from('banco_questoes').select('id,assunto,banca,ano').order('id').range(de, ate), 20000),
     consulta('id,blocos,gabarito,anulada,assunto,banca,ano,tema_id,origem_geral,explicacao,pendente_publicar,hash'),
     carregarTemas(sb),
-    sb.from('banco_geral').select('colecao').not('colecao', 'is', null).limit(5000),
+    todasAsLinhas((de, ate) => sb.from('banco_geral').select('colecao').not('colecao', 'is', null).order('id').range(de, ate), 5000),
     sb.from('banco_geral_removidas').select('geral_id', { count: 'exact', head: true }),
-    sb.from('banco_questoes').select('id,tema_id').not('tema_id', 'is', null).limit(20000), // separada: sem a 0040, vem vazia
+    todasAsLinhas((de, ate) => sb.from('banco_questoes').select('id,tema_id').not('tema_id', 'is', null).order('id').range(de, ate), 20000), // separada: sem a 0040, vem vazia
   ])
   if (error) return (
     <div className="space-y-4"><h1 className="text-2xl font-semibold">Questões</h1>

@@ -6,6 +6,7 @@ import { supabaseServer } from '@/lib/supabase/server'
 import { carregarGamificacao } from '@/lib/gamificacao-data'
 import { hojeBR } from '@/lib/dates'
 import { MODELO_PADRAO, TIPOS_ETAPA, validarEtapa, selecionarAssuntos, itensParaAdicionar, ultimoLote, podeDesfazer, type Etapa, type LinhaLote, type Modelo, type TopicoLote } from '@/lib/engine/etapas'
+import { todasAsLinhas } from '@/lib/paginar'
 
 async function ctx() {
   const sb = await supabaseServer()
@@ -99,7 +100,7 @@ export async function aplicarEmLote(escopo: string, modeloId: string, pular: boo
   const { sb, uid } = await ctx()
   const [{ data: ts }, { data: et }, { data: ms }] = await Promise.all([
     sb.from('topics').select('id,status,grupo,discipline_id'),
-    sb.from('topic_tasks').select('topic_id,tipo,titulo').limit(50000),
+    todasAsLinhas((de, ate) => sb.from('topic_tasks').select('topic_id,tipo,titulo').order('id').range(de, ate), 50000),
     sb.from('etapa_modelos').select('id,tipo,titulo,qtd_questoes,conjunto').order('ordem').order('created_at'),
   ])
   const conj = (ms ?? []).filter(m => m.conjunto)
@@ -123,7 +124,7 @@ export async function aplicarEmLote(escopo: string, modeloId: string, pular: boo
 /** Remove as etapas do último lote que ainda não foram concluídas nem editadas; as concluídas ficam e deixam de ser "desfazíveis". */
 export async function desfazerUltimoLote(): Promise<{ removidas: number; mantidas: number; erro?: string }> {
   const { sb } = await ctx()
-  const { data: rows } = await sb.from('topic_tasks').select('lote_id,created_at,concluida,topic_id').not('lote_id', 'is', null).order('created_at', { ascending: false }).limit(5000)
+  const { data: rows } = await todasAsLinhas((de, ate) => sb.from('topic_tasks').select('lote_id,created_at,concluida,topic_id').not('lote_id', 'is', null).order('created_at', { ascending: false }).order('id').range(de, ate), 5000)
   const ult = ultimoLote((rows ?? []) as LinhaLote[])
   if (!ult) return { removidas: 0, mantidas: 0, erro: 'Não há nenhum lote para desfazer.' }
   if (!podeDesfazer(ult.em)) return { removidas: 0, mantidas: 0, erro: 'O último lote foi aplicado há mais de 24 horas e não pode mais ser desfeito.' }
