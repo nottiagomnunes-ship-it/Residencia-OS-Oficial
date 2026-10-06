@@ -10,7 +10,7 @@ export default function NaoEncontrada() {
         <p className="text-sm text-muted">Erro 404</p>
         <h1 className="text-2xl font-semibold">Página não encontrada</h1>
         <p className="text-sm text-muted">O endereço pode ter sido digitado errado, ou a página não existe mais. Os seus dados estão seguros.</p>
-        <Link href="/inicio" className="inline-block rounded-xl bg-brand px-5 py-2.5 font-medium text-black">Ir para o Início</Link>
+        <Link href="/inicio" className="inline-block rounded-xl bg-brand px-5 py-2.5 font-medium text-on-cor">Ir para o Início</Link>
       </div>
     </main>)
 }

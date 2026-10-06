@@ -32,7 +32,7 @@ export default function ReorganizarAtrasadas({ n }: { n: number }) {
           {previa.semLugar > 0 && <p className="text-xs text-warn">{previa.semLugar} {previa.semLugar === 1 ? 'não cabe' : 'não cabem'} nos próximos 21 dias e {previa.semLugar === 1 ? 'fica' : 'ficam'} como {previa.semLugar === 1 ? 'está' : 'estão'}.</p>}
           <p className="text-xs text-muted">Dias em que você não informou o tempo usam o seu tempo padrão. As reorganizadas entram antes do que cada dia já tinha.</p>
           <div className="flex gap-2">
-            <button onClick={aplicar} disabled={pend} className="rounded-xl bg-brand px-4 py-2 font-medium text-black disabled:opacity-60">{pend ? 'Aplicando…' : 'Aplicar'}</button>
+            <button onClick={aplicar} disabled={pend} className="rounded-xl bg-brand px-4 py-2 font-medium text-on-cor disabled:opacity-60">{pend ? 'Aplicando…' : 'Aplicar'}</button>
             <button onClick={() => setPrevia(null)} disabled={pend} className="rounded-xl border border-line px-4 py-2">Cancelar</button>
           </div>
         </>

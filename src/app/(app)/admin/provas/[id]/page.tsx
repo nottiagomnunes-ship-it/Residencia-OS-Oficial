@@ -37,7 +37,7 @@ export default async function ProvaAdmin({ params, searchParams }: { params: Pro
         <label className="text-muted">Banca<input name="banca" required defaultValue={p.banca} maxLength={60} className={inputCls + ' mt-1 w-full'} /></label>
         <label className="text-muted">Ano<input name="ano" required inputMode="numeric" defaultValue={p.ano} className={inputCls + ' mt-1 w-full'} /></label>
         <label className="text-muted">Questões<input name="total" required inputMode="numeric" defaultValue={p.total} className={inputCls + ' mt-1 w-full'} /></label>
-        <button className="min-h-10 rounded-xl bg-brand px-4 font-medium text-black">Salvar</button>
+        <button className="min-h-10 rounded-xl bg-brand px-4 font-medium text-on-cor">Salvar</button>
       </form>
       {faltam.length > 0 && <p className="text-sm text-muted">Para completar: importe de novo o arquivo da prova com o mesmo nome (marcando &quot;prova inteira&quot;); as questões que já estão no banco não duplicam, só entram na prova.</p>}
 

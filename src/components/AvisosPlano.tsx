@@ -14,14 +14,14 @@ export function AvisosPlano({ desatualizado, semana, semanaAtual }: { desatualiz
         <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-info/40 bg-info/10 p-4 text-sm">
           <p className="font-medium">{semanaAtual ? 'Você ainda não informou o tempo desta semana' : 'Defina o tempo de estudo da próxima semana'} <span className="font-normal text-muted">({curta(semana)} a {curta(addDays(semana, 6))})</span></p>
           <div className="flex gap-2">
-            <Link href="/semana" className="rounded-lg bg-brand px-3 py-1.5 font-medium text-black">Definir agora</Link>
+            <Link href="/semana" className="rounded-lg bg-brand px-3 py-1.5 font-medium text-on-cor">Definir agora</Link>
             <form action={dispensarAvisoSemana.bind(null, semana)}><button className="rounded-lg border border-line px-3 py-1.5 hover:border-brand">Agora não</button></form>
           </div>
         </div>)}
       {desatualizado && (
         <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-warn/40 bg-warn/10 p-4 text-sm">
           <p className="font-medium">O tempo da semana mudou. <span className="font-normal text-muted">Atualize o cronograma para o plano acompanhar.</span></p>
-          <form action={gerarCronogramaAction}><button className="rounded-lg bg-brand px-3 py-1.5 font-medium text-black">Atualizar cronograma</button></form>
+          <form action={gerarCronogramaAction}><button className="rounded-lg bg-brand px-3 py-1.5 font-medium text-on-cor">Atualizar cronograma</button></form>
         </div>)}
     </div>)
 }

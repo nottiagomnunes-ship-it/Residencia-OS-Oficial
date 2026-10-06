@@ -92,7 +92,7 @@ export default function CronometroProvider({ disponivel, ativo: ativoServidor, a
                   <p className="text-xs text-muted">{ativo.pausado ? 'Pausado' : 'Estudando'}{ativo.planejado_min ? ` · planejado ${ativo.planejado_min} min` : ''}</p>
                 </div>
                 <button onClick={alternar} disabled={pend} className="rounded-xl border border-line px-3 py-2 text-sm hover:border-brand disabled:opacity-60">{ativo.pausado ? 'Retomar' : 'Pausar'}</button>
-                <button onClick={finalizar} disabled={pend} className="rounded-xl bg-brand px-3 py-2 text-sm font-medium text-black disabled:opacity-60">Finalizar</button>
+                <button onClick={finalizar} disabled={pend} className="rounded-xl bg-brand px-3 py-2 text-sm font-medium text-on-cor disabled:opacity-60">Finalizar</button>
               </div>
               {prog != null && <div className="mt-2"><Bar pct={prog} /></div>}
               {pareceEsquecido(seg) && <p className="mt-2 text-xs text-muted">Está contando há mais de 3 h. Esqueceu de pausar? Você ajusta os minutos ao finalizar.</p>}

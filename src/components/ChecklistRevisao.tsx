@@ -22,7 +22,7 @@ export default function ChecklistRevisao({ reviewId, inicial }: { reviewId: stri
       <ul className="space-y-1">{itens.map(i => (
         <li key={i.id} className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-line/40">
           <button onClick={() => alternar(i)} role="checkbox" aria-checked={i.concluida} aria-label={`${i.concluida ? 'Desmarcar' : 'Concluir'}: ${i.titulo}`}
-            className={`grid size-7 shrink-0 place-items-center rounded-full border text-sm ${i.concluida ? 'border-brand bg-brand text-black' : 'border-muted'}`}>{i.concluida ? '✓' : ''}</button>
+            className={`grid size-7 shrink-0 place-items-center rounded-full border text-sm ${i.concluida ? 'border-brand bg-brand text-on-cor' : 'border-muted'}`}>{i.concluida ? '✓' : ''}</button>
           <span className={`min-w-0 flex-1 ${i.concluida ? 'text-muted line-through' : ''}`}>{i.titulo}<span className="ml-2 text-xs text-muted">{TIPOS_ETAPA[i.tipo]}</span></span>
           <button onClick={() => remover(i)} aria-label={`Excluir etapa: ${i.titulo}`} className="p-2 text-muted hover:text-danger">✕</button>
         </li>))}</ul>
@@ -33,7 +33,7 @@ export default function ChecklistRevisao({ reviewId, inicial }: { reviewId: stri
       <div className="flex gap-2">
         <input value={txt} onChange={e => setTxt(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && txt.trim()) { adicionar('outro', txt, null); setTxt('') } }}
           placeholder="Outro item para esta revisão" aria-label="Novo item da revisão" className={inputCls + ' min-w-0 flex-1'} />
-        <button onClick={() => { if (txt.trim()) { adicionar('outro', txt, null); setTxt('') } }} className="rounded-xl bg-brand px-4 text-sm font-medium text-black">Adicionar</button>
+        <button onClick={() => { if (txt.trim()) { adicionar('outro', txt, null); setTxt('') } }} className="rounded-xl bg-brand px-4 text-sm font-medium text-on-cor">Adicionar</button>
       </div>
       <p className="text-xs text-muted">Cada revisão tem as suas etapas. As etapas do assunto ficam no estudo.</p>
     </section>)

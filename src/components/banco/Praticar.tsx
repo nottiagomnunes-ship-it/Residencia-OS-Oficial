@@ -87,7 +87,7 @@ export default function Praticar({ filtros, titulo, inicial, total }: { filtros:
             <li key={a.letra} className="flex items-stretch gap-2">
               <button type="button" disabled={!!correcao} onClick={() => setEscolha(marcada ? null : a.letra)} aria-pressed={marcada}
                 className={`flex min-h-12 flex-1 items-start gap-3 rounded-xl border p-3 text-left transition-colors ${cor} ${riscada && !correcao ? 'opacity-50' : ''}`}>
-                <span className={`grid size-7 shrink-0 place-items-center rounded-full border text-sm font-semibold ${marcada && !correcao ? 'border-brand bg-brand text-black' : 'border-line'}`}>{a.letra}</span>
+                <span className={`grid size-7 shrink-0 place-items-center rounded-full border text-sm font-semibold ${marcada && !correcao ? 'border-brand bg-brand text-on-cor' : 'border-line'}`}>{a.letra}</span>
                 <span className={`whitespace-pre-line pt-0.5 ${riscada && !correcao ? 'line-through' : ''}`}>{a.texto}</span>
               </button>
               {!correcao && <button type="button" onClick={() => setRiscadas(r => (r.includes(a.letra) ? r.replace(a.letra, '') : r + a.letra))} aria-pressed={riscada}
@@ -98,7 +98,7 @@ export default function Praticar({ filtros, titulo, inicial, total }: { filtros:
         {!correcao
           ? <div className="flex flex-wrap items-center gap-2 border-t border-line pt-4">
             <button type="button" onClick={() => setChute(c => !c)} aria-pressed={chute} className={`rounded-xl border px-4 py-2 text-sm ${chute ? 'border-info bg-info/15 text-info' : 'border-line'}`}>{chute ? '✓ Chutei' : 'Chutei'}</button>
-            <button type="button" onClick={responder} disabled={!escolha || pend} className="ml-auto min-h-12 rounded-xl bg-brand px-6 font-medium text-black disabled:opacity-40">{pend ? 'Corrigindo…' : 'Responder'}</button>
+            <button type="button" onClick={responder} disabled={!escolha || pend} className="ml-auto min-h-12 rounded-xl bg-brand px-6 font-medium text-on-cor disabled:opacity-40">{pend ? 'Corrigindo…' : 'Responder'}</button>
           </div>
           : <div className="space-y-3 border-t border-line pt-4" role="status">
             <p className={`text-lg font-semibold ${correcao.correta ? 'text-brand' : 'text-danger'}`}>{correcao.correta ? (chute ? 'Certo (no chute: foi para o Caderno de Erros)' : 'Certo!') : `Errou. A correta é a ${correcao.gabarito}.`}
@@ -113,7 +113,7 @@ export default function Praticar({ filtros, titulo, inicial, total }: { filtros:
                   <button key={k} type="button" onClick={() => darMotivo(k)} aria-pressed={motivo === k}
                     className={`min-h-11 rounded-xl border px-2 text-sm ${motivo === k ? 'border-brand bg-brand/15 text-brand' : 'border-line'}`}>{MOTIVOS[k].rotulo}</button>))}</div>
               </fieldset>)}
-            <div className="flex justify-end"><button type="button" onClick={proxima} disabled={pend} className="min-h-12 rounded-xl bg-brand px-6 font-medium text-black disabled:opacity-40">{pend ? 'Carregando…' : 'Próxima →'}</button></div>
+            <div className="flex justify-end"><button type="button" onClick={proxima} disabled={pend} className="min-h-12 rounded-xl bg-brand px-6 font-medium text-on-cor disabled:opacity-40">{pend ? 'Carregando…' : 'Próxima →'}</button></div>
           </div>}
         {erro && <p role="alert" className="text-sm text-danger">{erro}</p>}
       </article>

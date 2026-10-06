@@ -54,7 +54,7 @@ export default function EtapasEmLote({ topicos, etapasPorTopico, disciplinas, mo
         {escopo !== 'sem_etapas' && <label className="flex items-center gap-2 text-muted"><input type="checkbox" checked={pular} onChange={e => setPular(e.target.checked)} className="accent-brand" />Pular assuntos que já têm etapas</label>}
         <p aria-live="polite">{ids.length ? `Atinge ${ids.length} ${ids.length === 1 ? 'assunto' : 'assuntos'} (concluídos ficam de fora).` : 'Nenhum assunto se encaixa neste escopo.'}</p>
         <div className="flex flex-wrap items-center gap-3">
-          <button onClick={aplicar} disabled={pend || !ids.length} className="rounded-xl bg-brand px-4 py-2 font-medium text-black disabled:opacity-50">{pend ? 'Aplicando…' : 'Aplicar'}</button>
+          <button onClick={aplicar} disabled={pend || !ids.length} className="rounded-xl bg-brand px-4 py-2 font-medium text-on-cor disabled:opacity-50">{pend ? 'Aplicando…' : 'Aplicar'}</button>
           <span className="text-xs text-muted">Nunca repete uma etapa que o assunto já tem. Para editar os padrões, abra um assunto e use “Gerenciar padrões”.</span>
         </div>
         {ultimo && (

@@ -73,7 +73,7 @@ export default function RestaurarBackup({ disponivel, desfazerEm }: { disponivel
             <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={entendi} onChange={e => setEntendi(e.target.checked)} className="mt-1 accent-brand" />Entendi que isso substitui os dados que tenho agora.</label>
             <label className="block space-y-1 text-sm">Para confirmar, digite {PALAVRA_DE_CONFIRMACAO}
               <input value={palavra} onChange={e => setPalavra(e.target.value)} autoComplete="off" aria-label="Palavra de confirmação" className={inputCls + ' w-full max-w-xs'} /></label>
-            <div className="flex gap-2"><button type="button" onClick={restaurar} disabled={!confirmado || pend} className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black disabled:opacity-50">{pend ? 'Restaurando…' : 'Restaurar agora'}</button>
+            <div className="flex gap-2"><button type="button" onClick={restaurar} disabled={!confirmado || pend} className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-on-cor disabled:opacity-50">{pend ? 'Restaurando…' : 'Restaurar agora'}</button>
               <button type="button" onClick={reiniciar} disabled={pend} className="rounded-xl border border-line px-4 py-2 text-sm">Cancelar</button></div>
           </div>
         </div>)}

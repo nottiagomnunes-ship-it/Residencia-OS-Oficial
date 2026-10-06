@@ -31,7 +31,7 @@ export default async function Disciplinas() {
         <label className="space-y-1"><span className="block text-sm">Nova disciplina</span><input name="nome" required className={inputCls} placeholder="Ex.: Ortopedia" /></label>
         <label className="space-y-1"><span className="block text-sm">Peso</span>
           <select name="peso" defaultValue={3} className={inputCls}>{[1, 2, 3, 4, 5].map(n => <option key={n}>{n}</option>)}</select></label>
-        <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Adicionar disciplina</button>
+        <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-on-cor">Adicionar disciplina</button>
         <p className="w-full text-xs text-muted">A área da prova é sugerida pelo nome (por exemplo, Ortopedia fica em Cirurgia). Você pode mudar depois.</p>
       </form>
     </div>

@@ -100,14 +100,14 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
                 {sel.tipo === 'questoes' || sel.tipo === 'simulado'
                   ? <button onClick={() => run(() => concluirItem(sel.id))} className="rounded-xl border border-line px-4 py-2 text-sm">Marcar como feito (sem XP)</button>
                   : sel.tipo === 'revisao'
-                    ? <><Link href="/revisoes" className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Fazer revisão</Link>
+                    ? <><Link href="/revisoes" className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-on-cor">Fazer revisão</Link>
                       <button onClick={() => run(() => concluirItem(sel.id))} className="rounded-xl border border-line px-4 py-2 text-sm">Marcar como feita</button></>
-                    : <button onClick={() => run(() => concluirItem(sel.id))} className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Concluir</button>}
+                    : <button onClick={() => run(() => concluirItem(sel.id))} className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-on-cor">Concluir</button>}
                 <BotaoCronometro itemId={sel.id} titulo={sel.titulo} variante="texto" />
                 <button onClick={() => mover(f => adiarItem(sel.id, f))} className="rounded-xl border border-line px-4 py-2 text-sm">Adiar 1 dia</button>
                 <button onClick={abrirEdicao} className="rounded-xl border border-line px-4 py-2 text-sm">Editar</button>
                 {(sel.tipo === 'questoes' || sel.tipo === 'simulado') && <Link href={sel.tipo === 'simulado' ? '/simulados' : `/questoes?${[sel.topic_id ? `alvo=t:${sel.topic_id}` : '', sel.qtd_questoes ? `total=${sel.qtd_questoes}` : ''].filter(Boolean).join('&')}`}
-                  className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">{sel.tipo === 'simulado' ? 'Registrar simulado' : 'Registrar questões'}</Link>}
+                  className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-on-cor">{sel.tipo === 'simulado' ? 'Registrar simulado' : 'Registrar questões'}</Link>}
                 <button onClick={() => confirm('Excluir esta tarefa?') && run(() => excluirItem(sel.id))} className="rounded-xl px-4 py-2 text-sm text-danger hover:bg-danger/10">Excluir</button>
               </div>
               <div className="flex items-center gap-2"><input type="date" value={novaData} onChange={e => setNovaData(e.target.value)} className={inputCls} aria-label="Nova data" />
@@ -123,7 +123,7 @@ export default function CalendarBoard({ items, dias, view, hoje, mes, ocupados, 
                   </div>
                   {erro && <p role="alert" className="text-sm text-danger">{erro}</p>}
                   <div className="flex gap-2">
-                    <button onClick={salvar} className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-black">Salvar</button>
+                    <button onClick={salvar} className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-on-cor">Salvar</button>
                     <button onClick={() => setEditandoId(null)} className="rounded-lg border border-line px-3 py-1.5 text-sm">Cancelar</button>
                   </div>
                 </div>)}

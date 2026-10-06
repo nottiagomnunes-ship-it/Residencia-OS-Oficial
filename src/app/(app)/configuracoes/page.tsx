@@ -6,6 +6,8 @@ import { salvarRitmoModo } from '@/lib/config'
 import { inputCls } from '@/components/ui'
 import RestaurarBackup from '@/components/RestaurarBackup'
 import TamanhoTexto from '@/components/TamanhoTexto'
+import TemaApp from '@/components/TemaApp'
+import { lerTema } from '@/lib/engine/tema'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
 import { cookies } from 'next/headers'
 import { lerTamanho } from '@/lib/engine/texto'
@@ -18,7 +20,7 @@ export default async function Configuracoes({ searchParams }: { searchParams: Pr
   const sb = await supabaseServer()
   const { data: p } = await sb.from('profiles').select('*').single()
   const restauracao = await carregarInfoRestauracao(sb)
-  const tamanhoTexto = lerTamanho((await cookies()).get('texto')?.value)
+  const tamanhoTexto = lerTamanho((await cookies()).get('texto')?.value), tema = lerTema((await cookies()).get('tema')?.value)
   const Campo = ({ t, dica, children }: { t: string; dica?: string; children: React.ReactNode }) => <label className="block space-y-1"><span className="text-sm">{t}</span>{children}{dica && <span className="block text-xs text-muted">{dica}</span>}</label>
   const sec = 'space-y-4 rounded-2xl border border-line bg-surface p-5'
   return (
@@ -50,13 +52,15 @@ export default async function Configuracoes({ searchParams }: { searchParams: Pr
             <Campo t="Questões mínimas para avaliar um assunto" dica="Evita julgar por amostra pequena."><input name="min_questoes" type="number" inputMode="numeric" min={1} max={100} defaultValue={p?.min_questoes ?? 10} className={inputCls + ' w-full'} /></Campo>
           </div>
         </section>
-        <button className="rounded-xl bg-brand px-5 py-2.5 font-medium text-black">Salvar configurações</button>
+        <button className="rounded-xl bg-brand px-5 py-2.5 font-medium text-on-cor">Salvar configurações</button>
       </form>
       <section className={sec}><h2 className="font-medium">Disciplinas e conteúdos</h2>
         <p className="text-sm text-muted">Pesos, novas disciplinas e o catálogo de assuntos ficam em <Link href="/disciplinas" className="text-brand underline">Disciplinas</Link> e <Link href="/conteudos" className="text-brand underline">Conteúdos</Link>. Para trazer o seu próprio plano, em texto ou PDF, use <Link href="/importar" className="text-brand underline">Importar cronograma</Link>.</p></section>
       <section className={sec}><h2 className="font-medium">Aparência</h2>
         <p className="text-sm text-muted">Tamanho do texto em todo o app. Se as letras estiverem pequenas no tablet, experimente Grande ou Maior.</p>
         <TamanhoTexto inicial={tamanhoTexto} />
+        <p className="pt-2 text-sm text-muted">Tema de cores neste aparelho.</p>
+        <TemaApp inicial={tema} />
       </section>
       <section className={sec}><h2 className="font-medium">Ritmo para a prova</h2>
         <p className="text-sm text-muted">Compara quantos assuntos você conclui por semana com o necessário para chegar à prova. É uma referência, não uma cobrança: escolha o quanto quer ver.</p>
@@ -83,7 +87,7 @@ export default async function Configuracoes({ searchParams }: { searchParams: Pr
       <section id="meus-dados" className={sec}><h2 className="font-medium">Meus dados</h2>
         <p className="text-sm text-muted">Baixe uma cópia do que você registrou. O backup completo guarda tudo; as planilhas abrem direto no Excel.</p>
         <div className="flex flex-wrap gap-2 text-sm">
-          <a href="/exportar/backup" className="rounded-xl bg-brand px-4 py-2 font-medium text-black">Baixar backup completo (.json)</a>
+          <a href="/exportar/backup" className="rounded-xl bg-brand px-4 py-2 font-medium text-on-cor">Baixar backup completo (.json)</a>
           {[['assuntos', 'Assuntos'], ['questoes', 'Questões'], ['erros', 'Caderno de erros'], ['simulados', 'Simulados']].map(([k, n]) => (
             <a key={k} href={`/exportar/${k}`} className="rounded-xl border border-line px-4 py-2 hover:border-brand">{n} (.csv)</a>))}
         </div>
@@ -114,7 +118,7 @@ export default async function Configuracoes({ searchParams }: { searchParams: Pr
           <p>Apaga <b>absolutamente todas</b> as informações da conta: disciplinas, assuntos, cronograma, revisões, questões, provas, banco de questões, caderno de erros, simulados, metas, compromissos, tempo de estudo, XP, nível, conquistas, cores e as figuras enviadas. As configurações voltam ao padrão e o assistente inicial e o tutorial aparecem de novo.</p>
           <p>Continuam só o seu e-mail e a sua senha. <b>Não dá para desfazer.</b> Se quiser guardar uma cópia antes, baixe o backup em <a href="#meus-dados" className="text-brand underline">Meus dados</a>.</p>
           <label className="block space-y-1"><span>Digite <b>APAGAR TUDO</b> para confirmar</span><input name="confirmacao" autoComplete="off" className={inputCls + ' w-full'} /></label>
-          <button className="rounded-xl bg-danger px-4 py-2 font-medium text-white hover:bg-danger/90">Apagar tudo</button>
+          <button className="rounded-xl bg-danger px-4 py-2 font-medium text-on-cor hover:bg-danger/90">Apagar tudo</button>
         </form>
       </details>
       <form action={sair}><button className="rounded-xl border border-line px-4 py-2 text-sm hover:border-danger hover:text-danger">Sair da conta</button></form>

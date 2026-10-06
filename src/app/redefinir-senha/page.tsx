@@ -11,7 +11,7 @@ export default async function RedefinirSenha({ searchParams }: { searchParams: P
           <span className="block text-xs text-muted">Pelo menos 8 caracteres.</span></label>
         <label className="block space-y-1"><span className="text-sm">Repita a nova senha</span><input name="confirmar" type="password" required minLength={8} autoComplete="new-password" className={input} /></label>
         {erro && <p role="alert" className="text-sm text-danger">{erro}</p>}
-        <button className="w-full rounded-xl bg-brand py-3 font-medium text-black">Salvar nova senha</button>
+        <button className="w-full rounded-xl bg-brand py-3 font-medium text-on-cor">Salvar nova senha</button>
       </form>
     </main>
   )

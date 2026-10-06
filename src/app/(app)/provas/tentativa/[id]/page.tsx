@@ -52,7 +52,7 @@ export default async function Tentativa({ params, searchParams }: { params: Prom
           <input type="hidden" name="prova" value={prova.id} /><input type="hidden" name="tentativa" value={id} />
           <p>Para corrigir, falta o gabarito {falta.length === questoes.length ? 'da prova' : <>das questões <b>{faixas(falta)}</b></>}. Cole abaixo (o que já existe aparece no campo).</p>
           <textarea name="gabarito" rows={6} required defaultValue={gabaritoEmTexto(questoes)} placeholder="1-B 2-C 3-A ... (anulada: X)" className={inputCls + ' w-full font-mono'} />
-          <button className="rounded-xl bg-brand px-5 py-3 font-medium text-black">Salvar gabarito e corrigir</button>
+          <button className="rounded-xl bg-brand px-5 py-3 font-medium text-on-cor">Salvar gabarito e corrigir</button>
         </form>
         <p className="text-sm text-muted">Tempo de prova: {relogio(t.tempo_seg)}. Suas respostas estão guardadas; nada muda até a correção.</p>
       </div>)
@@ -94,7 +94,7 @@ export default async function Tentativa({ params, searchParams }: { params: Prom
           <h2 className="font-medium">Por área</h2>
           {areas.map(a => (
             <div key={a.area ?? 'sem'} className="grid grid-cols-[minmax(0,9rem)_1fr_6rem] items-center gap-3 text-sm sm:grid-cols-[14rem_1fr_7rem]">
-              <span className="truncate">{a.rotulo}</span><Bar pct={a.pct ?? 0} cor={a.area ? COR_AREA[a.area] : '#8A9A93'} />
+              <span className="truncate">{a.rotulo}</span><Bar pct={a.pct ?? 0} cor={a.area ? COR_AREA[a.area] : 'var(--c-muted)'} />
               <span className="text-right text-muted">{a.acertos}/{a.total} · {a.pct}%</span>
             </div>))}
         </section>)}

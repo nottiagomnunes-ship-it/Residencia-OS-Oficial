@@ -85,7 +85,7 @@ export default async function AdminQuestoes({ searchParams }: { searchParams: Pr
           {f.area && <input type="hidden" name="area" value={f.area} />}{f.disciplina && <input type="hidden" name="disciplina" value={f.disciplina} />}
           {f.topico && <input type="hidden" name="topico" value={f.topico} />}
           <div className="flex flex-wrap gap-2">
-            <button className="rounded-xl bg-brand px-5 py-2 font-medium text-black">Buscar</button>
+            <button className="rounded-xl bg-brand px-5 py-2 font-medium text-on-cor">Buscar</button>
             {filtrado && <Link href="/admin/questoes" className={btn}>Limpar</Link>}
           </div>
         </form>
@@ -99,7 +99,7 @@ export default async function AdminQuestoes({ searchParams }: { searchParams: Pr
                 {porEspecialidade(temas).map(([e, l]) => <optgroup key={e} label={e}>{l.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}</optgroup>)}
                 <option value="nenhum">Sem tema (tirar)</option>
               </select></label>
-              <button form="lote" formAction={definirTemaEmLote} className="rounded-xl bg-brand px-4 py-2 font-medium text-black">Dar o tema</button>
+              <button form="lote" formAction={definirTemaEmLote} className="rounded-xl bg-brand px-4 py-2 font-medium text-on-cor">Dar o tema</button>
               <button form="lote" formAction={sugerirTemasPeloTexto} className="rounded-xl border border-line px-4 py-2 hover:border-brand">Sugerir tema pelo texto</button>
             </> : <p className="text-muted">A lista de temas está vazia: <Link href="/admin/temas" className="text-brand hover:underline">crie os temas</Link>.</p>}
           </div>

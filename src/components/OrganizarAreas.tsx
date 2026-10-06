@@ -49,7 +49,7 @@ export default function OrganizarAreas({ disciplinas }: { disciplinas: LinhaDeAr
               </li>))}
           </ul>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={aplicar} disabled={!mudancas.length || pend} className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black disabled:opacity-50">
+            <button type="button" onClick={aplicar} disabled={!mudancas.length || pend} className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-on-cor disabled:opacity-50">
               {pend ? 'Aplicando…' : mudancas.length ? `Aplicar (${mudancas.length})` : 'Nada a aplicar'}
             </button>
             <button type="button" onClick={() => setValores(inicial())} disabled={pend || !mudancas.length} className="rounded-xl border border-line px-4 py-2 text-sm disabled:opacity-50">Desfazer mudanças</button>

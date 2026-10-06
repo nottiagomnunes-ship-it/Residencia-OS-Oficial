@@ -34,7 +34,7 @@ export default async function Temas({ searchParams }: { searchParams: Promise<{ 
         <h2 className="font-medium">Acrescentar temas</h2>
         <p className="text-sm text-muted">Cole um tema por linha. Pode ser "Especialidade &gt; Tema", "Área &gt; Especialidade &gt; Tema" ou um título com a lista embaixo. Depois de ":" vão as <b>palavras-chave</b>, separadas por vírgula: remédios, exames e achados que denunciam o tema no enunciado. São elas que fazem o "Sugerir tema pelo texto" funcionar. Os temas que já existem não se repetem, mas ganham as palavras-chave novas.</p>
         <textarea name="lista" rows={8} required className={inputCls + ' w-full font-mono text-sm'} placeholder={'Anestesiologia\n- Bloqueadores neuromusculares: rocurônio, succinilcolina, sugamadex, neostigmina\n- Hipertermia maligna: dantrolene, rigidez de masseter\n\nPediatria > Neonatologia > Icterícia neonatal: bilirrubina, fototerapia, kernicterus'} />
-        <button className="rounded-xl bg-brand px-5 py-2 font-medium text-black">Acrescentar</button>
+        <button className="rounded-xl bg-brand px-5 py-2 font-medium text-on-cor">Acrescentar</button>
       </form>
 
       <section className="space-y-3">

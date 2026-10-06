@@ -70,7 +70,7 @@ export default function Importador({ hoje, total }: { hoje: string; total: numbe
           {prev.avisos.length > 0 && <ul className="list-disc space-y-1 pl-5 text-sm text-warn">{prev.avisos.slice(0, 6).map((a, i) => <li key={i}>{a}</li>)}{prev.avisos.length > 6 && <li>e mais {prev.avisos.length - 6} avisos</li>}</ul>}
           <label className="flex items-start gap-3 text-sm"><input type="checkbox" checked={substituir} onChange={e => setSubstituir(e.target.checked)} className="mt-1 accent-brand" />
             <span>Substituir os assuntos atuais<span className="block text-xs text-muted">Remove os que ainda não têm histórico ({total} assuntos hoje). Assuntos com questões, revisões ou estudo são mantidos.</span></span></label>
-          <button onClick={importar} disabled={pend || !prev.itens.length} className="rounded-xl bg-brand px-5 py-2.5 font-medium text-black disabled:opacity-50">{pend ? 'Importando…' : `Importar ${prev.itens.length} assuntos`}</button>
+          <button onClick={importar} disabled={pend || !prev.itens.length} className="rounded-xl bg-brand px-5 py-2.5 font-medium text-on-cor disabled:opacity-50">{pend ? 'Importando…' : `Importar ${prev.itens.length} assuntos`}</button>
         </section>)}
       <section className={box}>
         <h2 className="font-medium">Só limpar</h2>

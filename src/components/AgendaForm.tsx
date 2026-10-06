@@ -53,6 +53,6 @@ export default function AgendaForm({ semana, hoje }: { semana: string; hoje: str
         <label className="text-sm text-muted">Termina<input type="time" name="hora_fim" required value={fim} onChange={e => setFim(e.target.value)} className={inputCls + ' mt-1 w-full'} /></label>
       </div>
       {viraNoite && <p className="text-xs text-info">Termina no dia seguinte (passa da meia-noite).</p>}
-      <button className="w-full rounded-xl bg-brand px-4 py-3 font-medium text-black">Salvar na agenda</button>
+      <button className="w-full rounded-xl bg-brand px-4 py-3 font-medium text-on-cor">Salvar na agenda</button>
     </form>)
 }

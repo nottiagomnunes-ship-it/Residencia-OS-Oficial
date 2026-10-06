@@ -134,7 +134,7 @@ export default async function EditarQuestao({ params, searchParams }: { params: 
 
         <div className="sticky bottom-2 z-10 flex flex-wrap gap-2 rounded-2xl border border-line bg-surface/95 p-3 shadow-lg">
           <button name="intencao" value="salvar" className="rounded-xl border border-line px-5 py-2.5 hover:border-brand">Salvar</button>
-          <button name="intencao" value="publicar" className="rounded-xl bg-brand px-5 py-2.5 font-medium text-black">{q.origem_geral ? 'Salvar e atualizar no banco geral' : 'Salvar e publicar'}</button>
+          <button name="intencao" value="publicar" className="rounded-xl bg-brand px-5 py-2.5 font-medium text-on-cor">{q.origem_geral ? 'Salvar e atualizar no banco geral' : 'Salvar e publicar'}</button>
         </div>
       </form>
 

@@ -46,8 +46,8 @@ export default async function Provas({ searchParams }: { searchParams: Promise<{
             <b className="font-medium">{p.nome}</b>
             <p className="text-sm text-muted">{p.completa ? `${p.total} questões` : <span className="text-warn">{p.disponiveis} de {p.total} questões (incompleta)</span>}</p>
             {u && <p className="text-sm text-muted">Última: <b className="text-inherit">{u.acertos}/{u.total} ({pct(u.acertos ?? 0, u.total ?? 0)}%)</b> em {fmtData(u.corrigida_em?.slice(0, 10))}</p>}
-            <div className="mt-auto">{a ? <Link href={`/provas/tentativa/${a.id}`} className={`${btn} inline-block bg-brand font-medium text-black`}>Continuar · questão {a.atual}</Link>
-              : fazer(p.id, u ? 'Refazer a prova' : 'Fazer a prova', `${btn} bg-brand font-medium text-black`)}</div>
+            <div className="mt-auto">{a ? <Link href={`/provas/tentativa/${a.id}`} className={`${btn} inline-block bg-brand font-medium text-on-cor`}>Continuar · questão {a.atual}</Link>
+              : fazer(p.id, u ? 'Refazer a prova' : 'Fazer a prova', `${btn} bg-brand font-medium text-on-cor`)}</div>
           </li>) })}</ul>
         <p className="text-sm text-muted">Não achou a prova que queria? <Link href="/contato?pedir=prova#pedir-prova" className="text-brand underline">Peça a prova</Link>.</p>
       </section>}
@@ -68,10 +68,10 @@ export default async function Provas({ searchParams }: { searchParams: Promise<{
               {feitas.length > 1 && <span className="text-muted"> · feita {feitas.length} vezes</span>}</p>
             <div className="mt-auto flex flex-wrap gap-2">
               {aberta
-                ? <Link href={`/provas/tentativa/${aberta.id}`} className={`${btn} bg-brand font-medium text-black`}>
+                ? <Link href={`/provas/tentativa/${aberta.id}`} className={`${btn} bg-brand font-medium text-on-cor`}>
                   {aberta.status === 'entregue' ? 'Corrigir (falta gabarito)' : `Continuar · questão ${aberta.atual} · ${relogio(aberta.tempo_seg)}`}</Link>
                 : <form action={iniciarTentativa}><input type="hidden" name="prova" value={p.id} />
-                  <button className={`${btn} bg-brand font-medium text-black`}>{feitas.length ? 'Refazer a prova' : 'Começar a prova'}</button></form>}
+                  <button className={`${btn} bg-brand font-medium text-on-cor`}>{feitas.length ? 'Refazer a prova' : 'Começar a prova'}</button></form>}
               {ultima && <Link href={`/provas/tentativa/${ultima.id}`} className={`${btn} border border-line hover:border-brand`}>Ver correção</Link>}
               <Link href={`/provas/${p.id}`} className={`${btn} border border-line hover:border-brand`}>{p.do_banco ? 'Detalhes' : 'Gabarito e áreas'}</Link>
             </div>

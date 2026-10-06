@@ -42,7 +42,7 @@ export default async function PraticarInicio({ searchParams }: { searchParams: P
       {T.length === 0
         ? <div className="space-y-3 rounded-2xl border border-dashed border-line p-8 text-center">
           <p className="text-muted">{gestor ? 'Seu banco de questões está vazio. Importe um PDF ou .docx de questões (com o gabarito no fim) ou um pacote .json para começar a praticar.' : 'Ainda não há questões para praticar. Elas aparecem aqui assim que forem publicadas.'}</p>
-          {gestor && <Link href="/admin/importar" className="inline-block rounded-xl bg-brand px-5 py-2.5 font-medium text-black">Importar questões</Link>}
+          {gestor && <Link href="/admin/importar" className="inline-block rounded-xl bg-brand px-5 py-2.5 font-medium text-on-cor">Importar questões</Link>}
         </div>
         : <>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -62,7 +62,7 @@ export default async function PraticarInicio({ searchParams }: { searchParams: P
             <option value="todas">Todas</option><option value="nunca">Nunca fiz</option><option value="errei">Errei na última vez</option><option value="acertei">Acertei na última vez</option></select></label>
           <label className="text-sm text-muted">Quantas (lista)<select name="quantidade" defaultValue="10" className={sel}>{[5, 10, 20, 30, 50].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
           <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-5">
-            <button formAction="/banco/praticar" formMethod="get" className="rounded-xl bg-brand px-5 py-2.5 font-medium text-black">Praticar</button>
+            <button formAction="/banco/praticar" formMethod="get" className="rounded-xl bg-brand px-5 py-2.5 font-medium text-on-cor">Praticar</button>
             <button className="rounded-xl border border-line px-4 py-2.5 text-sm hover:border-brand">Montar lista (como prova)</button>
             <button formAction="/banco/questoes" formMethod="get" className="rounded-xl border border-line px-4 py-2.5 text-sm hover:border-brand">Ver estas questões no Banco</button>
           </div>

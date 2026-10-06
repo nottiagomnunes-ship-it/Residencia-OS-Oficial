@@ -38,7 +38,7 @@ export function RankCard({ g }: { g: G }) {
         : <>
           <div className="mt-2 flex items-center gap-4">
             <Emblema passo={r.passo} cor={r.cor} tamanho={56} />
-            <div className="min-w-0"><p className="text-2xl font-semibold" style={{ color: r.cor }}>{r.rotulo}</p>
+            <div className="min-w-0"><p className="text-2xl font-semibold" style={{ color: `color-mix(in oklab, ${r.cor} 65%, var(--c-ink))` }}>{r.rotulo}</p>
               <p className="text-sm text-muted">{String(r.pct).replace('.', ',')}% dos assuntos concluídos · {r.concluidos} de {r.total}</p></div>
           </div>
           {r.proximo
@@ -61,7 +61,7 @@ export function JornadaPanel({ g }: { g: G }) {
             <div key={e.nome} className={`rounded-xl border p-3 text-center ${atual ? 'border-2' : 'border-line opacity-70'}`} style={atual ? { borderColor: e.cor } : undefined}>
               <span className="mx-auto mb-1 block size-3 rounded-full" style={{ background: e.cor }} />
               <p className="text-sm font-medium">{e.nome}</p><p className="text-xs text-muted">{i * 10}–{i * 10 + 10}%</p>
-              {atual && <p className="mt-1 text-xs" style={{ color: e.cor }}>Você está aqui</p>}
+              {atual && <p className="mt-1 text-xs" style={{ color: `color-mix(in oklab, ${e.cor} 65%, var(--c-ink))` }}>Você está aqui</p>}
             </div>) })}
         </div>
       </div>
@@ -89,7 +89,7 @@ export function ConquistasGrid({ g }: { g: G }) {
     <section className="space-y-3"><h2 className="font-medium">Conquistas <span className="text-sm font-normal text-muted">{n} de {g.conquistas.length}</span></h2>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{[...g.conquistas].sort((a, b) => Number(!!b.em) - Number(!!a.em)).map(c => (
         <div key={c.codigo} className={`rounded-2xl border p-4 ${c.em ? 'border-brand/40 bg-brand/5' : 'border-line bg-surface opacity-60'}`}>
-          <p className="font-medium">{c.em ? '🏅 ' : ''}{c.titulo}{c.em && !c.visto && <span className="ml-2 rounded-full bg-brand px-2 py-0.5 text-xs font-normal text-black">Nova</span>}</p><p className="text-sm text-muted">{c.descricao}</p>
+          <p className="font-medium">{c.em ? '🏅 ' : ''}{c.titulo}{c.em && !c.visto && <span className="ml-2 rounded-full bg-brand px-2 py-0.5 text-xs font-normal text-on-cor">Nova</span>}</p><p className="text-sm text-muted">{c.descricao}</p>
           {c.em && <p className="mt-1 text-xs text-brand">Desbloqueada em {fmtData(c.em.slice(0, 10))}</p>}
         </div>))}</div></section>)
 }

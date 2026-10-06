@@ -41,7 +41,7 @@ export default async function Simulados({ searchParams }: { searchParams: Promis
               <input name={`q_${d.id}`} type="number" inputMode="numeric" min={0} placeholder="Quest." aria-label={`${d.nome}: questões`} className={inputCls + ' w-20'} />
               <input name={`a_${d.id}`} type="number" inputMode="numeric" min={0} placeholder="Acertos" aria-label={`${d.nome}: acertos`} className={inputCls + ' w-20'} /></fieldset>))}
         </div>
-        <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black sm:col-span-2 xl:col-span-4">Registrar simulado</button>
+        <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-on-cor sm:col-span-2 xl:col-span-4">Registrar simulado</button>
       </form>
       {r.itens.length > 1 && <EvolucaoSimulados dados={r.itens.map(i => ({ nome: i.nome, pct: i.pct }))} />}
       <ul className="space-y-3">{[...r.itens].reverse().map(i => { const m: any = extra.get(i.id); const linhas: any[] = m?.por_disciplina ?? []; return (

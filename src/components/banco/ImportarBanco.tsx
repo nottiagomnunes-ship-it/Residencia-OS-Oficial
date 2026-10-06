@@ -219,7 +219,7 @@ export default function ImportarBanco({ admin = false, temasLista = [] }: { admi
           {publicar && <label className="block text-muted">Coleção (opcional)<input value={colecao} onChange={e => setColecao(e.target.value)} maxLength={120} placeholder={fonte || 'Ex.: Anestesiologia – UFMA'} className={inputCls + ' mt-1 w-full'} /></label>}
         </section>}
         <div className="flex flex-wrap items-center gap-3">
-          <button type="button" onClick={salvar} disabled={!!salvando} className="min-h-12 rounded-xl bg-brand px-6 font-medium text-black disabled:opacity-50">
+          <button type="button" onClick={salvar} disabled={!!salvando} className="min-h-12 rounded-xl bg-brand px-6 font-medium text-on-cor disabled:opacity-50">
             {salvando ?? (admin && publicar ? `Adicionar ${resumo.total} e publicar para todos` : `Adicionar ${resumo.total} ao banco`)}</button>
           <span className="text-xs text-muted">Questões que já estão no banco (mesmo texto) não são repetidas.</span>
         </div>

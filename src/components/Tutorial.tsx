@@ -49,8 +49,8 @@ export default function Tutorial({ primeiraVez }: { primeiraVez: boolean }) {
         <div className="flex gap-2">
           <button type="button" onClick={() => setI(x => x - 1)} disabled={i === 0} className="min-h-12 flex-1 rounded-xl border border-line disabled:opacity-40">Voltar</button>
           {ultimo
-            ? <button type="button" onClick={fechar} className="min-h-12 flex-1 rounded-xl bg-brand font-medium text-black">Começar</button>
-            : <button type="button" onClick={() => setI(x => x + 1)} className="min-h-12 flex-1 rounded-xl bg-brand font-medium text-black">Próximo</button>}
+            ? <button type="button" onClick={fechar} className="min-h-12 flex-1 rounded-xl bg-brand font-medium text-on-cor">Começar</button>
+            : <button type="button" onClick={() => setI(x => x + 1)} className="min-h-12 flex-1 rounded-xl bg-brand font-medium text-on-cor">Próximo</button>}
         </div>
       </div>
     </div>)

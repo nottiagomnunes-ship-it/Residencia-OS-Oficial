@@ -61,13 +61,14 @@ export function montarLembrete(d: DadosLembrete, urlApp: string) {
   ].filter(Boolean)
 
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:auto;color:#111;line-height:1.5">
+<p style="margin:0 0 16px;font-weight:bold;font-size:18px;letter-spacing:-0.01em;color:#0F1A15">R<span style="color:#0B8048">1</span>TMO</p>
 <h2 style="margin:0 0 4px">${esc(saudacao)}</h2><p style="margin:0 0 16px;color:#555">Seu resumo de ${esc(rotulo)}.</p>
 <div style="margin:0 0 8px;padding:10px 14px;background:#f3f4f6;border-radius:10px"><b>Tempo de hoje: ${esc(tempoTxt)}</b><br><span style="color:#555;font-size:13px">${esc(tempoNota)}</span></div>
 ${vazio && !semTempo ? '<p>Nada pendente para hoje. Bom descanso ou bom estudo livre!</p>' : ''}
 ${para.length ? `<h3 style="margin:18px 0 4px;font-size:16px">${esc(tituloPara)}</h3><ol style="padding-left:22px;margin:6px 0">${para.map(x => `<li style="margin:4px 0">${esc(x)}</li>`).join('')}</ol>` : ''}
 ${depois.length ? `<h3 style="margin:18px 0 4px;font-size:16px;color:#555">${esc(tituloDepois)}</h3><ul style="padding-left:20px;margin:6px 0;color:#555">${depois.map(x => `<li style="margin:4px 0">${esc(x)}</li>`).join('')}</ul>` : ''}
 ${avisos.map(a => `<p style="margin-top:14px">${esc(a)}</p>`).join('')}
-<p style="margin:24px 0"><a href="${esc(urlApp)}/inicio" style="background:#22C55E;color:#000;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:bold">Abrir o R1TMO</a></p>
+<p style="margin:24px 0"><a href="${esc(urlApp)}/inicio" style="background:#0B8048;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:bold">Abrir o R1TMO</a></p>
 <p style="color:#777;font-size:12px">Para parar de receber este e-mail, desative em Configurações → Lembretes por e-mail.</p></div>`
   const texto = [saudacao, `Seu resumo de ${rotulo}.`, '', `Tempo de hoje: ${tempoTxt}. ${tempoNota}`,
     vazio && !semTempo ? '\nNada pendente para hoje.' : '',

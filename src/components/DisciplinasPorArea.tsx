@@ -24,7 +24,7 @@ export function DisciplinasPorArea({ grupos }: { grupos: GrupoDeArea<CartaoDisci
         return (
           <section key={g.rotulo} aria-label={g.rotulo} className="space-y-3">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line pb-2">
-              <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: g.area ? COR_AREA[g.area] : '#8A9A93' }} />
+              <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: g.area ? COR_AREA[g.area] : 'var(--c-muted)' }} />
               <h2 className="text-lg font-semibold">{g.rotulo}</h2>
               <p className="text-sm text-muted">{plural(g.itens.length, 'disciplina', 'disciplinas')}{total ? ` · ${ok} de ${total} assuntos concluídos (${pct}%)` : ''}</p>
             </div>

@@ -47,12 +47,12 @@ export default function Checklist({ topicId, inicial, modelos: modelosIniciais, 
         <ul className="space-y-1">{itens.map(i => (
           <li key={i.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl px-2 py-2 hover:bg-line/40">
             <button onClick={() => alternar(i)} role="checkbox" aria-checked={i.concluida} aria-label={`${i.concluida ? 'Desmarcar' : 'Concluir'}: ${i.titulo}`}
-              className={`grid size-6 shrink-0 place-items-center rounded-full border text-sm ${i.concluida ? 'border-brand bg-brand text-black' : 'border-muted'}`}>{i.concluida ? '✓' : ''}</button>
+              className={`grid size-6 shrink-0 place-items-center rounded-full border text-sm ${i.concluida ? 'border-brand bg-brand text-on-cor' : 'border-muted'}`}>{i.concluida ? '✓' : ''}</button>
             {edId === i.id ? (
               <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                 <input autoFocus value={edTxt} onChange={e => setEdTxt(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') salvarEdicao(); if (e.key === 'Escape') setEdId(null) }} aria-label="Texto da etapa" className={inputCls + ' min-w-0 flex-1'} />
                 {i.tipo === 'questoes' && <input type="number" inputMode="numeric" min={1} max={1000} value={edQtd} onChange={e => setEdQtd(e.target.value)} placeholder="Nº" aria-label="Número de questões" className={inputCls + ' w-20'} />}
-                <button onClick={salvarEdicao} className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-black">Salvar</button>
+                <button onClick={salvarEdicao} className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-on-cor">Salvar</button>
                 <button onClick={() => setEdId(null)} className="rounded-lg border border-line px-3 py-1.5 text-sm">Cancelar</button>
               </span>
             ) : (<>
@@ -85,7 +85,7 @@ export default function Checklist({ topicId, inicial, modelos: modelosIniciais, 
             <select value={tipo} onChange={e => setTipo(e.target.value)} aria-label="Tipo de etapa" className={inputCls}>{Object.entries(TIPOS_ETAPA).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
             {tipo === 'questoes' && <input type="number" inputMode="numeric" min={1} max={1000} value={qtd} onChange={e => setQtd(e.target.value)} placeholder="Nº" aria-label="Número de questões" className={inputCls + ' w-20'} />}
             <input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder={tituloPadrao(tipo, qtd ? Number(qtd) : null) || 'Descreva o que precisa fazer'} aria-label="Descrição da etapa" className={inputCls + ' min-w-0 flex-1'} />
-            <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Adicionar</button>
+            <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-on-cor">Adicionar</button>
           </div>
           <label className="flex items-center gap-2 text-sm text-muted"><input type="checkbox" checked={salvar} onChange={e => setSalvar(e.target.checked)} className="accent-brand" />Salvar como padrão para usar em outros assuntos</label>
         </form>
@@ -98,7 +98,7 @@ export default function Checklist({ topicId, inicial, modelos: modelosIniciais, 
           <form action={concluirConteudo} className="mt-3 flex items-center gap-2">
             <input type="hidden" name="topic_id" value={topicId} />
             <input name="duration_min" type="number" inputMode="numeric" min={0} defaultValue={60} aria-label="Minutos estudados" className={inputCls + ' w-24'} /><span className="text-sm text-muted">min</span>
-            <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Concluir assunto</button>
+            <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-on-cor">Concluir assunto</button>
           </form>
         </section>)}
     </div>

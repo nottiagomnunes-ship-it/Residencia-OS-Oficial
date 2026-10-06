@@ -39,7 +39,7 @@ export default function QuestoesForm({ ds, ts, alvo, totalInicial, tempoInicial,
           <select name="dificuldade" defaultValue="" aria-label="Dificuldade" className={inputCls}><option value="">Dificuldade</option><option value={1}>Fácil</option><option value={2}>Médio</option><option value={3}>Difícil</option></select>
         </div>
       </details>
-      <button disabled={!r.valido} className="w-full rounded-xl bg-brand px-4 py-3 font-medium text-black disabled:opacity-50">Registrar</button>
+      <button disabled={!r.valido} className="w-full rounded-xl bg-brand px-4 py-3 font-medium text-on-cor disabled:opacity-50">Registrar</button>
     </form>
   )
 }

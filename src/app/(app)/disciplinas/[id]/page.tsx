@@ -25,7 +25,7 @@ export default async function Disciplina({ params }: { params: Promise<{ id: str
   const stat = (l: string, v: string) => <div className="rounded-2xl border border-line bg-surface p-4"><p className="text-sm text-muted">{l}</p><p className="mt-1 text-2xl font-semibold">{v}</p></div>
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-semibold" style={{ color: d.cor }}>{d.nome}</h1><div className="flex flex-wrap items-center gap-2">{noBanco > 0 && <Link href={`/banco/praticar?disciplina=${d.id}`} className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Praticar questões ({noBanco})</Link>}{areas.disponivel && <AreaDaDisciplina id={d.id} area={areas.mapa[d.id] ?? null} />}</div></div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-semibold" style={{ color: d.cor }}>{d.nome}</h1><div className="flex flex-wrap items-center gap-2">{noBanco > 0 && <Link href={`/banco/praticar?disciplina=${d.id}`} className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-on-cor">Praticar questões ({noBanco})</Link>}{areas.disponivel && <AreaDaDisciplina id={d.id} area={areas.mapa[d.id] ?? null} />}</div></div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <div className="rounded-2xl border border-line bg-surface p-4"><p className="text-sm text-muted">Progresso</p><p className="mb-2 mt-1 text-2xl font-semibold">{pct}%</p><Bar pct={pct} cor={d.cor} /></div>
         {stat('Conteúdos', `${ok}/${topics.length}`)}{stat('Questões', String(tot))}

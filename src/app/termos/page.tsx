@@ -9,7 +9,7 @@ export default function Termos() {
   const r = responsavel()
   return (
     <PaginaLegal titulo="Termos de uso">
-      <p>O R1TMO é um app de organização de estudos para provas de residência médica, mantido por {r.nome}. Ao criar uma conta, você concorda com estes termos.</p>
+      <p>O R1TMO é um app de organização de estudos para provas de residência médica. Quem responde por ele: {r.nome}. Ao criar uma conta, você concorda com estes termos.</p>
 
       <h2>1. O que o app é (e o que não é)</h2>
       <ul>

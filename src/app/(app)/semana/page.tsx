@@ -32,7 +32,7 @@ export default async function Semana() {
     <div className="max-w-4xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h1 className="text-2xl font-semibold">Meu tempo</h1><p className="text-muted">Diga quanto tempo você tem para estudar em cada dia. Sem horários: o app só monta o que cabe.</p></div>
-        <form action={gerarCronogramaAction}><button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Atualizar meu cronograma</button></form>
+        <form action={gerarCronogramaAction}><button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-on-cor">Atualizar meu cronograma</button></form>
       </div>
       <p className="text-sm text-muted">Escala mudou? É só tocar no tempo de cada dia. Os dias que você não preencher usam o seu tempo padrão ({formatarMinutos(padrao)} nos dias disponíveis). Para mudar o padrão, vá em <Link href="/configuracoes" className="text-brand underline">Configurações</Link>. Depois de mexer, toque em <b>Atualizar meu cronograma</b>.</p>
       {planoDesatualizado(pp?.capacidade_alterada_em, pp?.plano_gerado_em) && <p role="status" className="rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm">Você mudou o tempo desde a última atualização. Toque em <b>Atualizar meu cronograma</b> para o plano acompanhar.</p>}

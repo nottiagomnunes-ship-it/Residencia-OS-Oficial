@@ -11,7 +11,7 @@ import { areaDeMenorAcerto, resumoPorArea, SIGLA_AREA } from '@/lib/engine/areas
 import { carregarTemas } from '@/lib/banco-data'
 import { desempenhoPorTema } from '@/lib/engine/temas'
 
-const corAcerto = (p: number | null) => (p == null ? '#8A9A93' : p >= 75 ? '#22C55E' : p >= 65 ? '#F59E0B' : '#EF4444')
+const corAcerto = (p: number | null) => (p == null ? 'var(--c-muted)' : p >= 75 ? 'var(--c-brand)' : p >= 65 ? 'var(--c-warn)' : 'var(--c-danger)')
 
 export default async function Desempenho() {
   const sb = await supabaseServer()

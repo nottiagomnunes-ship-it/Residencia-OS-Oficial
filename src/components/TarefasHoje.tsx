@@ -89,7 +89,7 @@ export default function TarefasHoje({ itens, hoje, concluidasHoje, minutosHoje, 
         <div className="space-y-2 rounded-xl border border-line p-3 text-sm">
           <p>Sobra tempo hoje ({formatarMinutos(livre)}). Posso adiantar dos próximos dias:</p>
           <ul className="text-muted">{adi.map(a => <li key={a.id}>• {a.titulo} <span className="text-xs">({a.duracao_min ?? 30} min · {fmtData(a.data)})</span></li>)}</ul>
-          <button onClick={adiantar} className="rounded-xl bg-brand px-4 py-2 font-medium text-black">Adiantar {adi.length} {adi.length === 1 ? 'tarefa' : 'tarefas'}</button>
+          <button onClick={adiantar} className="rounded-xl bg-brand px-4 py-2 font-medium text-on-cor">Adiantar {adi.length} {adi.length === 1 ? 'tarefa' : 'tarefas'}</button>
         </div>)}
       {!d.cabem.length && !d.sobram.length && <p className="text-sm text-muted">{r.total > 0 ? 'Tudo concluído por hoje.' : 'Nada pendente por enquanto.'} <Link href="/cronograma" className="text-brand underline">Ver o cronograma</Link></p>}
     </section>

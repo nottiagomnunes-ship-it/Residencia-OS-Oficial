@@ -5,7 +5,7 @@ export type Area = (typeof AREAS)[number]
 export const ROTULO_AREA: Record<Area, string> = { clinica: 'Clínica Médica', cirurgia: 'Cirurgia', pediatria: 'Pediatria', go: 'Ginecologia e Obstetrícia', preventiva: 'Preventiva' }
 export const SIGLA_AREA: Record<Area, string> = { clinica: 'Clínica', cirurgia: 'Cirurgia', pediatria: 'Pediatria', go: 'GO', preventiva: 'Preventiva' }
 /** Uma cor discreta por área (pontos e faixas). Sem vermelho: a cor da área não deve parecer um alerta. */
-export const COR_AREA: Record<Area, string> = { clinica: '#3B82F6', cirurgia: '#F59E0B', pediatria: '#22C55E', go: '#EC4899', preventiva: '#A855F7' }
+export const COR_AREA: Record<Area, string> = { clinica: 'var(--c-info)', cirurgia: 'var(--c-warn)', pediatria: 'var(--c-brand)', go: 'var(--c-pink)', preventiva: 'var(--c-violet)' }
 
 export const ehArea = (v: unknown): v is Area => typeof v === 'string' && (AREAS as readonly string[]).includes(v)
 /** Qualquer coisa que venha do banco, do navegador ou de um arquivo vira uma área válida ou null. */

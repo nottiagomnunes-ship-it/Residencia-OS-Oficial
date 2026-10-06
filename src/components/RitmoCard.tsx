@@ -8,7 +8,7 @@ const dm = (d: string) => `${d.slice(8)}/${d.slice(5, 7)}`
 const dias = (n: number) => `${n} ${n === 1 ? 'dia' : 'dias'}`
 const assuntos = (n: number) => `${n} ${n === 1 ? 'assunto' : 'assuntos'}`
 // tons suaves: verde quando vai bem, azul para "dá para ajustar", cinza enquanto mede. Sem vermelho nem laranja de alerta.
-const TOM: Record<Tom, { cls: string; cor: string }> = { bom: { cls: 'text-brand', cor: '#22C55E' }, ajuste: { cls: 'text-info', cor: '#60A5FA' }, neutro: { cls: 'text-muted', cor: '#8B8F98' } }
+const TOM: Record<Tom, { cls: string; cor: string }> = { bom: { cls: 'text-brand', cor: 'var(--c-brand)' }, ajuste: { cls: 'text-info', cor: 'var(--c-info)' }, neutro: { cls: 'text-muted', cor: 'var(--c-muted)' } }
 
 /** Estados em que não há conta a mostrar: só um convite para completar o que falta. Devolve null quando há ritmo para exibir. */
 function convite(r: Ritmo) {

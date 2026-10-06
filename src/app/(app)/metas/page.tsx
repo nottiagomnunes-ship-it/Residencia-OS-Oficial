@@ -20,14 +20,14 @@ export default async function Metas() {
         <label className="space-y-1 text-sm"><span className="block">Período</span><select name="periodo" defaultValue="semana" className={inputCls}>{(Object.keys(PERIODOS) as Periodo[]).map(p => <option key={p} value={p}>{PERIODOS[p]}</option>)}</select></label>
         <label className="space-y-1 text-sm"><span className="block">Métrica</span><select name="metrica" defaultValue="questoes" className={inputCls}>{(Object.keys(METRICAS) as Metrica[]).map(m => <option key={m} value={m}>{METRICAS[m].rotulo}</option>)}</select></label>
         <label className="space-y-1 text-sm"><span className="block">Alvo</span><input name="alvo" type="number" inputMode="numeric" min={1} required className={inputCls + ' w-28'} /></label>
-        <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Adicionar meta</button>
+        <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-on-cor">Adicionar meta</button>
       </form>
       {(Object.keys(PERIODOS) as Periodo[]).map(p => { const l = metas.filter(m => m.periodo === p); return l.length ? (
         <section key={p} className="space-y-3"><h2 className="font-medium">{PERIODOS[p]}</h2>
           <div className="grid gap-4 md:grid-cols-2">{l.map(m => (
             <div key={m.id} className="space-y-2 rounded-2xl border border-line bg-surface p-4">
               <div className="flex items-baseline justify-between"><span>{METRICAS[m.metrica].rotulo}</span><span className={m.pct >= 100 ? 'text-brand' : 'text-muted'}>{m.pct >= 100 ? 'Meta batida' : `${m.pct}%`}</span></div>
-              <Bar pct={Math.min(100, m.pct)} cor={m.pct >= 100 ? '#22C55E' : '#3B82F6'} />
+              <Bar pct={Math.min(100, m.pct)} cor={m.pct >= 100 ? 'var(--c-brand)' : 'var(--c-info)'} />
               <div className="flex items-center justify-between text-sm"><span className="text-muted">{m.valor} de {m.alvo} {METRICAS[m.metrica].unidade}</span>
                 <form action={excluirMeta}><input type="hidden" name="id" value={m.id} /><button className="text-danger hover:underline">Excluir</button></form></div>
             </div>))}</div></section>) : null })}

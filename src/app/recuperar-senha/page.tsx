@@ -12,7 +12,7 @@ export default async function RecuperarSenha({ searchParams }: { searchParams: P
         {erro === 'link' && <p role="alert" className="text-sm text-danger">O link expirou ou já foi usado. Peça um novo abaixo.</p>}
         {erro && erro !== 'link' && <p role="alert" className="text-sm text-danger">{erro}</p>}
         <label className="block space-y-1"><span className="text-sm">E-mail</span><input name="email" type="email" required autoComplete="email" className={input} /></label>
-        <button className="w-full rounded-xl bg-brand py-3 font-medium text-black">Enviar link</button>
+        <button className="w-full rounded-xl bg-brand py-3 font-medium text-on-cor">Enviar link</button>
         <p className="text-center text-sm text-muted"><Link href="/login" className="text-brand underline">Voltar para entrar</Link></p>
       </form>
     </main>

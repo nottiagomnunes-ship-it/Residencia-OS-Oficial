@@ -43,7 +43,7 @@ export default function BlocoAgenda({ o, className, children }: { o: Intervalo; 
             </div>
             <div className="flex flex-col gap-2">
               <button type="button" disabled={pend} onClick={() => agir(() => liberarHorario(o.id!, o.inicio!), `Horário liberado em ${fmtData(o.inicio)}: "${nome}".`)}
-                className="min-h-12 rounded-xl bg-brand px-4 font-medium text-black disabled:opacity-50">{o.recorrente ? `Liberar só em ${fmtData(o.inicio)}` : 'Liberar este horário'}</button>
+                className="min-h-12 rounded-xl bg-brand px-4 font-medium text-on-cor disabled:opacity-50">{o.recorrente ? `Liberar só em ${fmtData(o.inicio)}` : 'Liberar este horário'}</button>
               {o.recorrente && <button type="button" disabled={pend} onClick={() => agir(() => excluirHorarioDaAgenda(o.id!), `"${nome}" saiu da agenda (todas as semanas).`)}
                 className="min-h-12 rounded-xl border border-danger px-4 text-danger hover:bg-danger/10 disabled:opacity-50">Excluir de todas as semanas</button>}
               <button type="button" onClick={() => setAberto(false)} className="min-h-12 rounded-xl border border-line px-4">Cancelar</button>

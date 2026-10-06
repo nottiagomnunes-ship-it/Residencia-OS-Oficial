@@ -51,7 +51,7 @@ export default async function Onboarding() {
           <div className="space-y-2">{lista.map(d => (
             <label key={d.chave} className="flex items-center justify-between gap-4"><span>{d.nome}</span>
               <select name={`peso_${d.chave}`} defaultValue={d.peso} className={input}>{[1, 2, 3, 4, 5].map(n => <option key={n}>{n}</option>)}</select></label>))}</div></fieldset>
-        <button className="w-full rounded-xl bg-brand py-3 font-medium text-black">Criar meu plano</button>
+        <button className="w-full rounded-xl bg-brand py-3 font-medium text-on-cor">Criar meu plano</button>
       </form>
     </main>
   )

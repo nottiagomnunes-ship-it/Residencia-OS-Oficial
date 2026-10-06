@@ -151,7 +151,7 @@ export default function FazerProva({ tentativa, nome, questoes, respostas, tempo
               <li key={a.letra} className="flex items-stretch gap-2">
                 <button type="button" onClick={() => escolher(a.letra)} aria-pressed={marcada}
                   className={`flex min-h-12 flex-1 items-start gap-3 rounded-xl border p-3 text-left transition-colors ${marcada ? 'border-brand bg-brand/15' : 'border-line hover:border-brand/60'} ${riscada ? 'opacity-50' : ''}`}>
-                  <span className={`grid size-7 shrink-0 place-items-center rounded-full border text-sm font-semibold ${marcada ? 'border-brand bg-brand text-black' : 'border-line'}`}>{a.letra}</span>
+                  <span className={`grid size-7 shrink-0 place-items-center rounded-full border text-sm font-semibold ${marcada ? 'border-brand bg-brand text-on-cor' : 'border-line'}`}>{a.letra}</span>
                   <span className={`pt-0.5 whitespace-pre-line ${riscada ? 'line-through' : ''}`}>{a.texto}</span>
                 </button>
                 <button type="button" onClick={() => riscar(a.letra)} aria-pressed={riscada} aria-label={`${riscada ? 'Desfazer risco da' : 'Riscar a'} alternativa ${a.letra}`}
@@ -167,8 +167,8 @@ export default function FazerProva({ tentativa, nome, questoes, respostas, tempo
           <nav className="flex gap-2 border-t border-line pt-4" aria-label="Navegar entre as questões">
             <button type="button" onClick={() => ir(idx - 1)} disabled={idx === 0} className="min-h-12 flex-1 rounded-xl border border-line disabled:opacity-40">← Anterior</button>
             {idx < questoes.length - 1
-              ? <button type="button" onClick={() => ir(idx + 1)} className="min-h-12 flex-1 rounded-xl bg-brand font-medium text-black">Próxima →</button>
-              : <button type="button" onClick={() => setConfirmar(true)} className="min-h-12 flex-1 rounded-xl bg-brand font-medium text-black">Entregar prova</button>}
+              ? <button type="button" onClick={() => ir(idx + 1)} className="min-h-12 flex-1 rounded-xl bg-brand font-medium text-on-cor">Próxima →</button>
+              : <button type="button" onClick={() => setConfirmar(true)} className="min-h-12 flex-1 rounded-xl bg-brand font-medium text-on-cor">Entregar prova</button>}
           </nav>
         </article>
 
@@ -185,7 +185,7 @@ export default function FazerProva({ tentativa, nome, questoes, respostas, tempo
             <p className="text-sm text-muted">{questoes.length - respondidas} em branco{marcadas.length ? ` · ${marcadas.length} marcadas para voltar (${marcadas.slice(0, 12).map(x => x.numero).join(', ')}${marcadas.length > 12 ? '…' : ''})` : ''}. Depois de entregar, as respostas não mudam mais.</p>
             {pendentes > 0 && <p className="text-sm text-warn">Ainda há {pendentes} {pendentes === 1 ? 'resposta' : 'respostas'} para enviar. Conecte-se à internet para entregar.</p>}
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={entregar} disabled={entregando} className="min-h-11 rounded-xl bg-brand px-5 font-medium text-black disabled:opacity-50">{entregando ? 'Entregando…' : 'Entregar agora'}</button>
+              <button type="button" onClick={entregar} disabled={entregando} className="min-h-11 rounded-xl bg-brand px-5 font-medium text-on-cor disabled:opacity-50">{entregando ? 'Entregando…' : 'Entregar agora'}</button>
               <button type="button" onClick={() => setConfirmar(false)} className="min-h-11 rounded-xl border border-line px-5">Continuar a prova</button>
             </div>
           </div>}

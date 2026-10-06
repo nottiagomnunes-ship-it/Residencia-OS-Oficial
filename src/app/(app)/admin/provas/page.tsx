@@ -51,7 +51,7 @@ export default async function ProvasAdmin({ searchParams }: { searchParams: Prom
               <input type="hidden" name="banca" value={g.banca} /><input type="hidden" name="ano" value={g.ano} /><input type="hidden" name="colecao" value={g.colecao ?? ''} />
               <label className="text-muted">Nome da prova<input name="nome" required defaultValue={g.colecao || `${g.banca} ${g.ano}`} maxLength={120} className={inputCls + ' mt-1 w-full'} /></label>
               <label className="text-muted">Questões<input name="total" required inputMode="numeric" defaultValue={Math.max(g.maior, g.questoes)} className={inputCls + ' mt-1 w-full'} /></label>
-              <button className="min-h-10 rounded-xl bg-brand px-4 font-medium text-black">Cadastrar</button>
+              <button className="min-h-10 rounded-xl bg-brand px-4 font-medium text-on-cor">Cadastrar</button>
             </form>
           </li>))}</ul>
       </section>}

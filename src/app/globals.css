@@ -1,11 +1,33 @@
 @import "tailwindcss";
+/* Cores da marca R1TMO (direção "Pulso"). Os nomes --color-* viram classes do Tailwind (bg-bg, text-brand...);
+   os valores vêm de --c-*, que mudam com o tema (escuro, claro ou o do aparelho), escolhido em Configurações → Aparência. */
 @theme {
-  --color-bg: #0B0F0E; --color-surface: #111816; --color-line: #1F2A26; --color-muted: #8A9A93;
-  --color-brand: #22C55E; --color-info: #3B82F6; --color-warn: #F59E0B; --color-danger: #EF4444;
-  --color-violet: #A855F7; --color-pink: #EC4899;
-  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --color-bg: var(--c-bg); --color-surface: var(--c-surface); --color-line: var(--c-line); --color-muted: var(--c-muted); --color-ink: var(--c-ink);
+  --color-brand: var(--c-brand); --color-info: var(--c-info); --color-warn: var(--c-warn); --color-danger: var(--c-danger);
+  --color-violet: var(--c-violet); --color-pink: var(--c-pink);
+  --color-on-cor: var(--c-on-cor); /* texto sobre um fundo colorido (botão verde, aviso, perigo) */
+  --font-sans: var(--font-figtree), system-ui, sans-serif;
+  --font-display: var(--font-sora), var(--font-figtree), system-ui, sans-serif;
 }
-body { background: var(--color-bg); color: #E7EEEA; font-variant-numeric: tabular-nums; }
+:root, html[data-tema='escuro'] {
+  color-scheme: dark;
+  --c-bg: #0A0F0D; --c-surface: #121A17; --c-line: #22302B; --c-muted: #8FA39A; --c-ink: #E8F0EC;
+  --c-brand: #2FD27F; --c-info: #60A5FA; --c-warn: #F59E0B; --c-danger: #F87171; --c-violet: #C084FC; --c-pink: #F472B6; --c-on-cor: #06140D;
+}
+html[data-tema='claro'] {
+  color-scheme: light;
+  --c-bg: #F6F8F7; --c-surface: #FFFFFF; --c-line: #DCE5E0; --c-muted: #5B6B63; --c-ink: #0F1A15;
+  --c-brand: #0B8048; --c-info: #1D4ED8; --c-warn: #B45309; --c-danger: #C62828; --c-violet: #7E22CE; --c-pink: #BE185D; --c-on-cor: #FFFFFF;
+}
+@media (prefers-color-scheme: light) {
+  html[data-tema='sistema'] {
+    color-scheme: light;
+    --c-bg: #F6F8F7; --c-surface: #FFFFFF; --c-line: #DCE5E0; --c-muted: #5B6B63; --c-ink: #0F1A15;
+    --c-brand: #0B8048; --c-info: #1D4ED8; --c-warn: #B45309; --c-danger: #C62828; --c-violet: #7E22CE; --c-pink: #BE185D; --c-on-cor: #FFFFFF;
+  }
+}
+body { background: var(--color-bg); color: var(--color-ink); font-variant-numeric: tabular-nums; }
+h1, h2 { font-family: var(--font-display); letter-spacing: -0.01em; }
 :focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; }
 
 /* iPhone dá zoom ao focar em campos com fonte menor que 16px: no toque, os campos usam 16px */

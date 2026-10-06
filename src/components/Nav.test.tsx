@@ -8,10 +8,10 @@ const texto = (s: string) => s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').tri
 const links = (s: string) => [...s.matchAll(/<a [^>]*href="([^"]+)"[^>]*>/g)].map(m => ({ href: m[1], atual: m[0].includes('aria-current="page"') }))
 
 describe('menu lateral', () => {
-  it('as 5 seções e, no rodapé, Configurações, Ajuda e Sugestões; a seção da página atual fica acesa', () => {
+  it('o logo (leva a Hoje), as 5 seções e, no rodapé, Configurações, Ajuda e Sugestões; a seção da página atual fica acesa', () => {
     h.path = '/semana'
     const html = renderToStaticMarkup(<Sidebar />)
-    expect(links(html).map(l => l.href)).toEqual(['/inicio', '/calendario', '/banco', '/disciplinas', '/desempenho', '/configuracoes', '/ajuda', '/contato'])
+    expect(links(html).map(l => l.href)).toEqual(['/inicio', '/inicio', '/calendario', '/banco', '/disciplinas', '/desempenho', '/configuracoes', '/ajuda', '/contato'])
     expect(links(html).filter(l => l.atual).map(l => l.href)).toEqual(['/calendario'])   // Meu tempo mora na Agenda
     expect(texto(html)).toContain('Hoje Agenda Questões Matérias Progresso')
   })

@@ -96,7 +96,7 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
           {f.area && <input type="hidden" name="area" value={f.area} />}{f.disciplina && <input type="hidden" name="disciplina" value={f.disciplina} />}
           {f.topico && <input type="hidden" name="topico" value={f.topico} />}
           <div className="flex flex-wrap gap-2">
-            <button className="rounded-xl bg-brand px-5 py-2 font-medium text-black">Buscar</button>
+            <button className="rounded-xl bg-brand px-5 py-2 font-medium text-on-cor">Buscar</button>
             {filtrado && <Link href="/banco/questoes" className={btn}>Limpar</Link>}
           </div>
         </form>
@@ -105,7 +105,7 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
           <h2 className="mr-auto text-lg font-medium">{total} {total === 1 ? 'questão' : 'questões'}</h2>
           {provasDaBusca.map(p => <form key={p.id} action={fazerProvaDoBanco}><input type="hidden" name="prova" value={p.id} /><input type="hidden" name="volta" value={volta} />
             <button className="rounded-xl border border-brand px-5 py-2 font-medium text-brand hover:bg-brand/10" title="A prova inteira, na ordem, com cronômetro; o resultado vai para Simulados">Fazer a prova: {p.nome}</button></form>)}
-          {total > 0 && <Link href={praticar} className="rounded-xl bg-brand px-5 py-2 font-medium text-black">Praticar {total === 1 ? 'esta' : `estas ${total}`} →</Link>}
+          {total > 0 && <Link href={praticar} className="rounded-xl bg-brand px-5 py-2 font-medium text-on-cor">Praticar {total === 1 ? 'esta' : `estas ${total}`} →</Link>}
         </div>
 
 

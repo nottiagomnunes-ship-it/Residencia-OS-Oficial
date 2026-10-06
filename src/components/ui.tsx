@@ -11,7 +11,7 @@ export function Badge({ status }: { status: string }) {
   const s = STATUS[status]
   return <span className={`rounded-full px-2.5 py-0.5 text-xs ${s.cls}`}>{s.label}</span>
 }
-export function Bar({ pct, cor = '#22C55E' }: { pct: number; cor?: string }) {
+export function Bar({ pct, cor = 'var(--c-brand)' }: { pct: number; cor?: string }) {
   return <div className="h-2 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
     <div className="h-full rounded-full" style={{ width: `${pct}%`, background: cor }} /></div>
 }

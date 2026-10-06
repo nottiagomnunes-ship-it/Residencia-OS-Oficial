@@ -74,7 +74,7 @@ export default async function Mensagens({ searchParams }: { searchParams: Promis
                   <label className="block space-y-1"><span className="text-xs text-muted">Resposta (opcional — aparece para a pessoa em Ajustes → Sugestões)</span>
                     <textarea name="resposta" rows={2} maxLength={4000} defaultValue={m.resposta ?? ''} className={`${inputCls} w-full`}
                       placeholder={m.tipo === 'prova' ? 'Ex.: Já está no banco! Procure por banca e ano em Questões → Banco.' : undefined} /></label>
-                  <button className="rounded-lg bg-brand px-3 py-1.5 font-medium text-black">Responder e marcar como resolvida{m.anexo ? ' (apaga o PDF)' : ''}</button>
+                  <button className="rounded-lg bg-brand px-3 py-1.5 font-medium text-on-cor">Responder e marcar como resolvida{m.anexo ? ' (apaga o PDF)' : ''}</button>
                 </form>}
           </li>))}</ul>
       </section>

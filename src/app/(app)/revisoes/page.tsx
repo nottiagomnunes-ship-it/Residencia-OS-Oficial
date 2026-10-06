@@ -45,7 +45,7 @@ export default async function Revisoes({ searchParams }: { searchParams: Promise
             ? <>{refazer.hoje} {refazer.hoje === 1 ? 'questão para refazer hoje' : 'questões para refazer hoje'}{refazer.atrasadas ? <span className="text-danger"> ({refazer.atrasadas} {refazer.atrasadas === 1 ? 'atrasada' : 'atrasadas'})</span> : ''}.</>
             : 'Nada para refazer hoje.'}{refazer.semana ? ` Nos próximos 7 dias: ${refazer.semana}.` : ''} Cada questão que você erra volta em 1 dia; acertando, em 7 e depois em 30 dias.</p>
         </div>
-        {refazer.hoje > 0 && <Link href="/banco/praticar?revisao=1" className="rounded-xl bg-brand px-5 py-2.5 font-medium text-black">Refazer agora ({refazer.hoje}) →</Link>}
+        {refazer.hoje > 0 && <Link href="/banco/praticar?revisao=1" className="rounded-xl bg-brand px-5 py-2.5 font-medium text-on-cor">Refazer agora ({refazer.hoje}) →</Link>}
         <Link href="/caderno-de-erros" className="text-sm text-muted hover:text-brand">Ver os erros no Caderno</Link>
       </section>}
       {!itens.length && <p className="rounded-2xl border border-dashed border-line p-8 text-center text-muted">Nenhuma revisão pendente. Conclua um conteúdo em Matérias → Assuntos para gerar as primeiras.</p>}
@@ -70,7 +70,7 @@ export default async function Revisoes({ searchParams }: { searchParams: Promise
                 <label className="space-y-1 text-sm">Questões feitas<input name="questoes_qtd" type="number" inputMode="numeric" min={0} className={inputCls + ' w-full'} /></label>
                 <label className="space-y-1 text-sm">Tempo (min)<input name="tempo_min" type="number" inputMode="numeric" min={1} max={720} defaultValue={r.id === rev ? tempo : undefined} placeholder="opcional" className={inputCls + ' w-full'} /></label>
                 <label className="space-y-1 text-sm sm:col-span-5">Observações<textarea name="observacoes" rows={2} className={inputCls + ' w-full'} /></label>
-                <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black sm:col-span-5">Concluir revisão</button>
+                <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-on-cor sm:col-span-5">Concluir revisão</button>
               </form>
             </details>))}
         </section>))}

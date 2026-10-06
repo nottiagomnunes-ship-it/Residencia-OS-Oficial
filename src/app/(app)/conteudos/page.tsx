@@ -31,7 +31,7 @@ export default async function Conteudos({ searchParams }: { searchParams: Promis
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Assuntos</h1>
-        <Link href="/importar" className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Importar meu cronograma</Link>
+        <Link href="/importar" className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-on-cor">Importar meu cronograma</Link>
         <form action={importCatalog}><button className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">Importar catálogo de assuntos</button></form>
       </div>
       {temAreas && (
@@ -52,7 +52,7 @@ export default async function Conteudos({ searchParams }: { searchParams: Promis
         <select name="prioridade" defaultValue={2} className={inputCls}>{[1, 2, 3].map(n => <option key={n} value={n}>Prioridade {PRIORIDADE[n].toLowerCase()}</option>)}</select>
         <select name="dificuldade" defaultValue={2} className={inputCls}>{[1, 2, 3].map(n => <option key={n} value={n}>{NIVEL[n]}</option>)}</select>
         <input name="planned_date" type="date" aria-label="Data planejada" className={inputCls} />
-        <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black sm:col-span-2 xl:col-span-6">Adicionar conteúdo</button>
+        <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-on-cor sm:col-span-2 xl:col-span-6">Adicionar conteúdo</button>
       </form>
       <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
         <table className="w-full text-left text-sm max-md:block">
@@ -71,7 +71,7 @@ export default async function Conteudos({ searchParams }: { searchParams: Promis
                     <select name="prioridade" defaultValue={t.prioridade} className={inputCls} aria-label="Prioridade">{[1, 2, 3].map(n => <option key={n} value={n}>{PRIORIDADE[n]}</option>)}</select>
                     <button className="rounded-lg border border-line px-3 py-1.5 hover:border-brand">Salvar</button>
                   </form>
-                  {t.status !== 'concluido' && <details><summary className="cursor-pointer rounded-lg bg-brand px-3 py-1.5 font-medium text-black">Concluir</summary>
+                  {t.status !== 'concluido' && <details><summary className="cursor-pointer rounded-lg bg-brand px-3 py-1.5 font-medium text-on-cor">Concluir</summary>
                     <form action={concluirConteudo} className="mt-2 flex items-center gap-2"><input type="hidden" name="topic_id" value={t.id} />
                       <input name="duration_min" type="number" inputMode="numeric" min={0} defaultValue={60} aria-label="Minutos estudados" className={inputCls + ' w-24'} /><span className="text-muted">min</span>
                       <button className="rounded-lg border border-line px-3 py-1.5 hover:border-brand">Confirmar</button></form></details>}

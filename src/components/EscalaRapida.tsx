@@ -34,7 +34,7 @@ export default function EscalaRapida({ semana, cores = {}, existentes = [] }: { 
             <span className="min-w-0 flex-1 truncate">{i.titulo} <span className="text-xs text-muted">· {CATEGORIAS[i.categoria].rotulo}</span></span></li>))}</ul>}
         {r.erros.map((e, k) => <p key={k} className="text-warn">{e}</p>)}
       </div>}
-      <button disabled={!r?.itens.length} className="w-full rounded-xl bg-brand px-4 py-3 font-medium text-black disabled:opacity-50">
+      <button disabled={!r?.itens.length} className="w-full rounded-xl bg-brand px-4 py-3 font-medium text-on-cor disabled:opacity-50">
         {r?.itens.length ? (existentes.length && modo === 'substituir' ? `Substituir a semana (${r.itens.length} ${r.itens.length === 1 ? 'horário' : 'horários'})` : `Adicionar ${r.itens.length} à agenda`) : 'Adicionar à agenda'}</button>
     </form>)
 }

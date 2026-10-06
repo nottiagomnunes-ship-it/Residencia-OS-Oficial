@@ -37,7 +37,7 @@ export default function ExplicacaoDaQuestao({ id, texto, origem, podeEditar = fa
       {editando
         ? <div className="space-y-2">
           <textarea value={rascunho} onChange={e => setRascunho(e.target.value)} rows={6} maxLength={8000} aria-label="Explicação" className={inputCls + ' w-full'} />
-          <div className="flex gap-2"><button type="button" onClick={salvar} disabled={pend} className="rounded-lg bg-brand px-3 py-1.5 font-medium text-black disabled:opacity-40">{pend ? 'Salvando…' : 'Salvar'}</button>
+          <div className="flex gap-2"><button type="button" onClick={salvar} disabled={pend} className="rounded-lg bg-brand px-3 py-1.5 font-medium text-on-cor disabled:opacity-40">{pend ? 'Salvando…' : 'Salvar'}</button>
             <button type="button" onClick={() => setEditando(false)} className="px-2 text-muted hover:underline">Cancelar</button>
             {atual.texto && <button type="button" onClick={() => { setRascunho(''); }} className="ml-auto px-2 text-danger hover:underline">Apagar o texto</button>}</div>
         </div>

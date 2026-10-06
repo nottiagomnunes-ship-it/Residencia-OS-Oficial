@@ -20,7 +20,7 @@ describe('Disciplinas agrupadas por área', () => {
   })
   it('cada bloco resume o progresso dos assuntos da área', () => { expect(texto(html)).toContain('2 disciplinas · 10 de 30 assuntos concluídos (33%)'); expect(texto(html)).toContain('1 disciplina · 5 de 5 assuntos concluídos (100%)') })
   it('a cor do ponto de cada área é a dela; "Sem área" fica cinza', () => {
-    for (const [a, cor] of Object.entries(COR_AREA)) if (a !== 'go' && a !== 'preventiva') expect(html).toContain(`background:${cor}`); expect(html).toContain('background:#8A9A93')
+    for (const [a, cor] of Object.entries(COR_AREA)) if (a !== 'go' && a !== 'preventiva') expect(html).toContain(`background:${cor}`); expect(html).toContain('background:var(--c-muted)')
   })
   it('o cartão da disciplina mantém o que já tinha (peso, progresso)', () => { expect(texto(html)).toContain('peso 3'); expect(texto(html)).toContain('8/20 conteúdos concluídos · 40%') })
   it('sem assuntos, o bloco não mostra um percentual sem sentido', () => { const h = renderToStaticMarkup(<DisciplinasPorArea grupos={agruparPorArea([c('x', 'Obstetrícia', 'go', 0, 0)])} />); expect(texto(h)).toContain('1 disciplina'); expect(texto(h)).not.toContain('assuntos concluídos') })
@@ -45,7 +45,7 @@ describe('Desempenho por área', () => {
   it('"Sem área" não é uma área da prova: o número e a barra ficam cinza, mesmo com aproveitamento baixo', () => {
     const h = renderToStaticMarkup(<ResumoPorArea resumos={resumoPorArea([{ area: null, total: 100, acertos: 40 }, { area: 'clinica', total: 100, acertos: 40 }])} menor={null} nenhumaOrganizada={false} />)
     const cartao = (nome: string) => h.split('<div class="space-y-2 rounded-2xl').find(c => c.includes(nome))!
-    expect(cartao('Sem área')).not.toContain('#EF4444'); expect(cartao('Sem área')).toContain('color:#8A9A93'); expect(cartao('Clínica Médica')).toContain('#EF4444')   // uma área de verdade segue as faixas de sempre
+    expect(cartao('Sem área')).not.toContain('var(--c-danger)'); expect(cartao('Sem área')).toContain('color:var(--c-muted)'); expect(cartao('Clínica Médica')).toContain('var(--c-danger)')   // uma área de verdade segue as faixas de sempre
   })
   it('a grade fecha em 3 colunas (3+2 ou 3+3), sem um card sozinho na última linha', () => { expect(renderToStaticMarkup(<ResumoPorArea resumos={resumoPorArea([])} menor={null} nenhumaOrganizada={false} />)).toContain('lg:grid-cols-3') })
   it('a cor do ponto de cada área nunca é vermelho de alerta', () => { expect(renderToStaticMarkup(<ResumoPorArea resumos={resumoPorArea([{ area: 'clinica', total: 100, acertos: 90 }])} menor={null} nenhumaOrganizada={false} />)).not.toMatch(/background:#EF4444"?><\/span>/) })

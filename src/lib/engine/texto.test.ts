@@ -30,6 +30,19 @@ describe('tamanho do texto', () => {
     expect(menores).toEqual([])
   })
   it('o layout raiz entrega o tamanho escolhido já na primeira resposta (sem piscar)', () => {
-    const l = readFileSync('src/app/layout.tsx', 'utf8'); expect(l).toContain("cookies()).get('texto')"); expect(l).toContain('data-texto={texto}')
+    const l = readFileSync('src/app/layout.tsx', 'utf8'); expect(l).toContain("c.get('texto')"); expect(l).toContain('data-texto={texto}'); expect(l).toContain("c.get('tema')"); expect(l).toContain('data-tema={tema}')
+  })
+})
+
+describe('tema', () => {
+  it('cookie inválido ou ausente = escuro (o visual de sempre); as três opções valem', async () => {
+    const { lerTema, TEMAS } = await import('./tema')
+    expect(lerTema(undefined)).toBe('escuro'); expect(lerTema('roxo')).toBe('escuro')
+    for (const t of TEMAS) expect(lerTema(t)).toBe(t)
+  })
+  it('o CSS tem as cores do tema claro para "claro" e para "igual ao aparelho" com o celular no claro', () => {
+    const css = readFileSync('src/app/globals.css', 'utf8')
+    expect(css).toContain("html[data-tema='claro']"); expect(css).toMatch(/prefers-color-scheme: light\)[\s\S]*html\[data-tema='sistema'\]/)
+    for (const v of ['--c-bg', '--c-ink', '--c-brand', '--c-on-cor']) expect(css.split(v).length).toBeGreaterThanOrEqual(4) // escuro, claro e sistema
   })
 })

@@ -33,8 +33,8 @@ export default async function Prova({ params, searchParams }: { params: Promise<
 
       <div className="flex flex-wrap gap-2">
         {aberta
-          ? <Link href={`/provas/tentativa/${aberta.id}`} className="rounded-xl bg-brand px-5 py-3 font-medium text-black">{aberta.status === 'entregue' ? 'Corrigir' : `Continuar (questão ${aberta.atual})`}</Link>
-          : <form action={iniciarTentativa}><input type="hidden" name="prova" value={id} /><button className="rounded-xl bg-brand px-5 py-3 font-medium text-black">Começar a prova</button></form>}
+          ? <Link href={`/provas/tentativa/${aberta.id}`} className="rounded-xl bg-brand px-5 py-3 font-medium text-on-cor">{aberta.status === 'entregue' ? 'Corrigir' : `Continuar (questão ${aberta.atual})`}</Link>
+          : <form action={iniciarTentativa}><input type="hidden" name="prova" value={id} /><button className="rounded-xl bg-brand px-5 py-3 font-medium text-on-cor">Começar a prova</button></form>}
       </div>
 
       {prova.doBanco && <p className="rounded-xl border border-line bg-surface p-3 text-sm text-muted">Prova montada a partir do banco de questões: o gabarito, as figuras e as explicações vêm do banco. Para fazer de novo com as correções mais recentes do banco, use &quot;Refazer a prova&quot; em Provas.</p>}
@@ -46,14 +46,14 @@ export default async function Prova({ params, searchParams }: { params: Promise<
             {anuladas.length > 0 && <span className="text-muted"> Anuladas: {faixas(anuladas)}.</span>}</p>
           <textarea name="gabarito" rows={6} defaultValue={gabaritoEmTexto(questoes)} placeholder="1-B 2-C 3-A ... (anulada: X)" className={inputCls + ' w-full font-mono'} />
           <p className="text-xs text-muted">Só as questões que aparecem no texto são alteradas. Mudar o gabarito não muda provas já corrigidas.</p>
-          <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-black">Salvar gabarito</button>
+          <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-on-cor">Salvar gabarito</button>
         </form>
 
         <section className={card}>
           <h2 className="font-medium">Áreas</h2>
           <div className="flex flex-wrap gap-2 text-sm">{porArea.map(({ a, n }) => (
             <span key={a ?? 'sem'} className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1">
-              <span aria-hidden className="size-2.5 rounded-full" style={{ background: a ? COR_AREA[a] : '#8A9A93' }} />{a ? SIGLA_AREA[a] : 'Sem área'}: {n}</span>))}</div>
+              <span aria-hidden className="size-2.5 rounded-full" style={{ background: a ? COR_AREA[a] : 'var(--c-muted)' }} />{a ? SIGLA_AREA[a] : 'Sem área'}: {n}</span>))}</div>
           <form action={definirAreaPorFaixa} className="flex flex-wrap items-end gap-2">
             <input type="hidden" name="prova" value={id} />
             <label className="text-sm text-muted">De<input name="de" required inputMode="numeric" className={inputCls + ' mt-1 block w-20'} /></label>

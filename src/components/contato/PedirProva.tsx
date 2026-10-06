@@ -62,9 +62,9 @@ export default function PedirProva({ banca: b0 = '', ano: a0 = '' }: { banca?: s
             <p>O banco já tem {jaTem} {jaTem === 1 ? 'questão' : 'questões'} de {banca.trim()}{ano ? ` ${ano}` : ''}. Confira antes: pode ser a prova que você quer.</p>
             <div className="flex flex-wrap gap-2">
               <Link href={busca} className="rounded-lg border border-line px-3 py-1.5 hover:border-brand">Ver no Banco</Link>
-              <button type="button" disabled={enviando} onClick={() => enviar(true)} className="rounded-lg bg-brand px-3 py-1.5 font-medium text-black disabled:opacity-60">{enviando ? 'Enviando…' : 'Falta prova ou questões: pedir mesmo assim'}</button>
+              <button type="button" disabled={enviando} onClick={() => enviar(true)} className="rounded-lg bg-brand px-3 py-1.5 font-medium text-on-cor disabled:opacity-60">{enviando ? 'Enviando…' : 'Falta prova ou questões: pedir mesmo assim'}</button>
             </div>
           </div>
-        : <button disabled={enviando} className="rounded-xl bg-brand px-4 py-2 font-medium text-black disabled:opacity-60">{enviando ? 'Enviando…' : 'Pedir a prova'}</button>}
+        : <button disabled={enviando} className="rounded-xl bg-brand px-4 py-2 font-medium text-on-cor disabled:opacity-60">{enviando ? 'Enviando…' : 'Pedir a prova'}</button>}
     </form>)
 }

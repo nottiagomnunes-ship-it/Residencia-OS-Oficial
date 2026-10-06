@@ -40,7 +40,7 @@ export default async function Contato({ searchParams }: { searchParams: Promise<
         <Navegador />
         {pagina && <p className="text-xs text-muted">Vai junto o endereço da página onde o problema aconteceu ({pagina}).</p>}
         <p className="text-xs text-muted">Junto com a mensagem vão a sua conta e o tipo de navegador, para a gente conseguir responder e reproduzir o problema. Não escreva dados de pacientes.</p>
-        <button className="rounded-xl bg-brand px-4 py-2 font-medium text-black">Enviar</button>
+        <button className="rounded-xl bg-brand px-4 py-2 font-medium text-on-cor">Enviar</button>
       </form>
 
       {pedir !== 'prova' && !error && pedido}

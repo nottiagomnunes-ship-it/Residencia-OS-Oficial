@@ -90,7 +90,7 @@ export default async function CadernoDeErros({ searchParams }: { searchParams: P
           <h2 className="font-medium">Refazer as erradas</h2>
           <p className="text-sm text-muted">{refazer.hoje ? `${refazer.hoje} ${refazer.hoje === 1 ? 'questão do banco para refazer hoje' : 'questões do banco para refazer hoje'}.` : 'Nada para refazer hoje.'}{refazer.semana ? ` Nos próximos 7 dias: ${refazer.semana}.` : ''} Cada questão que você erra volta em 1 dia; acertando, em 7 e depois em 30.</p>
         </div>
-        {refazer.hoje > 0 && <Link href="/banco/praticar?revisao=1" className="rounded-xl bg-brand px-5 py-2.5 font-medium text-black">Refazer agora ({refazer.hoje}) →</Link>}
+        {refazer.hoje > 0 && <Link href="/banco/praticar?revisao=1" className="rounded-xl bg-brand px-5 py-2.5 font-medium text-on-cor">Refazer agora ({refazer.hoje}) →</Link>}
       </section>}
       {est.frase && <p className="rounded-xl border border-line bg-surface p-4">{est.frase}</p>}
       {est.semMotivo > 0 && <p className="text-sm text-warn"><Link href={link({ m: 'sem' })} className="underline">{est.semMotivo} {est.semMotivo === 1 ? 'erro está' : 'erros estão'} sem motivo</Link> (vindos das provas). Classifique para entrarem nas estatísticas.</p>}
@@ -119,7 +119,7 @@ export default async function CadernoDeErros({ searchParams }: { searchParams: P
         <textarea name="enunciado" rows={3} placeholder="Questão (enunciado ou referência: banca, ano, número)" className={inputCls + ' w-full'} />
         <textarea name="comentario" rows={2} placeholder="O que você aprendeu com este erro?" className={inputCls + ' w-full'} />
         <label className="flex flex-wrap items-center gap-2 text-sm text-muted">Revisar em <input name="revisar_em" type="date" defaultValue={addDays(hoje, 7)} className={inputCls} /></label>
-        <button className="w-full rounded-xl bg-brand px-4 py-3 font-medium text-black">Adicionar ao caderno</button>
+        <button className="w-full rounded-xl bg-brand px-4 py-3 font-medium text-on-cor">Adicionar ao caderno</button>
       </form>
       <div className="flex flex-wrap gap-2 lg:col-start-2">
         <Link href={link({ m: null })} className={chip(!filtro)}>Todos os motivos</Link>
