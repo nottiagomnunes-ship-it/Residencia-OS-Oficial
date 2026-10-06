@@ -61,7 +61,7 @@ export function montarLembrete(d: DadosLembrete, urlApp: string) {
   ].filter(Boolean)
 
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:auto;color:#111;line-height:1.5">
-<p style="margin:0 0 16px;font-weight:bold;font-size:18px;letter-spacing:-0.01em;color:#0F1A15">R<span style="color:#0B8048">1</span>TMO</p>
+<p style="margin:0 0 16px;font-weight:800;font-size:20px;letter-spacing:-0.02em;color:#0F1A15"><span style="background:#2FD27F;color:#06140D;padding:0 4px;border-radius:5px 2px 6px 2px">R1</span>TMO</p>
 <h2 style="margin:0 0 4px">${esc(saudacao)}</h2><p style="margin:0 0 16px;color:#555">Seu resumo de ${esc(rotulo)}.</p>
 <div style="margin:0 0 8px;padding:10px 14px;background:#f3f4f6;border-radius:10px"><b>Tempo de hoje: ${esc(tempoTxt)}</b><br><span style="color:#555;font-size:13px">${esc(tempoNota)}</span></div>
 ${vazio && !semTempo ? '<p>Nada pendente para hoje. Bom descanso ou bom estudo livre!</p>' : ''}

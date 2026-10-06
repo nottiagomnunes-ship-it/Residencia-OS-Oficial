@@ -1,13 +1,15 @@
 @import "tailwindcss";
-/* Cores da marca R1TMO (direção "Pulso"). Os nomes --color-* viram classes do Tailwind (bg-bg, text-brand...);
+/* Cores da marca R1TMO (direção "Pulso", com o logo do "R1" grifado). Os nomes --color-* viram classes do Tailwind (bg-bg, text-brand...);
    os valores vêm de --c-*, que mudam com o tema (escuro, claro ou o do aparelho), escolhido em Configurações → Aparência. */
 @theme {
   --color-bg: var(--c-bg); --color-surface: var(--c-surface); --color-line: var(--c-line); --color-muted: var(--c-muted); --color-ink: var(--c-ink);
   --color-brand: var(--c-brand); --color-info: var(--c-info); --color-warn: var(--c-warn); --color-danger: var(--c-danger);
   --color-violet: var(--c-violet); --color-pink: var(--c-pink);
   --color-on-cor: var(--c-on-cor); /* texto sobre um fundo colorido (botão verde, aviso, perigo) */
+  --color-grifo: #2FD27F; --color-on-grifo: #06140D; /* o grifo verde do logo: igual nos dois temas */
   --font-sans: var(--font-figtree), system-ui, sans-serif;
   --font-display: var(--font-sora), var(--font-figtree), system-ui, sans-serif;
+  --font-logo: var(--font-bricolage), var(--font-sora), system-ui, sans-serif; /* só no nome R1TMO */
 }
 :root, html[data-tema='escuro'] {
   color-scheme: dark;
