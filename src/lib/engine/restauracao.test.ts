@@ -29,6 +29,10 @@ describe('validarBackup: o que é aceito', () => {
   it('aceita o arquivo gerado pelo próprio exportador, completo', () => {
     const v = ok(validarBackup(arquivo())); expect(v.presentes.length).toBe(17); expect(v.avisos).toEqual([]); expect(v.contagem.topics).toBe(2)
   })
+  it('backup feito com o nome antigo do app (Residência OS) continua valendo; o novo sai como R1TMO', () => {
+    expect(arquivo().app).toBe('R1TMO')
+    ok(validarBackup({ ...arquivo(), app: 'Residência OS' }))
+  })
   it('backup de uma versão antiga (sem etapas das revisões e tempo por dia): aceita e avisa o que fica como está', () => {
     const a = arquivo(); delete a.tabelas.review_tasks; delete a.tabelas.capacidade_dia
     const v = ok(validarBackup(a)); expect(v.ausentes).toEqual(['review_tasks', 'capacidade_dia']); expect(v.avisos[0]).toContain('versão mais antiga'); expect(v.avisos[0]).toContain('fica como está')

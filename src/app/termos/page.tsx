@@ -3,13 +3,13 @@ import Link from 'next/link'
 import PaginaLegal from '@/components/PaginaLegal'
 import { responsavel } from '@/lib/engine/legal'
 
-export const metadata: Metadata = { title: 'Termos de uso · Residência OS' }
+export const metadata: Metadata = { title: 'Termos de uso · R1TMO' }
 
 export default function Termos() {
   const r = responsavel()
   return (
     <PaginaLegal titulo="Termos de uso">
-      <p>O Residência OS é um app de organização de estudos para provas de residência médica, mantido por {r.nome}. Ao criar uma conta, você concorda com estes termos.</p>
+      <p>O R1TMO é um app de organização de estudos para provas de residência médica, mantido por {r.nome}. Ao criar uma conta, você concorda com estes termos.</p>
 
       <h2>1. O que o app é (e o que não é)</h2>
       <ul>

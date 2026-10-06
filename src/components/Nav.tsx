@@ -40,7 +40,7 @@ export function Sidebar({ recolhidoInicial = false, admin = false }: { recolhido
   return (
     <aside className={`sticky top-0 hidden h-screen shrink-0 flex-col gap-1 overflow-y-auto border-r border-line bg-surface lg:flex ${recolhido ? 'w-16 items-center p-2.5' : 'w-60 p-4'}`}>
       <div className={`mb-4 flex items-center ${recolhido ? 'justify-center' : 'justify-between pl-3'}`}>
-        {!recolhido && <span className="text-lg font-semibold text-brand">Residência OS</span>}
+        {!recolhido && <span className="text-lg font-semibold text-brand">R1TMO</span>}
         <button onClick={() => definir(!recolhido)} aria-label={recolhido ? 'Abrir menu' : 'Recolher menu'} title={recolhido ? 'Abrir menu' : 'Recolher menu'}
           className="grid size-11 shrink-0 place-items-center rounded-xl text-lg text-muted hover:bg-line/50 hover:text-brand">{recolhido ? '›' : '‹'}</button>
       </div>

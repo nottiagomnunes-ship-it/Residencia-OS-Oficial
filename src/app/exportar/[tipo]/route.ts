@@ -16,7 +16,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ tipo: s
   try {
     if (tipo === 'backup') {
       const [{ data: perfil }, tabelas] = await Promise.all([sb.from('profiles').select('*').eq('id', user.id).single(), lerTabelas(sb, TABELAS_BACKUP)])
-      return baixar(JSON.stringify(montarBackup(perfil, tabelas, user.email, new Date().toISOString())), `residencia-os-backup-${hoje}.json`, 'application/json')
+      return baixar(JSON.stringify(montarBackup(perfil, tabelas, user.email, new Date().toISOString())), `r1tmo-backup-${hoje}.json`, 'application/json')
     }
     if (tipo === 'assuntos') { const t = await lerTabelas(sb, ['disciplines', 'topics']); return baixar(csvAssuntos(t.disciplines, t.topics), `assuntos-${hoje}.csv`, 'text/csv') }
     if (tipo === 'questoes') { const t = await lerTabelas(sb, ['disciplines', 'topics', 'question_sets']); return baixar(csvQuestoes(t.disciplines, t.topics, t.question_sets), `questoes-${hoje}.csv`, 'text/csv') }

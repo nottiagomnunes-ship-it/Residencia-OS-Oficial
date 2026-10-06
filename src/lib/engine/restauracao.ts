@@ -41,11 +41,14 @@ export type Validacao =
   | { ok: true; backup: Backup; avisos: string[]; contagem: Record<string, number>; presentes: string[]; ausentes: string[]; ignoradas: string[] }
   | { ok: false; erro: string }
 
-/** Confere se o arquivo é um backup do Residência OS inteiro e utilizável, antes de qualquer coisa ser tocada. */
+/** Backups feitos com o nome atual e com o nome antigo do app (Residência OS) continuam valendo. */
+export const NOMES_DO_APP = ['R1TMO', 'Residência OS']
+
+/** Confere se o arquivo é um backup do R1TMO (ou do Residência OS, o nome antigo) inteiro e utilizável, antes de qualquer coisa ser tocada. */
 export function validarBackup(dados: unknown): Validacao {
   const falha = (erro: string): Validacao => ({ ok: false, erro })
-  if (!objeto(dados)) return falha('O arquivo não é um backup do Residência OS.')
-  if (dados.app !== 'Residência OS') return falha('O arquivo não parece ser um backup do Residência OS.')
+  if (!objeto(dados)) return falha('O arquivo não é um backup do R1TMO.')
+  if (!NOMES_DO_APP.includes(dados.app as string)) return falha('O arquivo não parece ser um backup do R1TMO.')
   if (!Number.isInteger(dados.versao) || dados.versao < 1) return falha('O arquivo de backup está sem a versão.')
   if (dados.versao > 1) return falha('Este backup foi criado por uma versão mais nova do app. Atualize o app antes de restaurar.')
   if (!objeto(dados.tabelas)) return falha('O arquivo de backup não tem as tabelas de dados.')

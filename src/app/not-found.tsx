@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export const metadata = { title: 'Página não encontrada · Residência OS' }
+export const metadata = { title: 'Página não encontrada · R1TMO' }
 
 /** Endereço que não existe (fora do app ou sem página). Dentro do app, vale a versão com o menu: (app)/not-found.tsx. */
 export default function NaoEncontrada() {

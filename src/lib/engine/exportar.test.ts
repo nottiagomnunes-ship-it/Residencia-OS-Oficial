@@ -34,5 +34,5 @@ describe('planilhas', () => {
 it('backup: sem ids de usuário, com contagem por tabela', () => {
   const b = montarBackup({ id: 'u', nome: 'Ana', xp: 10 }, { topics: [{ id: 't1', user_id: 'u', nome: 'Asma' }], goals: [] }, 'a@b.com', '2026-10-01T00:00:00Z')
   expect(b.perfil).toEqual({ nome: 'Ana', xp: 10 }); expect(b.tabelas.topics).toEqual([{ id: 't1', nome: 'Asma' }]); expect(b.contagem).toEqual({ topics: 1, goals: 0 })
-  expect(b).toMatchObject({ app: 'Residência OS', versao: 1, conta: 'a@b.com' })
+  expect(b).toMatchObject({ app: 'R1TMO', versao: 1, conta: 'a@b.com' })
 })

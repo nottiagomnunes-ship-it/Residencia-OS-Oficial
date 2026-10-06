@@ -59,7 +59,7 @@ const IMAGEM_DATA = /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/
 
 export function lerPacote(json: unknown): LoteLido {
   const p = json as Record<string, unknown>, avisos: string[] = []
-  if (!p || typeof p !== 'object' || !Array.isArray(p.questoes)) return { itens: [], imagens: {}, fonte: null, disciplina: null, avisos: ['O arquivo não tem a lista "questoes". Confira se é um pacote do Residência OS.'] }
+  if (!p || typeof p !== 'object' || !Array.isArray(p.questoes)) return { itens: [], imagens: {}, fonte: null, disciplina: null, avisos: ['O arquivo não tem a lista "questoes". Confira se é um pacote do R1TMO.'] }
   const imagens: Record<string, string> = {}
   for (const [nome, d] of Object.entries((p.imagens as Record<string, unknown>) ?? {})) if (typeof d === 'string' && IMAGEM_DATA.test(d) && d.length < 7_000_000) imagens[nome] = d
   const itens: ItemLido[] = []

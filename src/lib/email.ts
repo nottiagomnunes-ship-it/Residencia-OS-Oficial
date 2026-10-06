@@ -11,7 +11,7 @@ export async function enviarEmail(para: string, assunto: string, html: string, t
   try {
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST', headers: { Authorization: `Bearer ${chave}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: process.env.EMAIL_FROM ?? 'Residência OS <onboarding@resend.dev>', to: [para], subject: assunto, html, text: texto }),
+      body: JSON.stringify({ from: process.env.EMAIL_FROM ?? 'R1TMO <onboarding@resend.dev>', to: [para], subject: assunto, html, text: texto }),
     })
     if (r.ok) return { ok: true }
     const corpo = await r.json().catch(() => null) as { message?: string } | null

@@ -7,9 +7,9 @@ import { lerTamanho } from '@/lib/engine/texto'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 export const metadata: Metadata = {
-  title: 'Residência OS', description: 'Sistema de estudos para residência médica', applicationName: 'Residência OS',
+  title: 'R1TMO', description: 'Estudos para residência médica no ritmo do seu dia', applicationName: 'R1TMO',
   icons: { icon: '/icons/icon-192.png', apple: '/icons/apple-touch-icon.png' },
-  appleWebApp: { capable: true, title: 'Residência OS', statusBarStyle: 'black' },
+  appleWebApp: { capable: true, title: 'R1TMO', statusBarStyle: 'black' },
 }
 export const viewport: Viewport = { themeColor: '#0B0F0E', width: 'device-width', initialScale: 1, minimumScale: 1, viewportFit: 'cover' }
 

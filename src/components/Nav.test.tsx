@@ -17,7 +17,7 @@ describe('menu lateral', () => {
   })
   it('recolhido: só os ícones, com o nome para leitores de tela', () => {
     const html = renderToStaticMarkup(<Sidebar recolhidoInicial />)
-    expect(html).toContain('aria-label="Questões"'); expect(texto(html)).not.toContain('Residência OS')
+    expect(html).toContain('aria-label="Questões"'); expect(texto(html)).not.toContain('R1TMO')
   })
 })
 

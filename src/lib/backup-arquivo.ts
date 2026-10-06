@@ -16,5 +16,5 @@ export function lerArquivoDeBackup(bruto: Buffer, limite = LIMITE_DESCOMPACTADO)
     return { ok: false, erro: e?.code === 'ERR_BUFFER_TOO_LARGE' ? 'O arquivo é grande demais para restaurar.' : 'O arquivo está corrompido e não pôde ser lido.' }
   }
   if (texto.length > limite) return { ok: false, erro: 'O arquivo é grande demais para restaurar.' }
-  try { return { ok: true, dados: JSON.parse(texto.replace(/^\uFEFF/, '')) } } catch { return { ok: false, erro: 'O arquivo não é um JSON válido. Use o arquivo de backup baixado do Residência OS, sem editá-lo.' } }
+  try { return { ok: true, dados: JSON.parse(texto.replace(/^\uFEFF/, '')) } } catch { return { ok: false, erro: 'O arquivo não é um JSON válido. Use o arquivo de backup baixado do R1TMO, sem editá-lo.' } }
 }

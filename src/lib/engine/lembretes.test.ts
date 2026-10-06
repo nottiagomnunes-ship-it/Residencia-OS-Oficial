@@ -29,14 +29,14 @@ describe('montarDados: a mesma ordem e a mesma conta do painel Hoje', () => {
 
 describe('montarLembrete: assunto', () => {
   it('conta as tarefas de hoje com o tempo, no singular e no plural, e as atrasadas', () => {
-    expect(montarLembrete(base({ cabem: [T('A', 60)], usado: 60 }), 'u').assunto).toBe('Residência OS · sexta, 02/10: 1 tarefa para hoje (1 h)')
-    expect(montarLembrete(base({ cabem: [T('A', 45), T('B', 45)], usado: 90, atrasadas: 1 }), 'u').assunto).toBe('Residência OS · sexta, 02/10: 2 tarefas para hoje (1 h 30) · 1 atrasada')
+    expect(montarLembrete(base({ cabem: [T('A', 60)], usado: 60 }), 'u').assunto).toBe('R1TMO · sexta, 02/10: 1 tarefa para hoje (1 h)')
+    expect(montarLembrete(base({ cabem: [T('A', 45), T('B', 45)], usado: 90, atrasadas: 1 }), 'u').assunto).toBe('R1TMO · sexta, 02/10: 2 tarefas para hoje (1 h 30) · 1 atrasada')
     expect(montarLembrete(base({ cabem: [T('A', 30, 2), T('B', 30, 1), T('C')], usado: 90, atrasadas: 2 }), 'u').assunto).toContain('3 tarefas para hoje (1 h 30) · 2 atrasadas')
   })
   it('sem tempo hoje, só erros e nada pendente', () => {
-    expect(montarLembrete(base({ minutos: 0, depois: [T('A')] }), 'u').assunto).toBe('Residência OS · sexta, 02/10: sem tempo de estudo hoje')
-    expect(montarLembrete(base({ erros: 3 }), 'u').assunto).toBe('Residência OS · sexta, 02/10: 3 erros para revisar')
-    expect(montarLembrete(base(), 'u').assunto).toBe('Residência OS · sexta, 02/10: nada pendente')
+    expect(montarLembrete(base({ minutos: 0, depois: [T('A')] }), 'u').assunto).toBe('R1TMO · sexta, 02/10: sem tempo de estudo hoje')
+    expect(montarLembrete(base({ erros: 3 }), 'u').assunto).toBe('R1TMO · sexta, 02/10: 3 erros para revisar')
+    expect(montarLembrete(base(), 'u').assunto).toBe('R1TMO · sexta, 02/10: nada pendente')
   })
 })
 

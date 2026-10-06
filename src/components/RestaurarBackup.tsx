@@ -48,7 +48,7 @@ export default function RestaurarBackup({ disponivel, desfazerEm }: { disponivel
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <p className="text-sm text-muted">Escolha um arquivo de backup (.json) baixado do Residência OS. Antes de qualquer mudança você verá o que vai ser trocado.</p>
+        <p className="text-sm text-muted">Escolha um arquivo de backup (.json) baixado do R1TMO. Antes de qualquer mudança você verá o que vai ser trocado.</p>
         <div className="flex flex-wrap items-center gap-2">
           <input ref={entrada} type="file" accept=".json,.gz,application/json,application/gzip" aria-label="Arquivo de backup" className="max-w-full text-sm file:mr-3 file:rounded-xl file:border file:border-line file:bg-transparent file:px-4 file:py-2 file:text-sm"
             onChange={e => { setArquivo(e.target.files?.[0] ?? null); setPrevia(null); setErro(null); setResultado(null); setEntendi(false); setPalavra('') }} />

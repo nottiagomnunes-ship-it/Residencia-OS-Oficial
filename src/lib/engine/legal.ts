@@ -1,6 +1,6 @@
 /** Quem responde pelo app nos Termos e na Privacidade. Configurável no Vercel; sem configuração, um texto genérico (nada pessoal fixo no código). */
 export function responsavel(env: Record<string, string | undefined> = process.env) {
-  const nome = env.NEXT_PUBLIC_RESPONSAVEL?.trim() || 'a administração do Residência OS'
+  const nome = env.NEXT_PUBLIC_RESPONSAVEL?.trim() || 'a administração do R1TMO'
   const email = env.NEXT_PUBLIC_CONTATO?.trim()
   return { nome, email: email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null }
 }

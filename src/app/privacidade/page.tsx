@@ -3,13 +3,13 @@ import Link from 'next/link'
 import PaginaLegal from '@/components/PaginaLegal'
 import { responsavel } from '@/lib/engine/legal'
 
-export const metadata: Metadata = { title: 'Política de privacidade · Residência OS' }
+export const metadata: Metadata = { title: 'Política de privacidade · R1TMO' }
 
 export default function Privacidade() {
   const r = responsavel()
   return (
     <PaginaLegal titulo="Política de privacidade">
-      <p>Esta política explica quais dados o Residência OS guarda, para quê e como você controla isso, nos termos da Lei Geral de Proteção de Dados (Lei 13.709/2018). O controlador dos dados é {r.nome}.</p>
+      <p>Esta política explica quais dados o R1TMO guarda, para quê e como você controla isso, nos termos da Lei Geral de Proteção de Dados (Lei 13.709/2018). O controlador dos dados é {r.nome}.</p>
 
       <h2>1. Dados que guardamos</h2>
       <ul>

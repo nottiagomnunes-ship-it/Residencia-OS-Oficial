@@ -4,7 +4,7 @@
 2. **Supabase:** confirme que as migrações 0001 a 0012 foram executadas no projeto que será usado em produção.
 3. **GitHub:** crie um repositório **privado** e envie o projeto. Confira com `git status` que `.env.local` NÃO aparece (o `.gitignore` já o exclui).
    ```
-   git init && git add . && git commit -m "Residência OS"
+   git init && git add . && git commit -m "R1TMO"
    git branch -M main && git remote add origin <URL-do-repositório> && git push -u origin main
    ```
 4. **Vercel:** vercel.com → Add New → Project → importe o repositório (Next.js é detectado sozinho).

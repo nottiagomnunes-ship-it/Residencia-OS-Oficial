@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Residência OS', short_name: 'Residência', description: 'Sistema de estudos para residência médica',
+    name: 'R1TMO', short_name: 'R1TMO', description: 'Estudos para residência médica no ritmo do seu dia',
     start_url: '/inicio', scope: '/', display: 'standalone', orientation: 'portrait', lang: 'pt-BR',
     background_color: '#0B0F0E', theme_color: '#0B0F0E',
     icons: [

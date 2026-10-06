@@ -1,4 +1,4 @@
-# Residência OS — Fase 7 (simulados, metas, gamificação, configurações)
+# R1TMO (antigo Residência OS) — Fase 7 (simulados, metas, gamificação, configurações)
 1. Crie um projeto no Supabase e rode `supabase/migrations/0001_init.sql` no SQL Editor.
 2. (Dev) Em Authentication → Providers → Email, desative "Confirm email" para entrar direto após o cadastro.
 3. `cp .env.example .env.local` e preencha URL e anon key.
@@ -127,3 +127,4 @@
     - **Testes SQL** 0048 e 0049 ajustados para a função nova.
 
     Rode a 0050 depois da 0049.
+108. **Novo nome: R1TMO** (antes "Residência OS"). Trocados: nome no menu, na tela de entrada, nos títulos das páginas, no app instalado (manifest: nome e nome curto "R1TMO", descrição "Estudos para residência médica no ritmo do seu dia"), no tutorial ("Bem-vindo ao R1TMO"), no assunto e remetente padrão do lembrete por e-mail (`EMAIL_FROM`), nos Termos, na Privacidade, na página offline, nas mensagens de backup e importação e no `package.json`. O arquivo de backup agora se chama `r1tmo-backup-<data>.json` e grava `app: "R1TMO"`; **backups antigos ("Residência OS") continuam aceitos** na restauração (`NOMES_DO_APP`). Mantidos de propósito (identificadores internos, para não quebrar dados já salvos): o formato do pacote de questões `residencia-os/banco` (a skill e os pacotes já feitos continuam valendo), a chave da prova em andamento no aparelho (`residencia-os:prova:`), o evento do tutorial e o nome do cache offline. O ícone (batimento) combina com o nome e não mudou. Sem SQL.

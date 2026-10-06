@@ -1,5 +1,5 @@
 {
-  "name": "residencia-os",
+  "name": "r1tmo",
   "private": true,
   "scripts": {
     "dev": "next dev",

@@ -181,9 +181,9 @@ describe('páginas', () => {
     const t = renderToStaticMarkup(Termos()), p = renderToStaticMarkup(Privacidade())
     expect(t).toContain('Não é orientação médica'); expect(t).toContain('inteligência artificial')
     for (const s of ['Supabase', 'Vercel', 'Resend', 'Lei 13.709/2018', 'Apagar tudo', 'ANPD']) expect(p).toContain(s)
-    expect(p).toContain('a administração do Residência OS'); expect(p).not.toContain('mailto:')
+    expect(p).toContain('a administração do R1TMO'); expect(p).not.toContain('mailto:')
     expect(responsavel({ NEXT_PUBLIC_RESPONSAVEL: 'Fulano', NEXT_PUBLIC_CONTATO: 'f@x.com' })).toEqual({ nome: 'Fulano', email: 'f@x.com' })
-    expect(responsavel({ NEXT_PUBLIC_CONTATO: 'não é email' })).toEqual({ nome: 'a administração do Residência OS', email: null })
+    expect(responsavel({ NEXT_PUBLIC_CONTATO: 'não é email' })).toEqual({ nome: 'a administração do R1TMO', email: null })
   })
 })
 

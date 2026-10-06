@@ -7,7 +7,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
   return (
     <main className="grid min-h-dvh place-items-center p-6">
       <form action={entrar} className="w-full max-w-sm space-y-4 rounded-2xl border border-line bg-surface p-8">
-        <div><h1 className="text-2xl font-semibold">Residência OS</h1><p className="text-sm text-muted">Entre para ver o que estudar hoje.</p></div>
+        <div><h1 className="text-2xl font-semibold">R1TMO</h1><p className="text-sm text-muted">Entre para ver o que estudar hoje.</p></div>
         {aviso === 'confirme' && <p role="status" className="rounded-xl border border-brand/40 bg-brand/10 p-3 text-sm">Conta criada! Enviamos um link de confirmação para o seu e-mail. Clique nele e depois entre aqui.</p>}
         <label className="block space-y-1"><span className="text-sm">E-mail</span><input name="email" type="email" required autoComplete="email" className={input} /></label>
         <label className="block space-y-1"><span className="text-sm">Senha</span><input name="password" type="password" required autoComplete="current-password" className={input} /></label>

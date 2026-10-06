@@ -8,7 +8,7 @@ const sem = (o: Linha, chaves: string[]) => Object.fromEntries(Object.entries(o)
 /** Backup completo em JSON: configurações do perfil + todas as tabelas do usuário (sem o id da conta). */
 export function montarBackup(perfil: Linha | null, tabelas: Record<string, Linha[]>, email: string | undefined, quando: string) {
   return {
-    app: 'Residência OS', versao: 1, exportado_em: quando, conta: email ?? null,
+    app: 'R1TMO', versao: 1, exportado_em: quando, conta: email ?? null,
     perfil: perfil ? sem(perfil, ['id']) : null,
     contagem: Object.fromEntries(Object.entries(tabelas).map(([k, v]) => [k, v.length])),
     tabelas: Object.fromEntries(Object.entries(tabelas).map(([k, v]) => [k, v.map(r => sem(r, ['user_id']))])),

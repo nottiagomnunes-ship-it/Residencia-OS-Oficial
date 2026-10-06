@@ -33,7 +33,7 @@ describe('tutorial', () => {
   it('conta nova: abre no primeiro passo, como janela acessível, com "Pular"', () => {
     const html = renderToStaticMarkup(<Tutorial primeiraVez />)
     expect(html).toContain('role="dialog"'); expect(html).toContain('aria-modal="true"')
-    expect(texto(html)).toContain(`Passo 1 de ${PASSOS_TUTORIAL.length}`); expect(texto(html)).toContain('Bem-vindo ao Residência OS'); expect(texto(html)).toContain('Pular')
+    expect(texto(html)).toContain(`Passo 1 de ${PASSOS_TUTORIAL.length}`); expect(texto(html)).toContain('Bem-vindo ao R1TMO'); expect(texto(html)).toContain('Pular')
   })
   it('quem já viu: nada aparece sozinho', () => { expect(renderToStaticMarkup(<Tutorial primeiraVez={false} />)).toBe('') })
   it('a página Ajuda tem "Rever o tutorial" e as perguntas', () => {

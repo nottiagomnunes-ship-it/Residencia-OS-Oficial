@@ -4,7 +4,7 @@ export type Passo = { titulo: string; texto: string; link?: { rotulo: string; hr
 
 /** Tutorial: o caminho de uma semana de estudo, em poucos passos. Aparece uma vez para contas novas e pode ser revisto na Ajuda. */
 export const PASSOS_TUTORIAL: readonly Passo[] = [
-  { titulo: 'Bem-vindo ao Residência OS', texto: 'O app tem 5 seções: Hoje, Agenda, Questões, Matérias e Progresso. Dentro de cada uma, as abas no topo mostram o resto. Em 1 minuto, o caminho do dia a dia; dá para pular e rever depois em Ajuda.' },
+  { titulo: 'Bem-vindo ao R1TMO', texto: 'O app tem 5 seções: Hoje, Agenda, Questões, Matérias e Progresso. Dentro de cada uma, as abas no topo mostram o resto. Em 1 minuto, o caminho do dia a dia; dá para pular e rever depois em Ajuda.' },
   { titulo: '1. Seus assuntos', texto: 'Toda conta começa vazia. Em Agenda → Plano, importe o seu cronograma (texto ou PDF, com "# SEMANA 1", "## Disciplina" e os assuntos) ou adicione assuntos em Matérias → Assuntos.',
     link: { rotulo: 'Importar cronograma', href: '/importar' } },
   { titulo: '2. Quanto tempo você tem', texto: 'Sem horários de relógio: em Agenda → Meu tempo você diz quanto tempo tem para estudar em cada dia. A escala mudou? É um toque por dia.',
