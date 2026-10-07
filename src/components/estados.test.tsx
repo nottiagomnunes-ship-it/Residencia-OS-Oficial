@@ -34,6 +34,11 @@ describe('páginas de "não encontrada" e de erro', () => {
   it('erro no app: tentar de novo e voltar ao Início', () => {
     const html = h(<Erro error={new Error('x')} reset={() => {}} />); expect(html).toContain('role="alert"'); expect(texto(html)).toContain('Tentar de novo'); expect(html).toContain('href="/inicio"'); expect(html).not.toContain('Error: x')    // não vaza o erro técnico
   })
+  it('app atualizado no meio do uso: mostra "versão nova" em vez de "algo deu errado"', () => {
+    const e = new Error("undefined is not an object (evaluating 'e[o].call')")
+    expect(texto(h(<ErroGlobal error={e} reset={() => {}} />))).toContain('O app foi atualizado')
+    const app = texto(h(<Erro error={e} reset={() => {}} />)); expect(app).toContain('Abrindo a versão nova'); expect(app).not.toContain('Algo deu errado')
+  })
   it('erro global (o esqueleto do app falhou): página completa, com botão de tentar de novo, sem expor o erro', () => {
     const html = h(<ErroGlobal error={Object.assign(new Error('segredo técnico'), { digest: 'abc' })} reset={() => {}} />)
     expect(html).toContain('<html'); expect(texto(html)).toContain('Tentar de novo'); expect(html).toContain('role="alert"'); expect(html).not.toContain('segredo técnico')
