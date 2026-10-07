@@ -14,6 +14,7 @@ import { addDays } from '@/lib/engine/review'
 import { weekStart } from '@/lib/engine/calendar'
 import { supabaseServer } from '@/lib/supabase/server'
 import { carregarFilaRefazer } from '@/lib/banco-data'
+import { fraseDoDia } from '@/lib/engine/hoje'
 
 function Card({ titulo, valor, detalhe, cor = 'text-brand' }: { titulo: string; valor: string; detalhe?: string; cor?: string }) {
   return (
@@ -30,7 +31,7 @@ export default async function Inicio() {
   const hoje = hojeBR(), segProx = addDays(weekStart(hoje), 7)
   // tudo ao mesmo tempo: antes eram ~12 idas ao banco em fila
   const [{ data: p }, hojeQ, atrasQ, des, metas, gam, { data: itensHoje }, { count: concluidasHoje }, { data: capHoje }, { data: perfilTempo }, agenda,
-    { data: capsSemana }, { data: perfilPlano }, { data: adi }, { data: feitosHoje }, modoRitmo, ritmoCalc, refazer] = await Promise.all([
+    { data: capsSemana }, { data: perfilPlano }, { data: adi }, { data: feitosHoje }, modoRitmo, ritmoCalc, refazer, { count: nAssuntos }] = await Promise.all([
     sb.from('profiles').select('nome').single(),
     sb.from('reviews').select('id', { count: 'exact', head: true }).eq('status', 'pendente').eq('due_date', hoje),
     sb.from('reviews').select('id', { count: 'exact', head: true }).eq('status', 'pendente').lt('due_date', hoje),
@@ -44,6 +45,7 @@ export default async function Inicio() {
     sb.from('schedule_items').select('id,titulo,data,duracao_min').gt('data', hoje).lte('data', addDays(hoje, 14)).neq('status', 'concluido').in('tipo', ['estudo', 'questoes', 'flashcards']).order('data').order('ordem_dia', { nullsFirst: false }).limit(12),
     sb.from('schedule_items').select('duracao_min').eq('data', hoje).eq('status', 'concluido'),
     carregarModoRitmo(sb), carregarRitmo(sb, hoje), carregarFilaRefazer(sb, hoje, addDays(hoje, 7)),
+    sb.from('topics').select('id', { count: 'exact', head: true }),
   ])
   const totQ = des.total, acQ = des.acertos
   const metasSem = metas.filter(m => m.periodo === 'semana')
@@ -64,7 +66,7 @@ export default async function Inicio() {
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-semibold">{saudacao}, {p?.nome?.split(' ')[0]} 👋</h1>
-        <p className="text-muted">{rev + atras === 0 ? 'Nenhuma revisão pendente. Cadastre conteúdos para começar o plano.' : `Você tem ${rev} revisões para hoje e ${atras} atrasadas.`}</p>
+        <p className="text-muted">{fraseDoDia(rev, atras, (nAssuntos ?? 0) > 0 || (itensHoje ?? []).length > 0, (itensHoje ?? []).length)}</p>
       </header>
       <AvisosPlano desatualizado={desatualizado} semana={semanaAviso} semanaAtual={!!semanaAviso && semanaAviso <= hoje} />
       <TarefasHoje itens={itensHoje ?? []} hoje={hoje} concluidasHoje={concluidasHoje ?? 0} minutosHoje={tempoHoje.minutos} informado={tempoHoje.informado} minutosFeitos={minutosFeitos} adiantaveis={adi ?? []} recursos={recursos} agenda={agendaHoje} />
