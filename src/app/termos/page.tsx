@@ -27,7 +27,7 @@ export default function Termos() {
 
       <h2>3. Sua conta</h2>
       <ul>
-        <li>A conta é pessoal. Você é responsável pela sua senha e pelo que é feito com ela.</li>
+        <li>A conta é pessoal. Você é responsável pela sua senha (ou pela conta Google que usa para entrar) e pelo que é feito com ela.</li>
         <li>O que você cria (plano, anotações, questões que você mesmo importa) é seu. Você pode baixar tudo e apagar tudo quando quiser, em Configurações.</li>
         <li>Não envie ao app dados de pacientes nem conteúdo que você não tem direito de usar.</li>
         <li>Contas usadas para abuso (por exemplo, sobrecarregar o serviço ou tentar acessar dados de outras pessoas) podem ser suspensas.</li>

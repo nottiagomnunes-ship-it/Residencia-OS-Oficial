@@ -154,6 +154,11 @@ describe('páginas', () => {
     const sem = renderToStaticMarkup(await Contato({ searchParams: Promise.resolve({ de: 'https://mal.site' }) }))
     expect(sem).toMatch(/checked="" value="sugestao"/); expect(sem).toContain('name="pagina" value=""')
   })
+  it('Privacidade cita a análise de uso anônima', () => {
+    const html = renderToStaticMarkup(Privacidade())
+    expect(html).toContain('Uso do site (anônimo)'); expect(html).toContain('Vercel Web Analytics e Speed Insights')
+    expect(html).toContain('sem cookies'); expect(html).not.toContain('não usamos ferramentas de análise')
+  })
   it('Sugestões sem a migration: avisa que ainda não está ativa', async () => {
     h.resp = () => ({ data: null, error: { message: 'relation does not exist' } })
     expect(renderToStaticMarkup(await Contato({ searchParams: Promise.resolve({}) }))).toContain('ainda não está ativa')

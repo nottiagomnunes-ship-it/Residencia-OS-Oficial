@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
-import { mensagemAuth, validarCadastro, validarSenhaNova } from '@/lib/engine/auth'
+import { googleLigado, mensagemAuth, mensagemGoogle, validarCadastro, validarSenhaNova } from '@/lib/engine/auth'
 
 function volta(pagina: string, erro: string): never { redirect(`${pagina}?erro=${encodeURIComponent(erro)}`) }
 
@@ -26,6 +26,22 @@ export async function cadastrar(fd: FormData) {
   if (error) volta('/cadastro', mensagemAuth(error.message))
   if (!data.session) redirect('/login?aviso=confirme') // confirmação de e-mail ligada: falta clicar no link
   redirect('/inicio') // sem confirmação: já entra e o assistente inicial abre
+}
+
+/**
+ * Entrar (ou criar conta) com o Google: o Supabase manda para a tela do Google e volta em /auth/confirm?via=google,
+ * que troca o código pela sessão. Conta nova cai em /inicio e o assistente inicial abre, como no cadastro por e-mail.
+ * Mesmo e-mail de uma conta já existente: o Supabase junta as duas formas de entrar na mesma conta.
+ */
+export async function entrarComGoogle() {
+  if (!googleLigado(process.env.LOGIN_GOOGLE)) volta('/login', mensagemGoogle(null))
+  const sb = await supabaseServer()
+  const { data, error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: `${await origemDoSite()}/auth/confirm?via=google`, queryParams: { prompt: 'select_account' } },
+  })
+  if (error || !data.url) volta('/login', mensagemGoogle(null))
+  redirect(data.url)
 }
 
 async function origemDoSite() {

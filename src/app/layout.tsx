@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { Sora, Figtree, Bricolage_Grotesque } from 'next/font/google'
 import RegistrarSW from '@/components/RegistrarSW'
+import AnaliseDeUso from '@/components/AnaliseDeUso'
 import { cookies } from 'next/headers'
 import { lerTamanho } from '@/lib/engine/texto'
 import { lerTema, COR_DA_BARRA } from '@/lib/engine/tema'
@@ -20,5 +21,5 @@ export const viewport: Viewport = { themeColor: [{ media: '(prefers-color-scheme
 export default async function Root({ children }: { children: React.ReactNode }) {
   const c = await cookies() // escolhas deste aparelho (Configurações → Aparência)
   const texto = lerTamanho(c.get('texto')?.value), tema = lerTema(c.get('tema')?.value)
-  return <html lang="pt-BR" className={`${sora.variable} ${figtree.variable} ${bricolage.variable}`} data-texto={texto} data-tema={tema}><body className="font-sans antialiased">{children}<RegistrarSW /></body></html>
+  return <html lang="pt-BR" className={`${sora.variable} ${figtree.variable} ${bricolage.variable}`} data-texto={texto} data-tema={tema}><body className="font-sans antialiased">{children}<RegistrarSW /><AnaliseDeUso /></body></html>
 }

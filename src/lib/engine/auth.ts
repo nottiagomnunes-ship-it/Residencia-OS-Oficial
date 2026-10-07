@@ -30,3 +30,23 @@ export function caminhoSeguro(next: string | null, padrao = '/inicio') {
   if (!next || !next.startsWith('/') || next.startsWith('//') || next.includes('\\') || /[\u0000-\u001f]/.test(next)) return padrao
   return next
 }
+
+/** Entrar com o Google fica escondido até a variável LOGIN_GOOGLE=ligado existir (depois de configurar o Google no Supabase). */
+export function googleLigado(valor: string | undefined) {
+  return ['ligado', '1', 'true', 'sim'].includes(String(valor ?? '').trim().toLowerCase())
+}
+
+/**
+ * Navegador embutido de outro app (Instagram, Facebook, TikTok, LinkedIn, Line, WebView do Android…)?
+ * O Google bloqueia o login nesses navegadores ("disallowed_useragent"), então o app pede para abrir no Chrome ou Safari.
+ */
+export function navegadorEmbutido(ua: string | null | undefined) {
+  if (!ua) return false
+  return /FBAN|FBAV|FB_IAB|Instagram|Line\/|musical_ly|BytedanceWebview|TikTok|LinkedInApp|Snapchat|Pinterest|; wv\)/i.test(ua)
+}
+
+/** Mensagem quando a volta do Google não deu certo (cancelou na tela do Google ou outro erro). */
+export function mensagemGoogle(erro: string | null | undefined) {
+  if (erro === 'access_denied') return 'Entrada com o Google cancelada.'
+  return 'Não foi possível entrar com o Google. Tente de novo ou use e-mail e senha.'
+}
