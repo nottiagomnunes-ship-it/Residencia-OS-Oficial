@@ -5,7 +5,9 @@ import { lerFiltros } from '@/lib/engine/banco'
 import { pct } from '@/lib/engine/desempenho'
 import { fmtData, inputCls } from '@/components/ui'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
-import { sincronizarBancoGeral, avisoDoBancoGeral, carregarTemas, ehAdmin } from '@/lib/banco-data'
+import { sincronizarBancoGeral, avisoDoBancoGeral, carregarTemas, ehAdmin, carregarFilaRefazer } from '@/lib/banco-data'
+import { hojeBR } from '@/lib/dates'
+import { addDays } from '@/lib/engine/review'
 import OpcoesDeAssunto from '@/components/banco/OpcoesDeAssunto'
 import { todasAsLinhas } from '@/lib/paginar'
 
@@ -15,10 +17,12 @@ export default async function PraticarInicio({ searchParams }: { searchParams: P
   const sb = await supabaseServer()
   const [sync, gestor] = await Promise.all([sincronizarBancoGeral(sb), ehAdmin(sb)])
   const aviso = avisoDoBancoGeral(sync) // questões novas e correções do banco geral, antes de contar
-  const [{ data: todas, error }, { data: listas }, temas, { data: comTema }] = await Promise.all([
+  const hoje = hojeBR()
+  const [{ data: todas, error }, { data: listas }, temas, { data: comTema }, refazer] = await Promise.all([
     todasAsLinhas((de, ate) => sb.from('banco_questoes').select('id,discipline_id,assunto,banca,ano,vezes,acertos,gabarito,anulada').order('id').range(de, ate), 20000),
     sb.from('provas').select('id,nome,criada_em,prova_tentativas(id,status,total,acertos)').eq('tipo', 'lista').order('criada_em', { ascending: false }).limit(8),
     carregarTemas(sb), todasAsLinhas((de, ate) => sb.from('banco_questoes').select('id,tema_id').not('tema_id', 'is', null).order('id').range(de, ate), 20000), // sem a 0040: vazias
+    carregarFilaRefazer(sb, hoje, addDays(hoje, 7)), // null sem a 0039
   ])
   if (error) return (
     <div className="space-y-4"><h1 className="text-2xl font-semibold">Praticar</h1>
@@ -47,8 +51,13 @@ export default async function PraticarInicio({ searchParams }: { searchParams: P
         </div>
         : <>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {card('Questões no banco', String(T.length))}{card('Já feitas', String(feitas.length))}
-          {card('Acerto', vezesTot ? `${pct(acertosTot, vezesTot)}%` : '—')}{card('Com gabarito', String(disponiveis))}
+          {card('Questões no banco', String(disponiveis))}{card('Já feitas', String(feitas.length))}
+          {card('Acerto', vezesTot ? `${pct(acertosTot, vezesTot)}%` : '—')}
+          {refazer && refazer.hoje > 0
+            ? <Link href="/banco/praticar?revisao=1" className="rounded-2xl border border-brand/50 bg-surface p-4 hover:border-brand">
+              <p className="text-sm text-muted">Para refazer hoje</p><p className="mt-1 text-2xl font-semibold">{refazer.hoje}</p>
+              <p className="mt-1 text-xs text-brand">{refazer.atrasadas ? `${refazer.atrasadas} atrasada${refazer.atrasadas > 1 ? 's' : ''} · ` : ''}Refazer agora →</p></Link>
+            : card('Para refazer hoje', refazer ? '0' : '—')}
         </div>
 
         <form className="grid gap-3 rounded-2xl border border-line bg-surface p-5 sm:grid-cols-2 lg:grid-cols-5" action={montarLista}>

@@ -7,7 +7,7 @@ const h = vi.hoisted(() => ({
 }))
 const cadeia = (t: string) => {
   const r: any = {}
-  for (const m of ['select', 'order', 'limit', 'range', 'or']) r[m] = () => r
+  for (const m of ['select', 'order', 'limit', 'range', 'or', 'lt', 'lte', 'gt', 'gte']) r[m] = () => r
   for (const m of ['eq', 'in', 'is', 'not', 'neq']) r[m] = (...a: any[]) => { h.filtros.push(`${t}.${m}(${a.map(x => (Array.isArray(x) ? x.join('|') : String(x))).join(',')})`); return r }
   r.delete = () => { h.apagados.push(t); return r }
   r.update = (d: any) => { h.updates.push({ t, d }); return r }

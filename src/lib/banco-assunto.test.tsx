@@ -6,7 +6,7 @@ const h = vi.hoisted(() => ({ dados: {} as Record<string, any>, ops: [] as Op[],
 const cadeia = (t: string) => {
   const op: Op = { t, tipo: 'select', filtros: [] }
   const r: any = {}
-  for (const m of ['select', 'order', 'limit', 'range', 'not', 'neq', 'or']) r[m] = () => r
+  for (const m of ['select', 'order', 'limit', 'range', 'not', 'neq', 'or', 'lt', 'gt']) r[m] = () => r
   for (const m of ['eq', 'in', 'is', 'gte', 'lte']) r[m] = (...a: any[]) => { op.filtros.push(`${m}(${a.map(x => (Array.isArray(x) ? x.join('|') : String(x))).join(',')})`); h.filtros.push(`${t}.${op.filtros.at(-1)}`); return r }
   r.update = (d: any) => { op.tipo = 'update'; op.dados = d; h.ops.push(op); return r }
   r.insert = (d: any) => { op.tipo = 'insert'; op.dados = d; h.ops.push(op); return r }
@@ -64,6 +64,13 @@ describe('telas', () => {
     expect(html).toContain('href="/admin/questoes?adm=sem-tema"'); expect(html).toContain('1 questão está sem tema')
     expect(html).not.toContain('name="area"'); expect(html).not.toContain('name="disciplina"') // sem filtros de Área e Disciplina
     expect(html).not.toContain('name="sel"'); expect(html).not.toContain('Sugerir pelo texto')
+  })
+  it('Praticar: o banco conta só as que dá para praticar e mostra a fila de refazer de hoje', async () => {
+    h.dados.banco_questoes = [{ id: Q1, gabarito: 'A', anulada: false, vezes: 0, acertos: 0 }, { id: Q2, gabarito: 'B', anulada: true, vezes: 0, acertos: 0 }]
+    h.dados.revisao_questoes = [{ questao_id: Q1 }]
+    const html = renderToStaticMarkup(await PraticarInicio({ searchParams: Promise.resolve({}) }))
+    expect(html).not.toContain('Com gabarito'); expect(html).toMatch(/Questões no banco<\/p><p[^>]*>1</)
+    expect(html).toContain('Para refazer hoje'); expect(html).toContain('href="/banco/praticar?revisao=1"')
   })
   it('Praticar com o banco vazio: leva a importar', async () => {
     const html = renderToStaticMarkup(await PraticarInicio({ searchParams: Promise.resolve({}) }))
