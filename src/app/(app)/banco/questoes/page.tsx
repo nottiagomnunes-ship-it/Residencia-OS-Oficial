@@ -137,7 +137,7 @@ export default async function BancoDeQuestoes({ searchParams }: { searchParams: 
                       {expl.get(q.id)?.explicacao && <div className="mt-2"><ExplicacaoDaQuestao id={q.id} texto={expl.get(q.id)?.explicacao ?? null} origem={expl.get(q.id)?.explicacao_origem ?? null} /></div>}</details>
                     <div className="flex flex-wrap items-center gap-4">
                       {admin && <Link href={`/admin/questoes/${q.id}`} className="text-sm text-brand hover:underline">Editar na Administração</Link>}
-                      <form action={excluirDoBanco}><input type="hidden" name="id" value={q.id} /><button className="text-sm text-danger hover:underline">Excluir do seu banco</button></form>
+                      {admin && <form action={excluirDoBanco}><input type="hidden" name="id" value={q.id} /><button className="text-sm text-danger hover:underline">Excluir do seu banco</button></form>}
                     </div>
                   </div>
                 </details>

@@ -26,7 +26,7 @@ vi.mock('@/lib/supabase/server', () => ({ supabaseServer: async () => ({
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }))
 vi.mock('next/navigation', () => ({ redirect: (u: string) => { h.redirects.push(u); throw new Error('REDIRECT') }, useRouter: () => ({ refresh: () => {}, push: () => {} }) }))
 
-import { importarNoBanco, salvarExplicacao, reportarExplicacao, adicionarTemas, definirTemaEmLote, sugerirTemasPeloTexto, editarTema } from './banco'
+import { excluirDoBanco, importarNoBanco, salvarExplicacao, reportarExplicacao, adicionarTemas, definirTemaEmLote, sugerirTemasPeloTexto, editarTema } from './banco'
 import OpcoesDeAssunto from '@/components/banco/OpcoesDeAssunto'
 import ExplicacaoDaQuestao from '@/components/banco/ExplicacaoDaQuestao'
 import { GET as exportar } from '@/app/(app)/admin/exportar/route'
@@ -78,19 +78,27 @@ describe('telas', () => {
     expect(html).toContain('href="/banco/praticar?banca=UFMA&amp;de=2020&amp;ate=2024"')
     expect(html).not.toContain('name="sel"'); expect(html).not.toContain('Ligar assuntos'); expect(html).not.toContain('Sugerir pelo texto')
     expect(html).not.toContain('Organiz'); expect(html).toContain(`href="/admin/questoes/${Q1}"`) // a administradora: atalho para editar
+    expect(html).toContain('Excluir do seu banco')
     expect(html).not.toContain('name="area"'); expect(html).not.toContain('name="disciplina"'); expect(html).toContain('name="situacao"')
   })
 })
 
 describe('estudante (conta que não é a administradora)', () => {
   beforeEach(() => { h.admin = false })
-  it('a tela fica só com a busca: sem Importar, sem Organizar (nem pela URL) e sem "Mudar assunto"; excluir continua', async () => {
+  it('a tela fica só com a busca: sem Importar, sem Organizar (nem pela URL) e sem "Mudar assunto" e sem excluir', async () => {
     h.dados.banco_questoes = [{ id: Q1, blocos: [{ tipo: 'texto', texto: 'Enunciado' }], alternativas: [], gabarito: 'A', anulada: false, topic_id: null, assunto: null, vezes: 0, acertos: 0 }]
     const html = renderToStaticMarkup(await Banco({ searchParams: Promise.resolve({ org: '1' }) }))
     expect(html).not.toContain('Importar questões'); expect(html).not.toContain('Organiz'); expect(html).not.toContain('name="sel"')
-    expect(html).not.toContain('Mudar assunto'); expect(html).not.toContain('Sugerir pelo texto'); expect(html).toContain('Excluir do seu banco')
+    expect(html).not.toContain('Mudar assunto'); expect(html).not.toContain('Sugerir pelo texto'); expect(html).not.toContain('Excluir do seu banco')
     expect(html).not.toContain('Administração')
     expect(html).toContain('Praticar esta')
+  })
+  it('excluir: o estudante não apaga nem chamando a ação direto; a administradora apaga', async () => {
+    const fd = new FormData(); fd.set('id', Q1)
+    await excluirDoBanco(fd)
+    expect(h.ops.filter(o => o.tipo === 'delete')).toEqual([])
+    h.admin = true; await excluirDoBanco(fd)
+    expect(h.ops.filter(o => o.t === 'banco_questoes' && o.tipo === 'delete')).toHaveLength(1)
   })
   it('Praticar com o banco vazio: sem botão de importar', async () => {
     const html = renderToStaticMarkup(await PraticarInicio({ searchParams: Promise.resolve({}) }))

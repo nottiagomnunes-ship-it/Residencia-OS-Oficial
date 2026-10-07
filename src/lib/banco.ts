@@ -209,8 +209,10 @@ export async function montarLista(fd: FormData) {
   redirect(`/provas/tentativa/${tent}`)
 }
 
+/** Só a conta administradora exclui questões; o estudante só busca e pratica. */
 export async function excluirDoBanco(fd: FormData) {
   const { sb } = await ctx()
+  if (!(await ehAdmin(sb))) return
   await sb.from('banco_questoes').delete().eq('id', String(fd.get('id')))
   refresh()
 }
