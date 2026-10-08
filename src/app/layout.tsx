@@ -12,7 +12,11 @@ const figtree = Figtree({ subsets: ['latin'], variable: '--font-figtree' })
 // Só para o logo ("R1TMO"): um peso só, para não pesar a página.
 const bricolage = Bricolage_Grotesque({ subsets: ['latin'], variable: '--font-bricolage', weight: '800' })
 export const metadata: Metadata = {
+  // endereço público, para a prévia do link (imagem em src/app/opengraph-image.tsx) sair com o endereço completo
+  metadataBase: new URL(process.env.SITE_URL || 'https://r1tmo.com.br'),
   title: 'R1TMO', description: 'Estudos para residência médica no ritmo do seu dia', applicationName: 'R1TMO',
+  openGraph: { type: 'website', locale: 'pt_BR', siteName: 'R1TMO', title: 'R1TMO', description: 'Estudos para residência médica no ritmo do seu dia: plano pelo tempo que você tem, revisões automáticas e as questões que você errou de volta.' },
+  twitter: { card: 'summary_large_image' },
   icons: { icon: '/icons/icon-192.png', apple: '/icons/apple-touch-icon.png' },
   appleWebApp: { capable: true, title: 'R1TMO', statusBarStyle: 'default' },
 }

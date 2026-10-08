@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { destinoDoDominio } from '@/lib/engine/dominio'
+import { destinoDoLogin } from '@/lib/engine/rotas'
 
 export async function middleware(req: NextRequest) {
   // endereço antigo (r1tmo.vercel.app) → endereço principal, antes de tudo (308 mantém o método e o corpo)
@@ -18,10 +19,8 @@ export async function middleware(req: NextRequest) {
     },
   })
   const { data: { user } } = await sb.auth.getUser()
-  const onLogin = ['/login', '/cadastro'].some(p => req.nextUrl.pathname.startsWith(p)) // páginas públicas
-  const publica = onLogin || ['/recuperar-senha', '/auth', '/api/cron', '/termos', '/privacidade'].some(p => req.nextUrl.pathname.startsWith(p))
-  if (!user && !publica) return NextResponse.redirect(new URL('/login', req.url))
-  if (user && onLogin) return NextResponse.redirect(new URL('/inicio', req.url))
+  const destino = destinoDoLogin(req.nextUrl.pathname, !!user) // páginas públicas e quem já entrou: src/lib/engine/rotas.ts
+  if (destino) return NextResponse.redirect(new URL(destino, req.url))
   return res
 }
-export const config = { matcher: ['/((?!_next|_vercel|favicon.ico|manifest.webmanifest|icons/|sw.js|offline.html).*)'] }
+export const config = { matcher: ['/((?!_next|_vercel|favicon.ico|manifest.webmanifest|icons/|sw.js|offline.html|opengraph-image|twitter-image).*)'] }
