@@ -23,3 +23,14 @@ it('frase do dia: "cadastre" só sem assuntos; com plano, fala das tarefas', () 
   expect(fraseDoDia(1, 0, true, 0)).toBe('Você tem 1 revisão para hoje.')
   expect(fraseDoDia(0, 1, true, 0)).toBe('Você tem 0 revisões para hoje e 1 atrasada.')
 })
+
+import { primeiroPasso } from './hoje'
+const it_ = (tipo: string, topic_id: string | null = 't1', titulo = 'Imunizações') => ({ id: 'i' + tipo, tipo, titulo, duracao_min: 75, topic_id })
+it('"Comece por aqui": só antes da primeira tarefa concluída, apontando a primeira tarefa de estudo', () => {
+  expect(primeiroPasso(true, true, [it_('estudo')])).toBeNull()
+  expect(primeiroPasso(false, true, [it_('revisao'), it_('estudo', 't9', 'Trauma')])).toEqual({ tipo: 'estudar', titulo: 'Trauma', minutos: 75, href: '/conteudos/t9' })
+  expect(primeiroPasso(false, false, [])).toEqual({ tipo: 'sem-assuntos' })
+  expect(primeiroPasso(false, true, [])).toEqual({ tipo: 'sem-plano-hoje' })
+  expect(primeiroPasso(false, true, [it_('revisao')])).toBeNull() // tem o que fazer hoje, só não é estudo: a lista já orienta
+  expect(primeiroPasso(false, true, [it_('estudo', null)])).toBeNull()
+})
