@@ -4,7 +4,8 @@ import { redirect } from 'next/navigation'
 import { supabaseServer } from '@/lib/supabase/server'
 import { hojeBR } from '@/lib/dates'
 import { carregarDesempenho } from '@/lib/desempenho-data'
-import { gerarCronograma } from '@/lib/engine/schedule'
+import { gerarCronograma, primeiraDataPorAssunto } from '@/lib/engine/schedule'
+import { emBlocos } from '@/lib/paginar'
 
 /** Gera ou atualiza o cronograma: recalcula tudo que é automático e mantém revisões, concluídos e itens manuais. */
 export async function gerarCronogramaAction() {
@@ -36,7 +37,14 @@ export async function planejarCronograma(): Promise<{ ok: boolean; msg: string }
     if (n) (revisoesPorDia[r.data] ??= []).push({ nome: n, id: (r as any).topic_id })
   }
 
-  const topicos = (ts ?? []).map(t => ({ id: t.id, nome: t.nome, disciplineId: t.discipline_id, prioridade: t.prioridade, dificuldade: t.dificuldade, plannedDate: t.planned_date, ordem: t.ordem, grupo: t.grupo }))
+  // partes já concluídas de assuntos divididos (o assunto ainda não terminou): o gerador agenda só o que falta
+  const feito = new Map<string, number>()
+  const abertos = (ts ?? []).filter(t => t.status === 'em_andamento').map(t => t.id as string)
+  if (abertos.length) {
+    const { data: ps } = await emBlocos<{ topic_id: string; duracao_min: number | null }>(abertos, b => sb.from('schedule_items').select('topic_id,duracao_min').eq('tipo', 'estudo').eq('status', 'concluido').in('topic_id', b))
+    for (const x of ps ?? []) feito.set(x.topic_id, (feito.get(x.topic_id) ?? 0) + (x.duracao_min ?? 0))
+  }
+  const topicos = (ts ?? []).map(t => ({ id: t.id, nome: t.nome, disciplineId: t.discipline_id, prioridade: t.prioridade, dificuldade: t.dificuldade, plannedDate: t.planned_date, ordem: t.ordem, grupo: t.grupo, feitoMin: feito.get(t.id) }))
   const ehFixo = (t: { plannedDate?: string | null }, orig: any) => !!t.plannedDate && t.plannedDate >= hoje && !orig.planned_auto
   const origem = new Map((ts ?? []).map(t => [t.id, t]))
   const fixos = topicos.filter(t => ehFixo(t, origem.get(t.id)))
@@ -60,7 +68,7 @@ export async function planejarCronograma(): Promise<{ ok: boolean; msg: string }
   const { error: falha } = await sb.rpc('aplicar_cronograma', {
     p_hoje: hoje,
     p_blocos: r.blocos.map(b => ({ tipo: b.tipo, topic_id: b.topic_id, titulo: b.titulo, data: b.data, hora_ini: b.hora_ini ?? null, hora_fim: b.hora_fim ?? null, duracao_min: b.duracao_min, qtd_questoes: b.qtd_questoes, ordem_dia: b.ordem_dia ?? null })),
-    p_topicos: plan.map(b => ({ id: b.topic_id, data: b.data })),
+    p_topicos: primeiraDataPorAssunto(plan), // um por assunto: a data da 1ª parte
   })
   if (falha) return { ok: false, msg: 'Não foi possível atualizar o cronograma. O plano anterior foi mantido; tente de novo.' }
 
