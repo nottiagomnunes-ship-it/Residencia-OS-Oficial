@@ -73,9 +73,35 @@ describe('ritmo por semana', () => {
     const datas = r.blocos.filter(b => b.tipo === 'estudo').map(b => b.data)
     expect(datas).toHaveLength(3); for (const d of datas) { expect(d >= '2026-10-05').toBe(true); expect(d <= '2026-10-11').toBe(true) }
   })
-  it('semana com assuntos demais avisa que parte foi para a seguinte', () => {
-    const r = gerarCronograma(base({ prova: '2026-12-15', topicos: Array.from({ length: 12 }, (_, i) => g('t' + i, 'Semana 1', i)) }))
-    expect(r.avisos.join(' ')).toMatch(/"Semana 1" não couberam na semana/)
+  it('semana com assuntos demais: um aviso só, com o ritmo pedido, o que cabe e até quando vai o plano', () => {
+    const r = gerarCronograma(base({ prova: '2026-12-15', minutosDia: 90, topicos: Array.from({ length: 12 }, (_, i) => g('t' + i, 'Semana 1', i)) }))
+    expect(r.avisos.join(' ')).toMatch(/pede cerca de 12 assuntos por semana, mas no seu tempo cabem cerca de \d+: o plano vai até \d{2}\/\d{2}\/2026 em vez de 04\/10\/2026/)
+  })
+  const semanas = (n: number, porSemana = 3) => Array.from({ length: n * porSemana }, (_, i) => g('t' + i, `Semana ${Math.floor(i / porSemana) + 1}`, i))
+  const semanaDe = (r: ReturnType<typeof gerarCronograma>, id: string) => r.blocos.find(b => b.tipo === 'estudo' && b.topic_id === id)?.data
+  it('mais semanas no cronograma do que até a prova: junta semanas seguidas, com a data ATUAL da prova', () => {
+    const perto = gerarCronograma(base({ prova: '2026-12-15', topicos: semanas(20) })) // ~8 semanas até a reta final
+    expect(perto.avisos.join(' ')).toMatch(/O cronograma tem 20 semanas e há \d+ até a reta final.*juntadas de \d em \d/)
+    expect(semanaDe(perto, 't3')! <= '2026-10-04').toBe(true) // a "Semana 2" do cronograma já entra na primeira semana do plano
+    const longe = gerarCronograma(base({ prova: '2027-09-15', topicos: semanas(20) })) // a mesma lista, prova mais distante
+    expect(longe.avisos.join(' ')).not.toMatch(/juntadas/)
+    expect(semanaDe(longe, 't3')! >= '2026-10-05').toBe(true) // sem juntar: a "Semana 2" fica na segunda semana
+  })
+  it('a ordem do cronograma é mantida ao juntar semanas', () => {
+    const r = gerarCronograma(base({ prova: '2026-12-15', topicos: semanas(20) }))
+    const datas = Array.from({ length: 60 }, (_, i) => semanaDe(r, 't' + i)).filter(Boolean) as string[]
+    expect([...datas].sort()).toEqual(datas)
+  })
+  it('atraso pequeno (alguns dias) não gera aviso; só quando o plano passa mais de uma semana do previsto', () => {
+    const r = gerarCronograma(base({ hoje: '2026-10-01', prova: '2027-09-15', topicos: semanas(10, 4) })) // quinta: a 1ª semana começa no meio
+    expect(r.avisos.filter(a => /ritmo do cronograma/.test(a))).toHaveLength(0)
+  })
+  it('muitas semanas sem tempo para o ritmo: continua um aviso só (antes era um por semana)', () => {
+    const r = gerarCronograma(base({ prova: '2027-09-15', minutosDia: 60, topicos: semanas(30, 8) }))
+    expect(r.avisos.filter(a => /não couberam na semana/.test(a))).toHaveLength(0)
+    expect(r.avisos.filter(a => /ritmo do cronograma|Faltam cerca de/.test(a))).toHaveLength(1) // ou o ritmo, ou as horas que faltam: nunca os dois
+    const sobra = gerarCronograma(base({ prova: '2027-09-15', minutosDia: 90, topicos: semanas(10, 10) })) // ritmo alto, mas há semanas de sobra até a prova
+    expect(sobra.naoAlocados).toBe(0); expect(sobra.avisos.filter(a => /ritmo do cronograma/.test(a))).toHaveLength(1)
   })
   it('sem semanas o comportamento anterior continua (preenche o dia)', () => {
     const r = gerarCronograma(base({ topicos: topicos(3, 'A') }))

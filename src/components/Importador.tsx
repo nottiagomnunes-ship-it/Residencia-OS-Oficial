@@ -3,7 +3,7 @@ import { useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { parseCronograma } from '@/lib/engine/importar'
 import { lerPdf, importarCronograma, limparCatalogo } from '@/lib/importar'
-import { CRONOGRAMA_PADRAO, NOME_CRONOGRAMA_PADRAO, ajustarAoPrazo } from '@/lib/engine/cronograma-padrao'
+import { CRONOGRAMA_PADRAO, NOME_CRONOGRAMA_PADRAO } from '@/lib/engine/cronograma-padrao'
 
 const EXEMPLO = `# Clínica Médica
 ## Cardiologia
@@ -16,7 +16,7 @@ Bronquiolite
 
 Cirurgia > Trauma > Trauma torácico`
 
-export default function Importador({ hoje, total, erro, prova }: { hoje: string; total: number; erro?: string; prova?: string | null }) {
+export default function Importador({ hoje, total, erro }: { hoje: string; total: number; erro?: string }) {
   const [texto, setTexto] = useState(''), [substituir, setSubstituir] = useState(true)
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(erro ? { ok: false, t: erro } : null)
   const [pend, start] = useTransition()
@@ -34,9 +34,8 @@ export default function Importador({ hoje, total, erro, prova }: { hoje: string;
     })
   }
   function usarPronto() {
-    const t = ajustarAoPrazo(CRONOGRAMA_PADRAO, hoje, prova)
-    setTexto(t)
-    setMsg({ ok: true, t: `${NOME_CRONOGRAMA_PADRAO} carregado${t !== CRONOGRAMA_PADRAO ? ', com as semanas juntadas para caber até a sua prova (o último mês fica para revisão)' : ''}. Confira a pré-visualização e toque em "Importar".` })
+    setTexto(CRONOGRAMA_PADRAO)
+    setMsg({ ok: true, t: `${NOME_CRONOGRAMA_PADRAO} carregado. Confira a pré-visualização e toque em "Importar". Se a sua prova vier antes das 66 semanas, o gerador junta semanas na hora de montar o plano.` })
   }
   function importar() {
     if (substituir && !confirm('Isso remove os assuntos atuais que ainda não têm histórico (questões, revisões ou estudo). Continuar?')) return

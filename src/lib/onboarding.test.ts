@@ -24,7 +24,7 @@ vi.mock('@/lib/supabase/server', () => ({ supabaseServer: async () => ({
 }) }))
 
 import { salvarOnboarding } from './onboarding'
-import { CRONOGRAMA_PADRAO, ajustarAoPrazo } from './engine/cronograma-padrao'
+import { CRONOGRAMA_PADRAO } from './engine/cronograma-padrao'
 import { hojeBR } from './dates'
 import { lerComeco, estimarProva, dataDaProva, nomeInicial } from './engine/comeco'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -44,7 +44,7 @@ beforeEach(() => { Object.assign(h, { redirects: [], assuntos: 0, disciplinas: [
 describe('assistente inicial: como começar', () => {
   it('cronograma pronto (o padrão): importa o cronograma do R1TMO substituindo, gera o plano e abre Hoje', async () => {
     await salvar(form('pronto'))
-    expect(h.importacoes).toEqual([{ texto: ajustarAoPrazo(CRONOGRAMA_PADRAO, hojeBR(), '2027-09-01'), substituir: true }]) // ajustado à data da prova
+    expect(h.importacoes).toEqual([{ texto: CRONOGRAMA_PADRAO, substituir: true }]) // as 66 semanas originais: quem ajusta ao prazo é o gerador
     expect(h.planos).toBe(1); expect(h.redirects).toEqual(['/inicio'])
   })
   it('sem escolha no formulário vale o cronograma pronto', async () => {
@@ -75,10 +75,10 @@ describe('assistente inicial: como começar', () => {
     await salvar(form('vazio'))
     expect(h.perfis[0]).toEqual({ nome: 'Ana', exam_date: '2027-09-01', daily_minutes: 120, available_weekdays: [1, 3], onboarded: true })
   })
-  it('"ainda não sei" a data: usa a estimativa de daqui a um ano (e o cronograma pronto se ajusta a ela)', async () => {
+  it('"ainda não sei" a data: usa a estimativa de daqui a um ano; o cronograma entra sem nada gravado a partir dela', async () => {
     const fd = form('pronto'); fd.set('prova_nao_sei', '1'); await salvar(fd)
     expect(h.perfis[0].exam_date).toBe(estimarProva(hojeBR()))
-    expect(h.importacoes[0].texto).toBe(ajustarAoPrazo(CRONOGRAMA_PADRAO, hojeBR(), estimarProva(hojeBR())))
+    expect(h.importacoes[0].texto).toBe(CRONOGRAMA_PADRAO) // trocar a data depois e gerar de novo refaz o ritmo
   })
   it('sem dias marcados ou tempo inválido: valores padrão, para o plano não sair vazio', async () => {
     const fd = form('vazio'); fd.delete('dias'); fd.set('horas', 'abc'); await salvar(fd)

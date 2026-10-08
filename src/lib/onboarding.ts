@@ -4,7 +4,7 @@ import { atribuirAreasPorNome } from '@/lib/areas-data'
 import { supabaseServer } from '@/lib/supabase/server'
 import { importarCronograma } from '@/lib/importar'
 import { planejarCronograma } from '@/lib/schedule'
-import { CRONOGRAMA_PADRAO, ajustarAoPrazo } from '@/lib/engine/cronograma-padrao'
+import { CRONOGRAMA_PADRAO } from '@/lib/engine/cronograma-padrao'
 import { hojeBR } from '@/lib/dates'
 import { lerComeco, dataDaProva, DISCIPLINAS_PADRAO, type Comeco } from '@/lib/engine/comeco'
 
@@ -36,8 +36,8 @@ export async function salvarOnboarding(fd: FormData) {
   if (comeco === 'importar') redirect('/importar')
   if (comeco === 'pronto') {
     // mesmo caminho da importação; "substituir" tira as disciplinas padrão que ficarem vazias (ex.: Clínica Médica, já que o cronograma usa as especialidades)
-    // com a prova antes das 66 semanas, junta semanas para caber (deixando o último mês para revisão)
-    const imp = await importarCronograma(ajustarAoPrazo(CRONOGRAMA_PADRAO, hojeBR(), prova.data), true)
+    // entra com as 66 semanas originais: quem ajusta ao prazo é o gerador, com a data da prova de cada vez (mudar a data e gerar de novo refaz o ritmo)
+    const imp = await importarCronograma(CRONOGRAMA_PADRAO, true)
     if (!imp.ok) redirect('/importar?erro=' + encodeURIComponent('Não foi possível carregar o cronograma pronto. Tente de novo por aqui.'))
     const plano = await planejarCronograma()
     if (!plano.ok) redirect('/cronograma?msg=' + encodeURIComponent(plano.msg))

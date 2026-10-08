@@ -537,19 +537,3 @@ Demências
 Doença Renal Crônica
 `
 
-const SEMANAS_DO_PADRAO = 66
-const FOLGA_FINAL_SEMANAS = 4 // o último mês antes da prova fica livre para revisão
-
-/**
- * Ajusta o cronograma pronto à data da prova: se as 66 semanas não cabem, junta semanas seguidas
- * (com 24 semanas disponíveis, cada semana nova reúne 3 do original), mantendo a ordem e a alternância das áreas.
- * Deixa o último mês livre para revisão. Sem data da prova, ou com tempo de sobra, o texto volta igual.
- */
-export function ajustarAoPrazo(texto: string, hoje: string, prova: string | null | undefined) {
-  if (!prova || prova <= hoje) return texto
-  const dias = Math.round((Date.parse(prova + 'T12:00:00Z') - Date.parse(hoje + 'T12:00:00Z')) / 86_400_000)
-  const semanas = Math.max(1, Math.floor(dias / 7) - FOLGA_FINAL_SEMANAS)
-  const juntar = Math.ceil(SEMANAS_DO_PADRAO / semanas)
-  if (juntar <= 1) return texto
-  return texto.replace(/^# SEMANA (\d+)$/gm, (_, n: string) => `# SEMANA ${Math.ceil(Number(n) / juntar)}`)
-}
