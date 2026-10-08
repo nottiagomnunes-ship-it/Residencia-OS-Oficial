@@ -3,6 +3,7 @@ import { useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { parseCronograma } from '@/lib/engine/importar'
 import { lerPdf, importarCronograma, limparCatalogo } from '@/lib/importar'
+import { CRONOGRAMA_PADRAO, NOME_CRONOGRAMA_PADRAO, ajustarAoPrazo } from '@/lib/engine/cronograma-padrao'
 
 const EXEMPLO = `# Clínica Médica
 ## Cardiologia
@@ -15,9 +16,9 @@ Bronquiolite
 
 Cirurgia > Trauma > Trauma torácico`
 
-export default function Importador({ hoje, total }: { hoje: string; total: number }) {
+export default function Importador({ hoje, total, erro, prova }: { hoje: string; total: number; erro?: string; prova?: string | null }) {
   const [texto, setTexto] = useState(''), [substituir, setSubstituir] = useState(true)
-  const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null)
+  const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(erro ? { ok: false, t: erro } : null)
   const [pend, start] = useTransition()
   const prev = useMemo(() => parseCronograma(texto, hoje), [texto, hoje])
   const porDisc = useMemo(() => { const m = new Map<string, number>(); prev.itens.forEach(i => m.set(i.disciplina, (m.get(i.disciplina) ?? 0) + 1)); return [...m] }, [prev])
@@ -32,6 +33,11 @@ export default function Importador({ hoje, total }: { hoje: string; total: numbe
       if (r.texto) { setTexto(r.texto); setMsg({ ok: true, t: 'PDF lido. Revise o texto abaixo: marque os títulos de disciplina com # e corrija o que precisar.' }) } else setMsg({ ok: false, t: r.erro ?? 'Erro ao ler o PDF.' })
     })
   }
+  function usarPronto() {
+    const t = ajustarAoPrazo(CRONOGRAMA_PADRAO, hoje, prova)
+    setTexto(t)
+    setMsg({ ok: true, t: `${NOME_CRONOGRAMA_PADRAO} carregado${t !== CRONOGRAMA_PADRAO ? ', com as semanas juntadas para caber até a sua prova (o último mês fica para revisão)' : ''}. Confira a pré-visualização e toque em "Importar".` })
+  }
   function importar() {
     if (substituir && !confirm('Isso remove os assuntos atuais que ainda não têm histórico (questões, revisões ou estudo). Continuar?')) return
     start(async () => { const r = await importarCronograma(texto, substituir); setMsg({ ok: r.ok, t: r.ok ? r.resumo! : r.erro! }); if (r.ok) setTexto('') })
@@ -45,6 +51,13 @@ export default function Importador({ hoje, total }: { hoje: string; total: numbe
     <div className="space-y-6">
       {msg && <p role={msg.ok ? 'status' : 'alert'} className={`rounded-xl border p-4 text-sm ${msg.ok ? 'border-brand/40 bg-brand/10' : 'border-danger/40 bg-danger/10 text-danger'}`}>{msg.t}
         {msg.ok && msg.t.includes('importados') && <> Agora <Link href="/cronograma" className="text-brand underline">gere o cronograma</Link> para distribuir os assuntos sem data.</>}</p>}
+      <section className={box}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div><h2 className="font-medium">Não tem um cronograma?</h2>
+            <p className="text-sm text-muted">Use o {NOME_CRONOGRAMA_PADRAO}: 199 assuntos das grandes áreas, ajustados à data da sua prova. Você pode trocar pelo seu quando quiser.</p></div>
+          <button onClick={usarPronto} disabled={pend} className="rounded-xl border border-brand px-4 py-2 text-sm font-medium text-brand hover:bg-brand/10 disabled:opacity-50">Usar o cronograma pronto</button>
+        </div>
+      </section>
       <section className={box}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-medium">Seu cronograma em texto</h2>
@@ -69,7 +82,7 @@ export default function Importador({ hoje, total }: { hoje: string; total: numbe
           {porDisc.length > 0 && <ul className="grid gap-2 text-sm sm:grid-cols-2">{porDisc.map(([d, n]) => <li key={d} className="flex justify-between rounded-lg border border-line px-3 py-1.5"><span>{d}</span><span className="text-muted">{n}</span></li>)}</ul>}
           {prev.avisos.length > 0 && <ul className="list-disc space-y-1 pl-5 text-sm text-warn">{prev.avisos.slice(0, 6).map((a, i) => <li key={i}>{a}</li>)}{prev.avisos.length > 6 && <li>e mais {prev.avisos.length - 6} avisos</li>}</ul>}
           <label className="flex items-start gap-3 text-sm"><input type="checkbox" checked={substituir} onChange={e => setSubstituir(e.target.checked)} className="mt-1 accent-brand" />
-            <span>Substituir os assuntos atuais<span className="block text-xs text-muted">Remove os que ainda não têm histórico ({total} assuntos hoje). Assuntos com questões, revisões ou estudo são mantidos.</span></span></label>
+            <span>Substituir os assuntos atuais<span className="block text-xs text-muted">Remove os que ainda não têm histórico ({total} assuntos hoje). Assuntos com questões, revisões ou estudo são mantidos. Se você começou pelo cronograma pronto e agora vai usar o seu, deixe marcado.</span></span></label>
           <button onClick={importar} disabled={pend || !prev.itens.length} className="rounded-xl bg-brand px-5 py-2.5 font-medium text-on-cor disabled:opacity-50">{pend ? 'Importando…' : `Importar ${prev.itens.length} assuntos`}</button>
         </section>)}
       <section className={box}>

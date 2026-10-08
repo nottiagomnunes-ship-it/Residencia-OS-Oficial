@@ -8,12 +8,18 @@ import { gerarCronograma } from '@/lib/engine/schedule'
 
 /** Gera ou atualiza o cronograma: recalcula tudo que é automático e mantém revisões, concluídos e itens manuais. */
 export async function gerarCronogramaAction() {
+  const r = await planejarCronograma()
+  redirect('/cronograma?msg=' + encodeURIComponent(r.msg))
+}
+
+/** O trabalho do "Gerar ou atualizar cronograma", sem mudar de página (usado também pelo assistente inicial). */
+export async function planejarCronograma(): Promise<{ ok: boolean; msg: string }> {
   const sb = await supabaseServer()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) redirect('/login')
   const uid = user.id, agora = hojeBR()
   const { data: p } = await sb.from('profiles').select('exam_date,study_start_date,daily_minutes,daily_questions_goal,available_weekdays').eq('id', uid).single()
-  if (!p?.exam_date) redirect('/cronograma?msg=' + encodeURIComponent('Defina a data da prova para gerar o cronograma.'))
+  if (!p?.exam_date) return { ok: false, msg: 'Defina a data da prova para gerar o cronograma.' }
   const hoje = p.study_start_date && p.study_start_date > agora ? p.study_start_date : agora
 
   const [{ data: ds }, { data: ts }, { data: rv }, { data: cap }] = await Promise.all([
@@ -56,9 +62,9 @@ export async function gerarCronogramaAction() {
     p_blocos: r.blocos.map(b => ({ tipo: b.tipo, topic_id: b.topic_id, titulo: b.titulo, data: b.data, hora_ini: b.hora_ini ?? null, hora_fim: b.hora_fim ?? null, duracao_min: b.duracao_min, qtd_questoes: b.qtd_questoes, ordem_dia: b.ordem_dia ?? null })),
     p_topicos: plan.map(b => ({ id: b.topic_id, data: b.data })),
   })
-  if (falha) redirect('/cronograma?msg=' + encodeURIComponent('Não foi possível atualizar o cronograma. O plano anterior foi mantido; tente de novo.'))
+  if (falha) return { ok: false, msg: 'Não foi possível atualizar o cronograma. O plano anterior foi mantido; tente de novo.' }
 
   ;['/cronograma', '/calendario', '/conteudos', '/disciplinas', '/inicio'].forEach(x => revalidatePath(x, 'layout'))
   const n = plan.length + fixos.length
-  redirect('/cronograma?msg=' + encodeURIComponent(`Cronograma atualizado: ${n} assuntos planejados. ${r.avisos.join(' ')}`.trim()))
+  return { ok: true, msg: `Cronograma atualizado: ${n} assuntos planejados. ${r.avisos.join(' ')}`.trim() }
 }

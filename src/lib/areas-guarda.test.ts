@@ -22,7 +22,7 @@ describe('áreas: não quebram quem ainda não aplicou o SQL', () => {
     expect(ler('src/app/(app)/disciplinas/page.tsx')).toContain('0027_areas_das_disciplinas'); expect(ler('src/app/(app)/disciplinas/page.tsx')).toContain('areas.disponivel')
   })
   it('as disciplinas NOVAS recebem a área sugerida em todos os caminhos de criação', () => {
-    expect(ler('src/lib/actions.ts')).toContain("atribuirAreasPorNome(sb, [String(fd.get('nome')).trim()])"); expect(ler('src/lib/importar.ts')).toContain('atribuirAreasPorNome(sb, disciplinas.map(d => d.nome))'); expect(ler('src/app/onboarding/page.tsx')).toContain('atribuirAreasPorNome(sb, DISCIPLINAS)')
+    expect(ler('src/lib/actions.ts')).toContain("atribuirAreasPorNome(sb, [String(fd.get('nome')).trim()])"); expect(ler('src/lib/importar.ts')).toContain('atribuirAreasPorNome(sb, disciplinas.map(d => d.nome))'); expect(ler('src/lib/onboarding.ts')).toContain('atribuirAreasPorNome(sb, [...DISCIPLINAS_PADRAO])')
   })
   it('as ações do servidor de áreas só exportam funções', () => { expect(ler('src/lib/areas.ts')).not.toMatch(/^export (const|let|var|class|enum) (?![A-Za-z_]+ = async)/m) })
 })
