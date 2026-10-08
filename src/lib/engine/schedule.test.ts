@@ -193,3 +193,53 @@ describe('tempo disponível por dia (sem horários)', () => {
     expect(dia(r, '2026-10-01').some(b => b.tipo === 'questoes')).toBe(false)
   })
 })
+
+import { duracaoTopico, parteDoTitulo, MIN_ASSUNTO, primeiraDataPorAssunto } from './schedule'
+describe('assunto com tempo mínimo de 60 min (dia curto = assunto em partes)', () => {
+  const t = (id: string, ordem: number, dificuldade = 2): Topico => ({ id, nome: 'Assunto ' + id, disciplineId: 'A', prioridade: 2, dificuldade, ordem })
+  const estudos = (r: ReturnType<typeof gerarCronograma>, id: string) => r.blocos.filter(b => b.tipo === 'estudo' && b.topic_id === id)
+  it('duração: nunca abaixo de 60 min (o fácil também vale 60); reforço continua 45', () => {
+    expect(MIN_ASSUNTO).toBe(60)
+    expect(duracaoTopico(t('a', 0, 1))).toBe(60); expect(duracaoTopico(t('a', 0, 2))).toBe(60); expect(duracaoTopico(t('a', 0, 3))).toBe(75)
+    expect(duracaoTopico({ ...t('r', 0), reforco: true })).toBe(45)
+  })
+  it('com 30 min por dia, o assunto NÃO é encolhido: vira duas partes de 30 em dias diferentes', () => {
+    const r = gerarCronograma(base({ minutosDia: 30, questoesDia: 0, topicos: [t('a', 0), t('b', 1)] }))
+    const a = estudos(r, 'a')
+    expect(a.map(b => b.duracao_min)).toEqual([30, 30])
+    expect(a.map(b => b.titulo)).toEqual(['Assunto a (parte 1 de 2)', 'Assunto a (parte 2 de 2)'])
+    expect(new Set(a.map(b => b.data)).size).toBe(2)
+    expect(estudos(r, 'b')[0].data > a[1].data).toBe(true) // o seguinte só começa depois
+  })
+  it('a soma das partes é sempre a duração inteira do assunto', () => {
+    for (const min of [30, 45, 60, 90, 120]) {
+      const r = gerarCronograma(base({ minutosDia: min, topicos: [t('a', 0, 3), t('b', 1, 4), t('c', 2, 1)] }))
+      for (const id of ['a', 'b', 'c']) {
+        const total = estudos(r, id).reduce((s, b) => s + b.duracao_min, 0)
+        expect(total, `${min} min, ${id}`).toBe(duracaoTopico(t(id, 0, id === 'a' ? 3 : id === 'b' ? 4 : 1)))
+      }
+    }
+  })
+  it('dia com tempo de sobra: o assunto entra inteiro, sem "parte"', () => {
+    const r = gerarCronograma(base({ minutosDia: 240, topicos: [t('a', 0, 3)] }))
+    expect(estudos(r, 'a')).toHaveLength(1); expect(estudos(r, 'a')[0].titulo).toBe('Assunto a'); expect(estudos(r, 'a')[0].duracao_min).toBe(75)
+  })
+  it('não trava quando nenhuma divisão deixa as duas partes com 30+ min (faltam 45, o dia tem 30)', () => {
+    const r = gerarCronograma(base({ minutosDia: 30, questoesDia: 0, topicos: [t('a', 0, 3), t('b', 1)] })) // 75 = 30 + 30 + 15
+    expect(estudos(r, 'a').map(b => b.duracao_min)).toEqual([30, 30, 15])
+    expect(estudos(r, 'b').length).toBeGreaterThan(0)
+  })
+  it('assunto começado em partes: o gerador só agenda o que falta', () => {
+    const r = gerarCronograma(base({ minutosDia: 240, topicos: [{ ...t('a', 0, 3), feitoMin: 30 }] }))
+    expect(estudos(r, 'a').map(b => b.duracao_min)).toEqual([45])
+  })
+  it('lê a parte no título', () => {
+    expect(parteDoTitulo('Pré-eclâmpsia (parte 1 de 2)')).toEqual({ parte: 1, de: 2 })
+    expect(parteDoTitulo('HAS (Parte 1)')).toBeNull() // "(Parte 1)" faz parte do nome do assunto, não é divisão
+    expect(parteDoTitulo('Imunizações')).toBeNull(); expect(parteDoTitulo(null)).toBeNull()
+  })
+})
+it('data planejada de um assunto em partes é a da parte 1', () => {
+  expect(primeiraDataPorAssunto([{ topic_id: 'a', data: '2026-10-09' }, { topic_id: 'b', data: '2026-10-08' }, { topic_id: 'a', data: '2026-10-07' }, { topic_id: null, data: '2026-10-01' }]))
+    .toEqual([{ id: 'a', data: '2026-10-07' }, { id: 'b', data: '2026-10-08' }])
+})

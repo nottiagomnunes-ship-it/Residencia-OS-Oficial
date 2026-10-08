@@ -2,7 +2,7 @@ import { addDays, diffDays } from './review'
 import { weekStart } from './calendar'
 import { janelasDoDia, MIN_BLOCO, type Intervalo } from './compromissos'
 
-export type Topico = { id: string; nome: string; disciplineId: string; prioridade: number; dificuldade: number; plannedDate?: string | null; reforco?: boolean; ordem?: number | null; grupo?: string | null }
+export type Topico = { id: string; nome: string; disciplineId: string; prioridade: number; dificuldade: number; plannedDate?: string | null; reforco?: boolean; ordem?: number | null; grupo?: string | null; feitoMin?: number }
 export type Disc = { id: string; nome: string; peso: number }
 export type Bloco = { tipo: 'estudo' | 'questoes' | 'simulado'; topic_id: string | null; titulo: string; data: string; duracao_min: number; qtd_questoes: number | null; hora_ini?: string; hora_fim?: string; ordem_dia?: number }
 export type Entrada = {
@@ -18,7 +18,25 @@ const dow = (d: string) => new Date(d + 'T00:00:00Z').getUTCDay()
 const dias = (a: string, b: string) => Array.from({ length: diffDays(a, b) + 1 }, (_, i) => addDays(a, i))
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
 const score = (t: Topico) => (4 - t.prioridade) * 3 + t.dificuldade
-export const duracaoTopico = (t: Topico) => (t.reforco ? 45 : 60 + (t.dificuldade - 2) * 15)
+/** Tempo mínimo realista para estudar um assunto: o gerador nunca encolhe um assunto abaixo disso (dia curto = assunto em partes). */
+export const MIN_ASSUNTO = 60
+/** Duração de um assunto: 60 min no fácil, +15 por nível de dificuldade; reforço, 45. Nunca abaixo de MIN_ASSUNTO. */
+export const duracaoTopico = (t: Topico) => (t.reforco ? 45 : Math.max(MIN_ASSUNTO, 60 + (t.dificuldade - 2) * 15))
+/** O que ainda falta de um assunto já começado em partes (o já feito vem das partes concluídas); nunca menos que um bloco. */
+const restanteDe = (t: Topico) => (t.feitoMin && t.feitoMin > 0 ? Math.max(MIN_BLOCO, duracaoTopico(t) - t.feitoMin) : duracaoTopico(t))
+
+/** Um item por assunto com a data da PRIMEIRA vez que ele aparece (assunto em partes = data da parte 1), na ordem dos blocos. */
+export function primeiraDataPorAssunto(blocos: { topic_id: string | null; data: string }[]) {
+  const m = new Map<string, string>()
+  for (const b of [...blocos].sort((x, y) => x.data.localeCompare(y.data))) if (b.topic_id && !m.has(b.topic_id)) m.set(b.topic_id, b.data)
+  return [...m].map(([id, data]) => ({ id, data }))
+}
+
+/** "Assunto (parte 1 de 2)" → { parte: 1, de: 2 }. Usado para concluir uma parte sem encerrar o assunto. */
+export function parteDoTitulo(titulo: string | null | undefined) {
+  const m = /\(parte (\d+) de (\d+)\)\s*$/.exec(titulo ?? '')
+  return m ? { parte: Number(m[1]), de: Number(m[2]) } : null
+}
 
 /** Intercala disciplinas proporcionalmente ao peso (round-robin ponderado); dentro de cada uma, prioridade e dificuldade primeiro. */
 export function ordemDeEstudo(disciplinas: Disc[], todos: Topico[]) {
@@ -78,7 +96,7 @@ export function gerarCronograma(e: Entrada) {
   const minutosDiaDe = (d: string) => e.capacidadePorDia?.[d] ?? e.minutosDia
   const finalizar = (bl: Bloco[]) => (semHorarios ? numerarDia(bl) : colocar(bl, e))
   const ordem = [...(e.reforcos ?? []).map(t => ({ ...t, reforco: true })), ...ordemDeEstudo(e.disciplinas, e.topicos)]
-  const falta = (from: number) => ordem.slice(from).reduce((s, t) => s + duracaoTopico(t), 0)
+  const falta = (from: number) => ordem.slice(from).reduce((s, t) => s + restanteDe(t), 0)
   for (const t of e.fixos) blocos.push({ tipo: 'estudo', topic_id: t.id, titulo: t.nome, data: t.plannedDate!, duracao_min: duracaoTopico(t), qtd_questoes: null })
 
   const fimEstudo = addDays(e.prova, -1)
@@ -152,20 +170,37 @@ export function gerarCronograma(e: Entrada) {
     return { texto: corta(escolhido.nome), id: escolhido.id }
   }
 
+  // Cada assunto leva o tempo dele (mínimo de 60 min), sem ser encolhido para caber num dia curto: se o dia não comporta o que falta,
+  // o assunto entra em partes de pelo menos 30 min nos dias seguintes ("parte 1 de 2"). O título com as partes é posto no fim.
   let i = 0
+  const falta1 = new Map<string, number>(), partes = new Map<string, Bloco[]>()
+  const blocoDe = (t: Topico, d: string, dur: number) => {
+    const b: Bloco = { tipo: 'estudo', topic_id: t.reforco ? null : t.id, titulo: t.reforco ? `Reforço — ${t.nome}` : t.nome, data: d, duracao_min: dur, qtd_questoes: null }
+    blocos.push(b); partes.set(t.id, [...(partes.get(t.id) ?? []), b])
+  }
   for (const d of estudoDias) {
     const c0 = capDia(d); let livre = c0, primeira: Topico | null = null
-    if (c0 >= 30) while (i < ordem.length) {
-      const t = ordem[i], dur = Math.min(duracaoTopico(t), c0)
-      if (dur > livre || (alvo.get(t.id) ?? '') > d) break // ainda não é o dia-alvo deste assunto
-      blocos.push({ tipo: 'estudo', topic_id: t.reforco ? null : t.id, titulo: t.reforco ? `Reforço — ${t.nome}` : t.nome, data: d, duracao_min: dur, qtd_questoes: null })
-      primeira ??= t; livre -= dur; i++
+    if (c0 >= MIN_BLOCO) while (i < ordem.length) {
+      const t = ordem[i]
+      if ((alvo.get(t.id) ?? '') > d) break // ainda não é o dia-alvo deste assunto
+      const resta = falta1.get(t.id) ?? restanteDe(t)
+      if (resta <= livre) { blocoDe(t, d, resta); primeira ??= t; livre -= resta; i++; continue }
+      // não cabe inteiro: entra uma parte agora. De preferência as duas partes ficam com 30+ min; se não der (ex.: faltam 45 e o dia
+      // tem 30), usa o dia todo e o resto, menor, vai para o dia seguinte (senão o assunto nunca entraria e travaria os seguintes)
+      if (livre >= MIN_BLOCO) {
+        const parte = resta - livre >= MIN_BLOCO ? livre : resta - MIN_BLOCO >= MIN_BLOCO ? resta - MIN_BLOCO : livre
+        blocoDe(t, d, parte); primeira ??= t; falta1.set(t.id, resta - parte); livre -= parte
+      }
+      break
     }
     if (qtdDia(d) > 0 && livreTotal(d) >= MIN_BLOCO) {
       const fq = focoQuestoes(d), q = qtdDia(d)
       blocos.push({ tipo: 'questoes', topic_id: fq?.id ?? null, titulo: `${q} questões — ${fq?.texto ?? discFoco}`, data: d, duracao_min: q * 2, qtd_questoes: q })
     }
   }
+
+  // títulos das partes: "Assunto (parte 1 de 3)" etc., só para os assuntos que precisaram ser divididos
+  partes.forEach(bs => { if (bs.length > 1) bs.forEach((b, k) => { b.titulo = `${b.titulo} (parte ${k + 1} de ${bs.length})` }) })
 
   // reta final: por semana, o simulado vai para o dia com a maior janela contínua (se couber 90+ min); nos demais, questões
   const semanas = new Map<string, string[]>()

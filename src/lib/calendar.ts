@@ -7,6 +7,7 @@ import { rotuloDoDia } from '@/lib/engine/avisos'
 import { validarDesfazer, type Desfazer } from '@/lib/engine/movimento'
 import { addDays, xpEstudo } from '@/lib/engine/review'
 import { validarEdicaoTarefa, type EdicaoCampos } from '@/lib/engine/calendar'
+import { parteDoTitulo } from '@/lib/engine/schedule'
 import { concluirConteudo, concluirRevisao } from '@/lib/flow'
 import { conflitosComOcupados, descreverConflitos, hhmmParaMin, ocupadosPorData, paraCompromisso, type Intervalo } from '@/lib/engine/compromissos'
 
@@ -95,11 +96,22 @@ export async function desfazerMovimento(entrada: unknown): Promise<{ ok: boolean
 }
 /** Concluir usa o mesmo fluxo de Revisões/Conteúdos, então gera revisões, XP e estatísticas. */
 export async function concluirItem(id: string) {
-  const { sb } = await ctx()
+  const { sb, uid } = await ctx()
   const { data: i } = await sb.from('schedule_items').select(COLS).eq('id', id).single()
   if (!i || i.status === 'concluido') return
-  const f = new FormData()
+  const f = new FormData(), parte = parteDoTitulo(i.titulo)
   if (i.review_id) { f.set('review_id', i.review_id); await concluirRevisao(f) }
+  else if (i.tipo === 'estudo' && i.topic_id && parte && parte.parte < parte.de) {
+    // parte de um assunto dividido (não a última): conta o tempo e o XP, deixa o assunto "em andamento" e NÃO o conclui
+    // (as revisões só nascem quando o assunto termina; concluir a última parte conclui o assunto e as partes que restarem)
+    const min = i.duracao_min ?? 30
+    const { error } = await sb.rpc('registrar_dia', { p_dia: hojeBR(), p_xp: xpEstudo(min), p_min: min, p_q: 0, p_ac: 0 })
+    if (!error) {
+      await sb.from('study_sessions').insert({ user_id: uid, topic_id: i.topic_id, duration_min: min })
+      await sb.from('topics').update({ status: 'em_andamento' }).eq('id', i.topic_id).in('status', ['nao_iniciado', 'planejado'])
+      await sb.from('schedule_items').update({ status: 'concluido' }).eq('id', id)
+    }
+  }
   else if (i.tipo === 'estudo' && i.topic_id) { f.set('topic_id', i.topic_id); f.set('duration_min', String(i.duracao_min ?? 60)); await concluirConteudo(f) }
   else if (i.tipo === 'estudo') { // estudo sem assunto (reforço ou tarefa manual): conta como sessão de estudo
     const min = i.duracao_min ?? 60
