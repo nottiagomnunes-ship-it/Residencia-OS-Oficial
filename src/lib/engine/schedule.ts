@@ -109,16 +109,23 @@ export function gerarCronograma(e: Entrada) {
 
   // Ritmo por grupo (ex.: "Semana 1"): cada grupo ocupa uma semana de calendário (segunda a domingo) e seus assuntos ficam
   // espaçados entre os dias úteis do bloco (3 assuntos em 5 dias úteis → dias 1, 2 e 4), em vez de amontoados no primeiro dia.
-  const grupos: string[] = []
-  ordem.forEach(t => { if (t.grupo && !grupos.includes(t.grupo)) grupos.push(t.grupo) })
+  const gruposOriginais: string[] = []
+  ordem.forEach(t => { if (t.grupo && !gruposOriginais.includes(t.grupo)) gruposOriginais.push(t.grupo) })
   // A Semana 1 é a semana corrente; se restarem menos de 3 dias úteis nela, começa na próxima segunda (evita uma semana espremida)
   const segunda = weekStart(e.hoje)
   const restantes = estudoDias.filter(d => d <= addDays(segunda, 6) && capDia(d) >= MIN_BLOCO).length
   const semana0 = restantes >= 3 ? segunda : addDays(segunda, 7)
+  // Mais semanas no cronograma do que até a prova: junta semanas seguidas (de 2 em 2, de 3 em 3…), sempre com a data da prova ATUAL.
+  // Assim mudar a data e gerar de novo refaz o ritmo; a ordem e a alternância das áreas continuam as do cronograma.
+  const ultimo = estudoDias.at(-1)
+  const semanasAteProva = ultimo && ultimo >= semana0 ? Math.floor(diffDays(semana0, ultimo) / 7) + 1 : 0
+  const juntar = semanasAteProva > 0 ? Math.max(1, Math.ceil(gruposOriginais.length / semanasAteProva)) : 1
+  const grupoReal = new Map(gruposOriginais.map((g, k) => [g, juntar > 1 ? `Semanas ${k - (k % juntar) + 1}–${Math.min(k - (k % juntar) + juntar, gruposOriginais.length)}` : g]))
+  const grupos = [...new Set(grupoReal.values())], grupoDoTopico = (t: Topico) => (t.grupo ? grupoReal.get(t.grupo) ?? t.grupo : null)
   const alvo = new Map<string, string>(), fimGrupo = new Map<string, string>()
   grupos.forEach((g, gi) => {
     const ini = addDays(semana0, 7 * gi), fim = addDays(ini, 6)
-    const ts = ordem.filter(t => t.grupo === g), dd = estudoDias.filter(d => d >= ini && d <= fim && capDia(d) >= MIN_BLOCO)
+    const ts = ordem.filter(t => grupoDoTopico(t) === g), dd = estudoDias.filter(d => d >= ini && d <= fim && capDia(d) >= MIN_BLOCO)
     if (!dd.length) return
     fimGrupo.set(g, fim)
     ts.forEach((t, j) => alvo.set(t.id, dd[Math.floor((j * dd.length) / ts.length)]))
@@ -177,10 +184,23 @@ export function gerarCronograma(e: Entrada) {
     }
   }
 
-  const grupoDe = new Map(ordem.map(t => [t.id, t.grupo])), passou = new Map<string, number>()
-  for (const b of blocos) { const g = b.tipo === 'estudo' && b.topic_id ? grupoDe.get(b.topic_id) : null; if (g && fimGrupo.has(g) && b.data > fimGrupo.get(g)!) passou.set(g, (passou.get(g) ?? 0) + 1) }
-  passou.forEach((n, g) => avisos.push(`${n} ${n === 1 ? 'assunto' : 'assuntos'} de "${g}" não ${n === 1 ? 'coube' : 'couberam'} na semana e ${n === 1 ? 'foi' : 'foram'} para a seguinte. Libere mais tempo ou reduza os assuntos da semana.`))
+  if (juntar > 1) avisos.push(`O cronograma tem ${gruposOriginais.length} semanas e há ${semanasAteProva} até a reta final antes da prova: as semanas foram juntadas de ${juntar} em ${juntar}, na mesma ordem.`)
+  // Semanas que não comportam o ritmo: um aviso só, com o ritmo pedido, o que cabe e até quando o plano vai (antes: um aviso por semana)
+  const grupoDe = new Map(ordem.map(t => [t.id, grupoDoTopico(t)])), passou = new Map<string, number>()
+  const estudo = blocos.filter(b => b.tipo === 'estudo' && b.topic_id)
+  for (const b of estudo) { const g = grupoDe.get(b.topic_id!); if (g && fimGrupo.has(g) && b.data > fimGrupo.get(g)!) passou.set(g, (passou.get(g) ?? 0) + 1) }
+  // só avisa quando o atraso importa: o plano termina mais de uma semana depois do fim previsto pelo ritmo
+  // (escorregar alguns dias, como na primeira semana começada no meio, não vale aviso)
+  // (com assuntos que nem couberam antes da prova, o aviso de horas faltando, logo abaixo, já diz o que importa)
   const naoAlocados = ordem.length - i, minutosFaltantes = falta(i)
+  const fimPrevisto = [...fimGrupo.values()].sort().at(-1), fimReal = estudo.map(b => b.data).sort().at(-1)
+  if (!naoAlocados && passou.size && fimPrevisto && fimReal && fimReal > addDays(fimPrevisto, 7)) {
+    const porGrupo = grupos.length ? Math.round(ordem.filter(t => grupoDoTopico(t)).length / grupos.length) : 0
+    const porSemana = new Map<string, number>(); estudo.forEach(b => porSemana.set(weekStart(b.data), (porSemana.get(weekStart(b.data)) ?? 0) + 1))
+    const cabe = Math.max(1, Math.round([...porSemana.values()].reduce((a, b) => a + b, 0) / Math.max(1, porSemana.size)))
+    const br = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`
+    avisos.push(`O ritmo do cronograma pede cerca de ${porGrupo} assuntos por semana, mas no seu tempo cabem cerca de ${cabe}: o plano vai até ${br(fimReal)} em vez de ${br(fimPrevisto)}. Para seguir o ritmo, informe mais tempo em "Meu tempo" ou libere mais dias.`)
+  }
   if (naoAlocados) avisos.push(`Faltam cerca de ${Math.ceil(minutosFaltantes / 60)} h para cobrir ${naoAlocados} assuntos antes da prova. Informe mais tempo em "Meu tempo", libere mais dias ou remova assuntos de baixa prioridade.`)
   if (!estudoDias.length && ordem.length) avisos.push('Nenhum dia disponível antes da prova: revise os dias da semana nas configurações.')
   return { blocos: finalizar(blocos), naoAlocados, minutosFaltantes, avisos }
