@@ -81,7 +81,7 @@ describe('ritmo por semana', () => {
   const semanaDe = (r: ReturnType<typeof gerarCronograma>, id: string) => r.blocos.find(b => b.tipo === 'estudo' && b.topic_id === id)?.data
   it('mais semanas no cronograma do que até a prova: junta semanas seguidas, com a data ATUAL da prova', () => {
     const perto = gerarCronograma(base({ prova: '2026-12-15', topicos: semanas(20) })) // ~8 semanas até a reta final
-    expect(perto.avisos.join(' ')).toMatch(/O cronograma tem 20 semanas e há \d+ até a reta final.*juntadas de \d em \d/)
+    expect(perto.avisos.join(' ')).toMatch(/O cronograma tem 20 semanas e há 9 até a reta final antes da prova: 11 semanas foram juntadas à seguinte/)
     expect(semanaDe(perto, 't3')! <= '2026-10-04').toBe(true) // a "Semana 2" do cronograma já entra na primeira semana do plano
     const longe = gerarCronograma(base({ prova: '2027-09-15', topicos: semanas(20) })) // a mesma lista, prova mais distante
     expect(longe.avisos.join(' ')).not.toMatch(/juntadas/)
@@ -242,4 +242,42 @@ describe('assunto com tempo mínimo de 60 min (dia curto = assunto em partes)', 
 it('data planejada de um assunto em partes é a da parte 1', () => {
   expect(primeiraDataPorAssunto([{ topic_id: 'a', data: '2026-10-09' }, { topic_id: 'b', data: '2026-10-08' }, { topic_id: 'a', data: '2026-10-07' }, { topic_id: null, data: '2026-10-01' }]))
     .toEqual([{ id: 'a', data: '2026-10-07' }, { id: 'b', data: '2026-10-08' }])
+})
+
+describe('em dia curto, o assunto vem antes das questões', () => {
+  const t = (id: string, ordem: number, dificuldade = 3): Topico => ({ id, nome: id, disciplineId: 'A', prioridade: 2, dificuldade, ordem })
+  const doDia = (r: ReturnType<typeof gerarCronograma>, d: string) => r.blocos.filter(b => b.data === d)
+  it('1 h 30 por dia: o assunto de 75 min entra inteiro (antes virava parte 1 de 2 por causa da reserva das questões)', () => {
+    const r = gerarCronograma(base({ minutosDia: 90, topicos: [t('a', 0), t('b', 1)] }))
+    const a = r.blocos.filter(b => b.topic_id === 'a')
+    expect(a).toHaveLength(1); expect(a[0].duracao_min).toBe(75); expect(a[0].titulo).toBe('a')
+    const dia = doDia(r, a[0].data)
+    expect(dia.reduce((s, b) => s + b.duracao_min, 0)).toBeLessThanOrEqual(90) // nunca passa do tempo do dia
+    expect(dia.find(b => b.tipo === 'questoes')).toBeUndefined() // sobraram 15 min: menos de 10 questões não vira bloco
+  })
+  it('1 h por dia: assunto de 60 min entra inteiro; o de 75 continua em partes (não cabe no dia)', () => {
+    const r = gerarCronograma(base({ minutosDia: 60, topicos: [t('a', 0, 2), t('b', 1, 3)] }))
+    expect(r.blocos.filter(b => b.tipo === 'estudo' && b.topic_id === 'a').map(b => b.duracao_min)).toEqual([60])
+    expect(r.blocos.filter(b => b.tipo === 'estudo' && b.topic_id === 'b').length).toBeGreaterThan(1)
+  })
+  it('dia longo: nada muda, as questões continuam com a quantidade normal', () => {
+    const r = gerarCronograma(base({ minutosDia: 240, topicos: [t('a', 0), t('b', 1)] }))
+    const a = r.blocos.find(b => b.topic_id === 'a')!
+    expect(doDia(r, a.data).find(b => b.tipo === 'questoes')?.qtd_questoes).toBe(40)
+  })
+  it('dia sem assunto: questões normais', () => {
+    const r = gerarCronograma(base({ minutosDia: 90, topicos: [t('a', 0)] }))
+    const comQ = r.blocos.filter(b => b.tipo === 'questoes' && b.data < '2026-11-01' && !r.blocos.some(x => x.tipo === 'estudo' && x.data === b.data)) // antes da reta final
+    expect(comQ.length).toBeGreaterThan(0); expect(comQ.every(b => b.qtd_questoes === 15)).toBe(true) // 35% de 90 min = 15 questões
+  })
+})
+it('espalha as semanas pelo prazo (66 em 50: só 16 juntadas), em vez de juntar todas de 2 em 2', () => {
+  const g = (id: string, grupo: string, ordem: number): Topico => ({ id, nome: id, disciplineId: 'A', prioridade: 2, dificuldade: 2, ordem, grupo })
+  const tops = Array.from({ length: 66 * 3 }, (_, i) => g('t' + i, `Semana ${Math.floor(i / 3) + 1}`, i))
+  const r = gerarCronograma(base({ hoje: '2026-10-12', prova: '2027-10-08', diasDisponiveis: [1, 2, 3, 4, 5, 6], minutosDia: 120, topicos: tops }))
+  expect(r.avisos.join(' ')).toMatch(/66 semanas e há \d+ até a reta final antes da prova: \d+ semanas foram juntadas/)
+  const porSemana = new Map<string, number>()
+  r.blocos.filter(b => b.tipo === 'estudo').forEach(b => { const s = b.data.slice(0, 7); porSemana.set(s, (porSemana.get(s) ?? 0) + 1) })
+  const ultimo = r.blocos.filter(b => b.tipo === 'estudo').map(b => b.data).sort().at(-1)!
+  expect(ultimo > '2027-08-01').toBe(true) // usa o prazo todo (antes, juntando de 2 em 2, terminava em maio)
 })

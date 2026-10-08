@@ -137,8 +137,13 @@ export function gerarCronograma(e: Entrada) {
   // Assim mudar a data e gerar de novo refaz o ritmo; a ordem e a alternância das áreas continuam as do cronograma.
   const ultimo = estudoDias.at(-1)
   const semanasAteProva = ultimo && ultimo >= semana0 ? Math.floor(diffDays(semana0, ultimo) / 7) + 1 : 0
-  const juntar = semanasAteProva > 0 ? Math.max(1, Math.ceil(gruposOriginais.length / semanasAteProva)) : 1
-  const grupoReal = new Map(gruposOriginais.map((g, k) => [g, juntar > 1 ? `Semanas ${k - (k % juntar) + 1}–${Math.min(k - (k % juntar) + juntar, gruposOriginais.length)}` : g]))
+  // As semanas do cronograma são espalhadas pelas semanas disponíveis (66 em 50 → umas juntam 2, outras ficam com 1), e não todas
+  // de 2 em 2: assim o plano usa o prazo todo, com ~4 assuntos por semana em vez de 6, e sobram dias sem assunto para as questões.
+  const G = gruposOriginais.length, juntar = semanasAteProva > 0 && G > semanasAteProva ? G / semanasAteProva : 1
+  const semanaDoGrupo = (k: number) => (juntar > 1 ? Math.floor((k * semanasAteProva) / G) : k)
+  const membros = new Map<number, number[]>(); gruposOriginais.forEach((_, k) => membros.set(semanaDoGrupo(k), [...(membros.get(semanaDoGrupo(k)) ?? []), k]))
+  const rotulo = (k: number) => { const m = membros.get(semanaDoGrupo(k))!; return m.length > 1 ? `Semanas ${m[0] + 1}–${m.at(-1)! + 1}` : gruposOriginais[k] }
+  const grupoReal = new Map(gruposOriginais.map((g, k) => [g, juntar > 1 ? rotulo(k) : g]))
   const grupos = [...new Set(grupoReal.values())], grupoDoTopico = (t: Topico) => (t.grupo ? grupoReal.get(t.grupo) ?? t.grupo : null)
   const alvo = new Map<string, string>(), fimGrupo = new Map<string, string>()
   grupos.forEach((g, gi) => {
@@ -179,12 +184,15 @@ export function gerarCronograma(e: Entrada) {
     blocos.push(b); partes.set(t.id, [...(partes.get(t.id) ?? []), b])
   }
   for (const d of estudoDias) {
-    const c0 = capDia(d); let livre = c0, primeira: Topico | null = null
+    const c0 = capDia(d), reservaQ = qMinDe(d); let livre = c0, primeira: Topico | null = null, emprestado = 0
     if (c0 >= MIN_BLOCO) while (i < ordem.length) {
       const t = ordem[i]
       if ((alvo.get(t.id) ?? '') > d) break // ainda não é o dia-alvo deste assunto
       const resta = falta1.get(t.id) ?? restanteDe(t)
       if (resta <= livre) { blocoDe(t, d, resta); primeira ??= t; livre -= resta; i++; continue }
+      // o 1º assunto do dia só não cabe por causa do tempo reservado às questões: o assunto vem primeiro (entra inteiro, sem virar
+      // "parte 1 de 2") e as questões ficam com o que sobrar. Em dia longo nada muda: a reserva das questões continua.
+      if (!primeira && resta <= livre + reservaQ) { emprestado = resta - livre; blocoDe(t, d, resta); primeira = t; livre = 0; i++; break }
       // não cabe inteiro: entra uma parte agora. De preferência as duas partes ficam com 30+ min; se não der (ex.: faltam 45 e o dia
       // tem 30), usa o dia todo e o resto, menor, vai para o dia seguinte (senão o assunto nunca entraria e travaria os seguintes)
       if (livre >= MIN_BLOCO) {
@@ -193,8 +201,9 @@ export function gerarCronograma(e: Entrada) {
       }
       break
     }
-    if (qtdDia(d) > 0 && livreTotal(d) >= MIN_BLOCO) {
-      const fq = focoQuestoes(d), q = qtdDia(d)
+    const q = emprestado ? Math.min(qtdDia(d), Math.floor((reservaQ - emprestado) / 2 / 5) * 5) : qtdDia(d) // se o assunto usou parte do tempo das questões, só o resto
+    if (q >= 10 && livreTotal(d) >= MIN_BLOCO) {
+      const fq = focoQuestoes(d)
       blocos.push({ tipo: 'questoes', topic_id: fq?.id ?? null, titulo: `${q} questões — ${fq?.texto ?? discFoco}`, data: d, duracao_min: q * 2, qtd_questoes: q })
     }
   }
@@ -219,7 +228,7 @@ export function gerarCronograma(e: Entrada) {
     }
   }
 
-  if (juntar > 1) avisos.push(`O cronograma tem ${gruposOriginais.length} semanas e há ${semanasAteProva} até a reta final antes da prova: as semanas foram juntadas de ${juntar} em ${juntar}, na mesma ordem.`)
+  if (juntar > 1) avisos.push(`O cronograma tem ${G} semanas e há ${semanasAteProva} até a reta final antes da prova: ${G - grupos.length} ${G - grupos.length === 1 ? 'semana foi juntada' : 'semanas foram juntadas'} à seguinte, na mesma ordem.`)
   // Semanas que não comportam o ritmo: um aviso só, com o ritmo pedido, o que cabe e até quando o plano vai (antes: um aviso por semana)
   const grupoDe = new Map(ordem.map(t => [t.id, grupoDoTopico(t)])), passou = new Map<string, number>()
   const estudo = blocos.filter(b => b.tipo === 'estudo' && b.topic_id)
