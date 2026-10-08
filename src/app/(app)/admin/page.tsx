@@ -4,6 +4,9 @@ import { supabaseServer } from '@/lib/supabase/server'
 import { ehAdmin, aplicarFiltroAdmin, sincronizarBancoGeral, type FiltroAdmin } from '@/lib/banco-data'
 import { textoDosBlocos, type Bloco } from '@/lib/engine/provas'
 import { fmtData } from '@/components/ui'
+import { carregarFunil } from '@/lib/funil-data'
+import FunilPrimeirosPassos from '@/components/admin/Funil'
+import { hojeBR } from '@/lib/dates'
 
 const PENDENCIAS: { adm: FiltroAdmin; titulo: string; dica: string }[] = [
   { adm: 'falta-publicar', titulo: 'Alteradas, falta publicar', dica: 'Você mudou depois de publicar: as outras contas ainda veem a versão antiga.' },
@@ -19,7 +22,8 @@ export default async function Pendencias() {
   await sincronizarBancoGeral(sb)
   const contar = (adm: FiltroAdmin) => aplicarFiltroAdmin(sb.from('banco_questoes').select('id', { count: 'exact', head: true }), adm)
   const desde = new Date(Date.now() - 24 * 3600e3).toISOString()
-  const [{ count: total }, { count: nMsgs, error: eMsgs }, { count: nPedidos }, { count: nErros }, { data: reportes, error: eRep }, ...cs] = await Promise.all([
+  const [funil, { count: total }, { count: nMsgs, error: eMsgs }, { count: nPedidos }, { count: nErros }, { data: reportes, error: eRep }, ...cs] = await Promise.all([
+    carregarFunil(hojeBR()), // primeiros passos de todas as contas (só contagens), com a chave de serviço
     sb.from('banco_questoes').select('id', { count: 'exact', head: true }),
     sb.from('mensagens').select('id', { count: 'exact', head: true }).is('resolvida_em', null),
     sb.from('mensagens').select('id', { count: 'exact', head: true }).is('resolvida_em', null).eq('tipo', 'prova'),
@@ -46,6 +50,8 @@ export default async function Pendencias() {
         {!!nMsgs && <span><b className="text-lg text-warn">{nMsgs}</b> em aberto{nPedidos ? ` (${nPedidos} pedido${nPedidos > 1 ? 's' : ''} de prova)` : ''}</span>}
         {!!nErros && <span><b className="text-lg text-danger">{nErros}</b> erro{nErros > 1 ? 's' : ''} do site nas últimas 24 h</span>}
         <span className="ml-auto text-muted">Abrir →</span></Link>}
+
+      <FunilPrimeirosPassos dados={funil} />
 
       {abertos.length > 0 && <section className="space-y-3 rounded-2xl border border-danger/40 bg-surface p-5 text-sm">
         <h2 className="font-medium text-danger">Explicações reportadas ({abertos.length})</h2>

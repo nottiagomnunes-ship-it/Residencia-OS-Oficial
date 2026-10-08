@@ -40,7 +40,7 @@ export default function Privacidade() {
         <li><b>Vercel:</b> hospedagem do site e análise de uso anônima (Vercel Web Analytics e Speed Insights).</li>
         <li><b>Resend:</b> envio do lembrete por e-mail (só o seu e-mail e o conteúdo do lembrete).</li>
       </ul>
-      <p>A administração do app consegue ver as mensagens que você envia e os erros registrados. Seus dados de estudo são protegidos por regras de acesso por conta: as outras pessoas que usam o app não os veem.</p>
+      <p>A administração do app consegue ver as mensagens que você envia, os erros registrados e números gerais de uso (por exemplo, quantas contas terminaram o cadastro ou voltaram em outro dia), sem ver o que cada pessoa estudou. Seus dados de estudo são protegidos por regras de acesso por conta: as outras pessoas que usam o app não os veem.</p>
 
       <h2>4. Cookies e armazenamento no aparelho</h2>
       <p>Usamos só o necessário: cookies de sessão (para manter você conectado) e de preferências deste aparelho (menu recolhido, tamanho do texto), e o armazenamento local do navegador para não perder uma prova em andamento. Nada disso é usado para publicidade. A análise de uso não grava cookies nem nada no seu aparelho.</p>

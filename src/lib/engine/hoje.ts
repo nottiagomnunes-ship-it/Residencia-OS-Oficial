@@ -19,3 +19,22 @@ export function fraseDoDia(revisoesHoje: number, atrasadas: number, temAssuntos:
   if (tarefasPendentes > 0) return `Nenhuma revisão pendente. ${tarefasPendentes === 1 ? '1 tarefa' : `${tarefasPendentes} tarefas`} no plano de hoje.`
   return 'Nenhuma revisão pendente e nada no plano de hoje.'
 }
+
+type ItemDoDia = { id: string; tipo: string; titulo: string; duracao_min: number | null; topic_id: string | null }
+export type PrimeiroPasso =
+  | { tipo: 'estudar'; titulo: string; minutos: number | null; href: string }
+  | { tipo: 'sem-assuntos' }
+  | { tipo: 'sem-plano-hoje' }
+  | null
+
+/**
+ * O cartão "Comece por aqui" de Hoje, só enquanto a pessoa ainda não concluiu nenhuma tarefa:
+ * aponta a primeira tarefa de estudo do dia; sem assuntos, leva ao cronograma pronto/importação; com assuntos mas nada hoje, ao cronograma.
+ */
+export function primeiroPasso(jaConcluiuAlgo: boolean, temAssuntos: boolean, itens: readonly ItemDoDia[]): PrimeiroPasso {
+  if (jaConcluiuAlgo) return null
+  if (!temAssuntos) return { tipo: 'sem-assuntos' }
+  const t = itens.find(i => i.tipo === 'estudo' && i.topic_id)
+  if (t) return { tipo: 'estudar', titulo: t.titulo, minutos: t.duracao_min, href: `/conteudos/${t.topic_id}` }
+  return itens.length ? null : { tipo: 'sem-plano-hoje' }
+}

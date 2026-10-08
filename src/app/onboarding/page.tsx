@@ -1,6 +1,7 @@
 import { supabaseServer } from '@/lib/supabase/server'
 import { NOME_CRONOGRAMA_PADRAO } from '@/lib/engine/cronograma-padrao'
-import { DISCIPLINAS_PADRAO as DISCIPLINAS, type Comeco } from '@/lib/engine/comeco'
+import { nomeInicial, estimarProva, type Comeco } from '@/lib/engine/comeco'
+import { hojeBR } from '@/lib/dates'
 import { salvarOnboarding as salvar } from '@/lib/onboarding'
 import BotaoEnviar from '@/components/BotaoEnviar'
 
@@ -11,33 +12,31 @@ const OPCOES: { valor: Comeco; titulo: string; texto: string }[] = [
   { valor: 'vazio', titulo: 'Começar vazio', texto: 'Você adiciona os assuntos depois, em Matérias.' },
 ]
 
-
 export default async function Onboarding() {
   const sb = await supabaseServer()
-  const [{ data: p }, { data: ds }, { count: nAssuntos }] = await Promise.all([sb.from('profiles').select('nome').single(), sb.from('disciplines').select('id,nome,peso').order('ordem'),
-    sb.from('topics').select('id', { count: 'exact', head: true })])
+  const [{ data: p }, { count: nAssuntos }, { data: { user } }] = await Promise.all([sb.from('profiles').select('nome,exam_date').single(),
+    sb.from('topics').select('id', { count: 'exact', head: true }), sb.auth.getUser()])
   const escolher = !nAssuntos // conta nova (sem assuntos): escolhe como começar
-  const lista = ds?.length ? ds.map(d => ({ chave: d.id as string, nome: d.nome as string, peso: d.peso as number })) : DISCIPLINAS.map((nome, i) => ({ chave: String(i), nome, peso: 3 }))
+  const nome = nomeInicial(p?.nome, user?.user_metadata) // quem entrou pelo Google já chega com o nome
+  const estimativa = estimarProva(hojeBR()).split('-').reverse().join('/') // dd/mm/aaaa
   const input = 'rounded-xl border border-line bg-bg px-3 py-2 outline-none focus:border-brand'
   return (
     <main className="mx-auto max-w-xl p-6">
       <form action={salvar} className="space-y-6 rounded-2xl border border-line bg-surface p-8">
         <div><h1 className="text-2xl font-semibold">Vamos montar seu plano</h1>
-          <p className="text-sm text-muted">Com essas respostas o sistema organiza seu cronograma.</p></div>
-        <label className="block space-y-1"><span className="text-sm">Seu nome</span><input name="nome" required defaultValue={p?.nome ?? ''} className={input + ' w-full'} /></label>
-        <label className="block space-y-1"><span className="text-sm">Data da prova</span><input name="exam_date" type="date" required className={input} /></label>
-        <div className="grid grid-cols-2 gap-4">
-          <label className="space-y-1"><span className="text-sm">Horas de estudo por dia</span><input name="horas" type="number" inputMode="numeric" min={1} max={16} defaultValue={2} className={input + ' w-full'} /></label>
-          <label className="space-y-1"><span className="text-sm">Questões por dia</span><input name="questoes" type="number" inputMode="numeric" min={0} defaultValue={40} className={input + ' w-full'} /></label>
-        </div>
-        <fieldset><legend className="mb-2 text-sm">Dias disponíveis</legend>
+          <p className="text-sm text-muted">Quatro respostas rápidas. Tudo dá para mudar depois em Configurações.</p></div>
+        <label className="block space-y-1"><span className="text-sm">Seu nome</span><input name="nome" required defaultValue={nome} autoComplete="given-name" className={input + ' w-full'} /></label>
+        <fieldset className="space-y-2"><legend className="text-sm">Data da prova</legend>
+          <input name="exam_date" type="date" aria-label="Data da prova" defaultValue={p?.exam_date ?? ''} className={input} />
+          <label className="flex items-start gap-2 text-sm text-muted"><input type="checkbox" name="prova_nao_sei" value="1" className="mt-1 accent-brand" />
+            <span>Ainda não sei: usar {estimativa} por enquanto</span></label></fieldset>
+        <label className="block space-y-1"><span className="text-sm">Quanto tempo você costuma ter para estudar num dia comum?</span>
+          <select name="horas" defaultValue="2" className={input}>{[['0.5', '30 min'], ['1', '1 h'], ['1.5', '1 h 30'], ['2', '2 h'], ['3', '3 h'], ['4', '4 h'], ['6', '6 h']].map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select>
+          <span className="block text-xs text-muted">É só o ponto de partida: na tela Hoje você diz quanto tem em cada dia.</span></label>
+        <fieldset><legend className="mb-2 text-sm">Em que dias você estuda?</legend>
           <div className="flex flex-wrap gap-2">{DIAS.map((d, i) => (
             <label key={d} className="cursor-pointer rounded-lg border border-line px-3 py-1.5 text-sm has-[:checked]:border-brand has-[:checked]:text-brand">
               <input type="checkbox" name="dias" value={i} defaultChecked={i > 0} className="sr-only" />{d}</label>))}</div></fieldset>
-        <fieldset><legend className="mb-2 text-sm">Peso de cada disciplina (1 a 5)</legend>
-          <div className="space-y-2">{lista.map(d => (
-            <label key={d.chave} className="flex items-center justify-between gap-4"><span>{d.nome}</span>
-              <select name={`peso_${d.chave}`} defaultValue={d.peso} className={input}>{[1, 2, 3, 4, 5].map(n => <option key={n}>{n}</option>)}</select></label>))}</div></fieldset>
         {escolher && <fieldset><legend className="mb-2 text-sm">Como quer começar?</legend>
           <div className="space-y-2">{OPCOES.map(o => (
             <label key={o.valor} className="flex cursor-pointer items-start gap-3 rounded-xl border border-line p-3 has-[:checked]:border-brand has-[:checked]:bg-brand/5">

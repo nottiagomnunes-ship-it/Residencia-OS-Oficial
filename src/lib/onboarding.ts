@@ -6,7 +6,7 @@ import { importarCronograma } from '@/lib/importar'
 import { planejarCronograma } from '@/lib/schedule'
 import { CRONOGRAMA_PADRAO, ajustarAoPrazo } from '@/lib/engine/cronograma-padrao'
 import { hojeBR } from '@/lib/dates'
-import { lerComeco, DISCIPLINAS_PADRAO, type Comeco } from '@/lib/engine/comeco'
+import { lerComeco, dataDaProva, DISCIPLINAS_PADRAO, type Comeco } from '@/lib/engine/comeco'
 
 const CORES = ['#22C55E', '#3B82F6', '#F59E0B', '#EC4899', '#A855F7', '#EF4444']
 
@@ -15,17 +15,19 @@ export async function salvarOnboarding(fd: FormData) {
   const sb = await supabaseServer()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) redirect('/login')
+  // Assistente curto: nome, prova (ou "ainda não sei"), tempo de um dia comum e dias da semana. Questões por dia e pesos ficam no padrão
+  // e mudam depois em Configurações e em Matérias.
+  const prova = dataDaProva(fd.get('exam_date'), fd.get('prova_nao_sei') === '1', hojeBR())
+  const horas = Number(fd.get('horas')), dias = fd.getAll('dias').map(Number).filter(d => d >= 0 && d <= 6)
   await sb.from('profiles').update({
-    nome: String(fd.get('nome')), exam_date: String(fd.get('exam_date')),
-    daily_minutes: Number(fd.get('horas')) * 60, daily_questions_goal: Number(fd.get('questoes')),
-    available_weekdays: fd.getAll('dias').map(Number), onboarded: true,
+    nome: String(fd.get('nome') || '').trim().slice(0, 80), exam_date: prova.data,
+    daily_minutes: (horas >= 0.5 && horas <= 16 ? horas : 2) * 60,
+    available_weekdays: dias.length ? dias : [1, 2, 3, 4, 5, 6], onboarded: true,
   }).eq('id', user.id)
-  // Nunca apaga disciplinas (isso levaria os assuntos junto): se já existem, só atualiza os pesos; se não, cria as padrão.
+  // Nunca apaga disciplinas (isso levaria os assuntos junto) nem mexe nos pesos de quem já tem; numa conta nova, cria as padrão com peso 3.
   const { data: ja } = await sb.from('disciplines').select('id')
-  if (ja?.length) {
-    for (const d of ja) { const v = Number(fd.get(`peso_${d.id}`)); if (v >= 1 && v <= 5) await sb.from('disciplines').update({ peso: v }).eq('id', d.id) }
-  } else {
-    await sb.from('disciplines').insert(DISCIPLINAS_PADRAO.map((nome, i) => ({ user_id: user.id, nome, cor: CORES[i], ordem: i, peso: Number(fd.get(`peso_${i}`)) })))
+  if (!ja?.length) {
+    await sb.from('disciplines').insert(DISCIPLINAS_PADRAO.map((nome, i) => ({ user_id: user.id, nome, cor: CORES[i], ordem: i, peso: 3 })))
     await atribuirAreasPorNome(sb, [...DISCIPLINAS_PADRAO])
   }
   // Como começar: só para quem ainda não tem assuntos (refazer o assistente nunca mexe num plano que já existe).
@@ -35,7 +37,7 @@ export async function salvarOnboarding(fd: FormData) {
   if (comeco === 'pronto') {
     // mesmo caminho da importação; "substituir" tira as disciplinas padrão que ficarem vazias (ex.: Clínica Médica, já que o cronograma usa as especialidades)
     // com a prova antes das 66 semanas, junta semanas para caber (deixando o último mês para revisão)
-    const imp = await importarCronograma(ajustarAoPrazo(CRONOGRAMA_PADRAO, hojeBR(), String(fd.get('exam_date') || '')), true)
+    const imp = await importarCronograma(ajustarAoPrazo(CRONOGRAMA_PADRAO, hojeBR(), prova.data), true)
     if (!imp.ok) redirect('/importar?erro=' + encodeURIComponent('Não foi possível carregar o cronograma pronto. Tente de novo por aqui.'))
     const plano = await planejarCronograma()
     if (!plano.ok) redirect('/cronograma?msg=' + encodeURIComponent(plano.msg))
