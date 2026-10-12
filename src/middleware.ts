@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { destinoDoDominio } from '@/lib/engine/dominio'
-import { destinoDoLogin } from '@/lib/engine/rotas'
+import { conviteDoCaminho, destinoDoLogin } from '@/lib/engine/rotas'
 
 export async function middleware(req: NextRequest) {
   // endereço antigo (r1tmo.vercel.app) → endereço principal, antes de tudo (308 mantém o método e o corpo)
@@ -20,7 +20,13 @@ export async function middleware(req: NextRequest) {
   })
   const { data: { user } } = await sb.auth.getUser()
   const destino = destinoDoLogin(req.nextUrl.pathname, !!user) // páginas públicas e quem já entrou: src/lib/engine/rotas.ts
-  if (destino) return NextResponse.redirect(new URL(destino, req.url))
+  if (destino) {
+    const r = NextResponse.redirect(new URL(destino, req.url))
+    // convite de grupo aberto sem conta: guarda o código para oferecer em Hoje depois de entrar (ou criar a conta)
+    const convite = conviteDoCaminho(req.nextUrl.pathname, req.nextUrl.searchParams.get('codigo'))
+    if (convite && !user) r.cookies.set('convite', convite, { path: '/', maxAge: 7 * 86400, sameSite: 'lax', httpOnly: true, secure: true })
+    return r
+  }
   return res
 }
 export const config = { matcher: ['/((?!_next|_vercel|favicon.ico|manifest.webmanifest|icons/|sw.js|offline.html|opengraph-image|twitter-image).*)'] }

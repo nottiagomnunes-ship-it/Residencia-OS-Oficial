@@ -13,7 +13,7 @@ describe('o app em 5 seções', () => {
   it('as abas de cada seção', () => {
     expect(SECOES.map(s => s.abas.map(([n]) => n))).toEqual([
       ['Hoje', 'Revisões'], ['Calendário', 'Plano', 'Meu tempo', 'Compromissos'], ['Praticar', 'Banco', 'Provas', 'Registrar', 'Erros'],
-      ['Disciplinas', 'Assuntos'], ['Desempenho', 'Metas', 'Simulados']])
+      ['Disciplinas', 'Assuntos'], ['Desempenho', 'Metas', 'Simulados', 'Grupos']])
   })
   it('toda aba leva a uma página que existe, e nenhuma aparece duas vezes', () => {
     for (const [nome, href] of TODAS_AS_ABAS) expect(pagina(href), `${nome} → ${href}`).toBe(true)
