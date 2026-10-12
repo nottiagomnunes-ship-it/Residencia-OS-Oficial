@@ -48,3 +48,35 @@ export function gruposSemProva(geral: readonly GeralComNumero[], jaEmProva: Read
   }
   return [...m.values()].sort((a, b) => b.questoes - a.questoes || b.ano - a.ano)
 }
+
+export type Situacao = 'todas' | 'nao_feitas' | 'andamento' | 'feitas'
+export type FiltroProvas = { busca?: string; banca?: string; ano?: string; situacao?: Situacao; completas?: boolean }
+const sem = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
+/** Lê o filtro do endereço (?busca=&banca=&ano=&situacao=&completas=1), ignorando valores inválidos. */
+export function lerFiltroProvas(sp: Record<string, string | undefined>): FiltroProvas {
+  const sit = ['nao_feitas', 'andamento', 'feitas'].includes(sp.situacao ?? '') ? (sp.situacao as Situacao) : 'todas'
+  return { busca: (sp.busca ?? '').trim().slice(0, 60), banca: (sp.banca ?? '').trim(), ano: /^\d{4}$/.test(sp.ano ?? '') ? sp.ano : '', situacao: sit, completas: sp.completas === '1' }
+}
+
+/** Bancas e anos que existem nas provas (para os menus do filtro). Anos do mais novo ao mais antigo. */
+export function opcoesDoFiltro(provas: readonly { banca: string; ano: number }[]) {
+  return {
+    bancas: [...new Set(provas.map(p => p.banca).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR')),
+    anos: [...new Set(provas.map(p => p.ano).filter(Boolean))].sort((a, b) => b - a),
+  }
+}
+
+/**
+ * Aplica o filtro. A busca procura cada palavra no nome e na banca, sem acento ("usp sp 2025").
+ * `situacao(id)` diz se a pessoa nunca fez, está fazendo ou já fez a prova.
+ */
+export function filtrarProvas<T extends ProvaParaFazer>(provas: readonly T[], f: FiltroProvas, situacao: (id: string) => Exclude<Situacao, 'todas'>): T[] {
+  const termos = sem(f.busca ?? '').split(/\s+/).filter(Boolean)
+  return provas.filter(p =>
+    (!f.banca || p.banca === f.banca) && (!f.ano || String(p.ano) === f.ano) && (!f.completas || p.completa)
+    && (!f.situacao || f.situacao === 'todas' || situacao(p.id) === f.situacao)
+    && termos.every(t => sem(`${p.nome} ${p.banca} ${p.ano}`).includes(t)))
+}
+
+export const filtroAtivo = (f: FiltroProvas) => !!(f.busca || f.banca || f.ano || f.completas || (f.situacao && f.situacao !== 'todas'))

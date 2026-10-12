@@ -3,15 +3,15 @@ import { supabaseServer } from '@/lib/supabase/server'
 import { iniciarTentativa } from '@/lib/provas'
 import { fazerProvaDoBanco } from '@/lib/banco'
 import { sincronizarBancoGeral } from '@/lib/banco-data'
-import { provasParaFazer, type ProvaGeral, type Ligacao, type MinhaQuestao } from '@/lib/engine/provas-banco'
+import { provasParaFazer, lerFiltroProvas, opcoesDoFiltro, filtrarProvas, filtroAtivo, type ProvaGeral, type Ligacao, type MinhaQuestao } from '@/lib/engine/provas-banco'
 import { relogio } from '@/lib/engine/provas'
 import { pct } from '@/lib/engine/desempenho'
-import { fmtData } from '@/components/ui'
+import { fmtData, inputCls } from '@/components/ui'
 import AvisoDaUrl from '@/components/AvisoDaUrl'
 import { todasAsLinhas } from '@/lib/paginar'
 
-export default async function Provas({ searchParams }: { searchParams: Promise<{ ok?: string; erro?: string }> }) {
-  const { ok, erro } = await searchParams
+export default async function Provas({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const sp = await searchParams, { ok, erro } = sp, filtro = lerFiltroProvas(sp)
   const sb = await supabaseServer()
   await sincronizarBancoGeral(sb) // as questões novas do banco geral (e das provas) chegam antes de contar
   // só as provas (as listas do banco de questões ficam na página do banco); sem a 0034, o campo "tipo" não existe e vêm todas
@@ -27,6 +27,8 @@ export default async function Provas({ searchParams }: { searchParams: Promise<{
   const doBanco = ePg ? [] : provasParaFazer((pgs ?? []) as ProvaGeral[], (ligs ?? []) as Ligacao[], (minhas ?? []) as MinhaQuestao[])
   // a última nota e a tentativa em andamento de cada prova do banco (pelas provas da conta montadas a partir dela)
   const tentativasDe = (id: string) => { const ids = new Set((provas ?? []).filter(p => p.prova_geral === id).map(p => p.id)); return (ts ?? []).filter(t => ids.has(t.prova_id)) }
+  const situacao = (id: string) => { const tt = tentativasDe(id); return tt.some(t => t.status !== 'corrigida') ? 'andamento' as const : tt.length ? 'feitas' as const : 'nao_feitas' as const }
+  const { bancas, anos } = opcoesDoFiltro(doBanco), mostradas = filtrarProvas(doBanco, filtro, situacao), filtrando = filtroAtivo(filtro)
   const fazer = (id: string, rotulo: string, cls: string) => (
     <form action={fazerProvaDoBanco}><input type="hidden" name="prova" value={id} /><input type="hidden" name="volta" value="/provas" />
       <button className={cls}>{rotulo}</button></form>)
@@ -42,7 +44,23 @@ export default async function Provas({ searchParams }: { searchParams: Promise<{
       {!error && <section className="space-y-3">
         <h2 className="font-medium">Provas do banco</h2>
         {!doBanco.length && <p className="rounded-2xl border border-dashed border-line p-6 text-center text-sm text-muted">{ePg ? 'As provas do banco ainda não estão ativas (falta atualizar o banco de dados).' : 'Ainda não há provas no banco. Elas vão sendo adicionadas pela administração.'}</p>}
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{doBanco.map(p => { const tt = tentativasDe(p.id), u = tt.find(t => t.status === 'corrigida'), a = tt.find(t => t.status !== 'corrigida'); return (
+        {doBanco.length > 3 && (
+          <form method="get" role="search" aria-label="Filtrar provas" className="flex flex-wrap items-end gap-3 rounded-2xl border border-line bg-surface p-4">
+            <label className="min-w-0 flex-1 space-y-1 text-sm sm:max-w-xs"><span className="block">Buscar</span>
+              <input name="busca" type="search" defaultValue={filtro.busca} placeholder="Ex.: USP 2025" className={inputCls + ' w-full'} /></label>
+            <label className="space-y-1 text-sm"><span className="block">Banca</span>
+              <select name="banca" defaultValue={filtro.banca} className={inputCls}><option value="">Todas</option>{bancas.map(b => <option key={b} value={b}>{b}</option>)}</select></label>
+            <label className="space-y-1 text-sm"><span className="block">Ano</span>
+              <select name="ano" defaultValue={filtro.ano} className={inputCls}><option value="">Todos</option>{anos.map(a => <option key={a} value={a}>{a}</option>)}</select></label>
+            <label className="space-y-1 text-sm"><span className="block">Situação</span>
+              <select name="situacao" defaultValue={filtro.situacao} className={inputCls}><option value="todas">Todas</option><option value="nao_feitas">Não feitas</option><option value="andamento">Em andamento</option><option value="feitas">Já feitas</option></select></label>
+            <label className="flex items-center gap-2 py-2 text-sm"><input type="checkbox" name="completas" value="1" defaultChecked={filtro.completas} className="size-4 accent-[var(--c-brand)]" />Só completas</label>
+            <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-on-cor">Filtrar</button>
+            {filtrando && <Link href="/provas" className="py-2 text-sm text-brand hover:underline">Limpar</Link>}
+          </form>)}
+        {filtrando && <p className="text-sm text-muted">{mostradas.length} de {doBanco.length} {doBanco.length === 1 ? 'prova' : 'provas'}</p>}
+        {filtrando && !mostradas.length && <p className="rounded-2xl border border-dashed border-line p-6 text-center text-sm text-muted">Nenhuma prova com esse filtro. <Link href="/provas" className="text-brand underline">Ver todas</Link></p>}
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{mostradas.map(p => { const tt = tentativasDe(p.id), u = tt.find(t => t.status === 'corrigida'), a = tt.find(t => t.status !== 'corrigida'); return (
           <li key={p.id} className="flex flex-col gap-2 rounded-2xl border border-line bg-surface p-4">
             <b className="font-medium">{p.nome}</b>
             <p className="text-sm text-muted">{p.completa ? `${p.total} questões` : <span className="text-warn">{p.disponiveis} de {p.total} questões (incompleta)</span>}</p>
