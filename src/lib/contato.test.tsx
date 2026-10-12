@@ -28,6 +28,7 @@ vi.mock('@/lib/supabase/server', () => ({ supabaseServer: async () => ({
 }) }))
 vi.mock('@/lib/supabase/admin', () => ({ supabaseAdmin: () => ({ from: () => ({ insert: async (d: any) => { h.adminInserts.push(d); return { error: null } } }) }) }))
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }))
+vi.mock('@/lib/funil-data', () => ({ carregarFunil: async () => null })) // o funil do admin tem testes próprios
 vi.mock('next/navigation', () => ({ redirect: (u: string) => { h.redirects.push(u); throw new Error('REDIRECT') }, usePathname: () => '/x', useRouter: () => ({ push: () => {}, refresh: () => {} }) }))
 vi.mock('@/lib/supabase/client', () => ({ supabaseBrowser: () => ({}) }))
 

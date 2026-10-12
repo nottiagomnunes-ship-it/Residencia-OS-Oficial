@@ -14,7 +14,7 @@ import { dividirPorTempo, escolherAdiantar, formatarMinutos, OPCOES_TEMPO } from
 import { diffDays } from '@/lib/engine/review'
 import { Bar, fmtData } from '@/components/ui'
 import { adiantarTarefas } from '@/lib/reorganizar'
-import ReorganizarAtrasadas from '@/components/ReorganizarAtrasadas'
+import RecalcularRota from '@/components/RecalcularRota'
 
 type T = { id: string; tipo: string; titulo: string; data: string; hora_ini: string | null; hora_fim: string | null; duracao_min: number | null; topic_id: string | null; qtd_questoes: number | null }
 type Adiantavel = { id: string; titulo: string; data: string; duracao_min: number | null }
@@ -78,7 +78,7 @@ export default function TarefasHoje({ itens, hoje, concluidasHoje, minutosHoje, 
             <button type="button" onClick={() => escolher(agenda.sugestao)} className="rounded-xl border border-info px-3 py-1 text-info hover:bg-info/10">Usar {formatarMinutos(agenda.sugestao)}</button>
           </p>)}
       </div>
-      {recursos && r.atrasadas.length > 0 && <ReorganizarAtrasadas n={r.atrasadas.length} />}
+      {recursos && r.atrasadas.length > 0 && <RecalcularRota n={r.atrasadas.length} />}
       {minutos === 0 && <p className="text-sm">Sem tempo hoje? Tudo bem: nada é cobrado. As tarefas ficam para depois.</p>}
       {d.cabem.length > 0 && (
         <div className="space-y-1"><h3 className="text-sm font-medium text-info">Para fazer hoje ({formatarMinutos(d.usado)} de {formatarMinutos(minutos)})</h3><ul>{d.cabem.map(linha)}</ul>

@@ -3,9 +3,9 @@ import { renderToStaticMarkup } from 'react-dom/server'
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: () => {}, refresh: () => {} }) }))
 vi.mock('@/lib/calendar', () => ({ concluirItem: vi.fn(), adiarItem: vi.fn() }))
 vi.mock('@/lib/capacidade', () => ({ definirCapacidade: vi.fn() }))
-vi.mock('@/lib/reorganizar', () => ({ adiantarTarefas: vi.fn(), reorganizarAtrasadas: vi.fn(), previaReorganizar: vi.fn() }))
+vi.mock('@/lib/reorganizar', () => ({ adiantarTarefas: vi.fn() }))
 vi.mock('@/components/BotaoCronometro', () => ({ default: () => null }))
-vi.mock('@/components/ReorganizarAtrasadas', () => ({ default: () => null }))
+vi.mock('@/components/RecalcularRota', () => ({ default: () => null }))
 import TarefasHoje from './TarefasHoje'
 
 const base = { itens: [], hoje: '2026-10-07', concluidasHoje: 0, minutosHoje: 120, minutosFeitos: 0, adiantaveis: [], recursos: true }

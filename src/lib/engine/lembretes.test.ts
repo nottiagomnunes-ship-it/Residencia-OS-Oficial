@@ -61,7 +61,7 @@ describe('montarLembrete: conteúdo', () => {
   })
   it('avisos: tarefa maior que o tempo, reorganizar quando há 2 ou mais atrasadas, e erros do caderno', () => {
     expect(montarLembrete(base({ cabem: [T('G', 90)], usado: 90, minutos: 45, maiorQueOTempo: true }), 'u').texto).toContain('maior que o tempo informado')
-    expect(montarLembrete(base({ cabem: [T('A', 30, 1), T('B', 30, 2)], usado: 60, atrasadas: 2 }), 'u').texto).toContain('Reorganizar atrasadas')
+    expect(montarLembrete(base({ cabem: [T('A', 30, 1), T('B', 30, 2)], usado: 60, atrasadas: 2 }), 'u').texto).toContain('Recalcular rota')
     expect(montarLembrete(base({ cabem: [T('A', 30, 1)], usado: 30, atrasadas: 1 }), 'u').texto).not.toContain('Reorganizar')
     expect(montarLembrete(base({ cabem: [T('A')], usado: 30, erros: 2 }), 'u').texto).toContain('2 erros do caderno para revisar hoje.')
   })
