@@ -7,6 +7,8 @@ import { calcularPlano } from '@/lib/plano-data'
 /** Gera ou atualiza o cronograma: recalcula tudo que é automático e mantém revisões, concluídos e itens manuais. */
 export async function gerarCronogramaAction() {
   const r = await planejarCronograma()
+  // o plano foi refeito por fora do "Recalcular rota": desfazer o recálculo anterior apagaria este (sem a migração 0051, só não faz nada)
+  if (r.ok) await (await supabaseServer()).from('plano_versoes').delete().not('user_id', 'is', null)
   redirect('/cronograma?msg=' + encodeURIComponent(r.msg))
 }
 

@@ -100,7 +100,7 @@ export function gerarCronograma(e: Entrada) {
   for (const t of e.fixos) blocos.push({ tipo: 'estudo', topic_id: t.id, titulo: t.nome, data: t.plannedDate!, duracao_min: duracaoTopico(t), qtd_questoes: null })
 
   const fimEstudo = addDays(e.prova, -1)
-  if (fimEstudo < e.hoje) return { blocos: finalizar(blocos), naoAlocados: ordem.length, minutosFaltantes: falta(0), avisos: ['A data da prova é hoje ou já passou.'] }
+  if (fimEstudo < e.hoje) return { blocos: finalizar(blocos), naoAlocados: ordem.length, minutosFaltantes: falta(0), minutosNecessarios: falta(0), avisos: ['A data da prova é hoje ou já passou.'] }
 
   const todos = dias(e.hoje, fimEstudo), reserva = reservaRetaFinal(todos.length), corte = todos.length - reserva
   // um dia com tempo informado vale pelo que foi informado (zero = sem estudo); sem informação, vale o dia da semana disponível
@@ -247,5 +247,5 @@ export function gerarCronograma(e: Entrada) {
   }
   if (naoAlocados) avisos.push(`Faltam cerca de ${Math.ceil(minutosFaltantes / 60)} h para cobrir ${naoAlocados} assuntos antes da prova. Informe mais tempo em "Meu tempo", libere mais dias ou remova assuntos de baixa prioridade.`)
   if (!estudoDias.length && ordem.length) avisos.push('Nenhum dia disponível antes da prova: revise os dias da semana nas configurações.')
-  return { blocos: finalizar(blocos), naoAlocados, minutosFaltantes, avisos }
+  return { blocos: finalizar(blocos), naoAlocados, minutosFaltantes, minutosNecessarios: falta(0), avisos } // necessários = todos os assuntos que faltam (para a viabilidade)
 }
