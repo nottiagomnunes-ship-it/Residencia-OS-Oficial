@@ -10,6 +10,7 @@ import { corDaCategoria } from '@/lib/engine/agenda'
 import { Bar } from '@/components/ui'
 import { RitmoCard } from '@/components/RitmoCard'
 import { carregarRitmo, carregarModoRitmo } from '@/lib/ritmo-data'
+import RecalcularRota from '@/components/RecalcularRota'
 
 const COR: Record<string, string> = { concluido: 'border-brand', agendado: 'border-info', proximo: 'border-warn', atrasado: 'border-danger' }
 const TIPO: Record<string, string> = { estudo: 'Estudo', revisao: 'Revisão', questoes: 'Questões', flashcards: 'Flashcards', simulado: 'Simulado' }
@@ -17,11 +18,12 @@ const TIPO: Record<string, string> = { estudo: 'Estudo', revisao: 'Revisão', qu
 export default async function Cronograma({ searchParams }: { searchParams: Promise<{ msg?: string }> }) {
   const { msg } = await searchParams
   const sb = await supabaseServer(), hoje = hojeBR()
-  const [{ data: p }, { data: ts }, { data: it }, ag] = await Promise.all([
+  const [{ data: p }, { data: ts }, { data: it }, ag, { count: atrasadas }] = await Promise.all([
     sb.from('profiles').select('exam_date,daily_minutes,daily_questions_goal').single(),
     sb.from('topics').select('status'),
     sb.from('schedule_items').select('id,tipo,titulo,data,hora_ini,hora_fim,duracao_min,status').gte('data', hoje).lte('data', addDays(hoje, 6)).order('data').order('ordem_dia', { nullsFirst: false }).order('hora_ini', { nullsFirst: false }),
     agendaDosDias(sb, hoje, addDays(hoje, 6)),
+    sb.from('schedule_items').select('id', { count: 'exact', head: true }).lt('data', hoje).neq('status', 'concluido'),
   ])
   const total = ts?.length ?? 0, ok = ts?.filter(t => t.status === 'concluido').length ?? 0, pct = total ? Math.round((ok / total) * 100) : 0
   const dias = Array.from({ length: 7 }, (_, i) => addDays(hoje, i))
@@ -38,6 +40,7 @@ export default async function Cronograma({ searchParams }: { searchParams: Promi
           <Link href="/importar" className="rounded-xl border border-line px-4 py-2 text-sm hover:border-brand">Importar cronograma</Link>
           <form action={gerarCronogramaAction}><button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-on-cor">Gerar ou atualizar cronograma</button></form></div>
       </div>
+      {!!atrasadas && <RecalcularRota n={atrasadas} />}
       {msg && <p role="status" className="rounded-xl border border-line bg-surface p-4 text-sm">{msg}</p>}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         {card('Prova', p?.exam_date ? `em ${diffDays(hoje, p.exam_date)} dias` : 'sem data')}

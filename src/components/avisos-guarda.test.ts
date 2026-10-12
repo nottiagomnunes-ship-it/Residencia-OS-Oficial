@@ -19,7 +19,7 @@ describe('avisos: todo lugar do app usa o sistema único', () => {
   })
   it('o cronômetro, o painel Hoje, reorganizar e restaurar não têm mais aviso próprio', () => {
     expect(ler('src/components/CronometroProvider.tsx')).toContain("useAvisos()"); expect(ler('src/components/CronometroProvider.tsx')).not.toContain('setAviso')
-    expect(ler('src/components/TarefasHoje.tsx')).not.toMatch(/setAviso|avisoGesto/); expect(ler('src/components/ReorganizarAtrasadas.tsx')).not.toContain('setMsg'); expect(ler('src/components/RestaurarBackup.tsx')).not.toContain('setAviso')
+    expect(ler('src/components/TarefasHoje.tsx')).not.toMatch(/setAviso|avisoGesto/); expect(ler('src/components/RecalcularRota.tsx')).not.toContain('setMsg'); expect(ler('src/components/RestaurarBackup.tsx')).not.toContain('setAviso')
   })
   it('adiar e mover oferecem "Desfazer" no calendário e no painel Hoje', () => {
     for (const f of ['src/components/CalendarBoard.tsx', 'src/components/TarefasHoje.tsx']) { expect(ler(f), f).toContain('useAvisoDeMovimento'); expect(ler(f), f).toContain('avisarMovida(') }

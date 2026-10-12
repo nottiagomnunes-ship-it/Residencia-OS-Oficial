@@ -56,7 +56,7 @@ export function montarLembrete(d: DadosLembrete, urlApp: string) {
   const tituloPara = `Para fazer hoje (${formatarMinutos(d.usado)} de ${formatarMinutos(d.minutos)})`, tituloDepois = `Fica para depois (${d.depois.length})`
   const avisos = [
     d.maiorQueOTempo ? 'A primeira tarefa é maior que o tempo informado. Faça o que der.' : '',
-    d.atrasadas >= 2 ? `Você tem ${d.atrasadas} tarefas atrasadas. No app, toque em “Reorganizar atrasadas” para distribuí-las pelos próximos dias, dentro do seu tempo.` : '',
+    d.atrasadas >= 2 ? `Você tem ${d.atrasadas} tarefas atrasadas. No app, toque em “Recalcular rota” para refazer o plano a partir de hoje, com elas dentro.` : '',
     d.erros ? `${plural(d.erros, 'erro do caderno', 'erros do caderno')} para revisar hoje.` : '',
   ].filter(Boolean)
 
