@@ -3,7 +3,7 @@ import { filtrarProvas, filtroAtivo, lerFiltroProvas, opcoesDoFiltro, type Prova
 
 const P = (id: string, nome: string, banca: string, ano: number, completa = true): ProvaParaFazer => ({ id, nome, banca, ano, total: 100, disponiveis: completa ? 100 : 40, completa })
 const provas = [P('a', 'USP-SP 2025 – Acesso direto', 'USP-SP', 2025), P('b', 'UNIFESP 2024 – Acesso direto', 'UNIFESP', 2024, false), P('c', 'USP-SP 2024 – R+ Clínica', 'USP-SP', 2024), P('d', 'Revalida São Paulo 2023', 'SES-SP', 2023)]
-const sit = (id: string) => (id === 'a' ? 'feitas' : id === 'c' ? 'andamento' : 'nao_feitas') as const
+const sit = (id: string): 'feitas' | 'andamento' | 'nao_feitas' => (id === 'a' ? 'feitas' : id === 'c' ? 'andamento' : 'nao_feitas')
 const ids = (f: Parameters<typeof filtrarProvas>[1]) => filtrarProvas(provas, f, sit).map(p => p.id)
 
 describe('filtrar provas', () => {
