@@ -41,3 +41,24 @@ export function fraseDoFim(antes: string | null, depois: string | null) {
 }
 
 export const ultimaData = (ds: string[]) => (ds.length ? ds.reduce((a, b) => (b > a ? b : a)) : null)
+
+export type Modo = 'equilibrada' | 'leve'
+export const DIAS_DESFAZER = 7
+
+/** Viabilidade: das horas de assunto que faltam, quantas cabem no tempo até a prova (a reta final fica para questões e simulados). */
+export function viabilidade(minutosNecessarios: number, minutosFaltantes: number) {
+  const nec = Math.max(0, minutosNecessarios), cabe = Math.max(0, nec - Math.max(0, minutosFaltantes))
+  const pct = nec ? Math.floor((cabe / nec) * 100) : 100
+  return { necessarioH: Math.ceil(nec / 60), cabeH: Math.floor(cabe / 60), faltaH: Math.ceil((nec - cabe) / 60), pct }
+}
+
+/** O recálculo ainda pode ser desfeito? (até 7 dias depois) */
+export const podeDesfazer = (criadoEm: string | null | undefined, agora = new Date()) =>
+  !!criadoEm && agora.getTime() - new Date(criadoEm).getTime() < DIAS_DESFAZER * 86400000
+
+export const MSG_DESFAZER: Record<string, string> = {
+  ok: 'Recálculo desfeito: o plano voltou a ser o de antes.',
+  sem_versao: 'Não há recálculo para desfazer.',
+  expirou: 'O recálculo tem mais de 7 dias e não pode mais ser desfeito.',
+  concluiu: 'Você já concluiu tarefas do plano novo, então o recálculo não pode mais ser desfeito (o que você fez seria perdido).',
+}
