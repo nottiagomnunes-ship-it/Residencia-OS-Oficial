@@ -169,6 +169,20 @@ describe('telas', () => {
     expect(html).toContain('UFMA 2024 – R+</b>'); expect(html).toContain('1 de 3 questões (incompleta)'); expect(html).toContain('name="prova" value="b"')
     expect(html).toContain('href="/contato?pedir=prova#pedir-prova"'); expect(html).toContain('Suas provas'); expect(html).toContain('>Detalhes<')
   })
+  it('Provas: com mais de 3 provas aparece o filtro, que funciona pelo endereço', async () => {
+    const ps = [['a', 'UFMA 2024', 'UFMA', 2024], ['b', 'UFMA 2023', 'UFMA', 2023], ['c', 'USP-SP 2025', 'USP-SP', 2025], ['d', 'UEPA 2022', 'UEPA', 2022]] as const
+    h.resp = t => t === 'provas_geral' ? { data: ps.map(([id, nome, banca, ano]) => ({ id, nome, banca, ano, total: 1 })), error: null }
+      : t === 'prova_geral_questoes' ? { data: ps.map(([id]) => ({ prova_id: id, geral_id: 'g' + id, numero: 1 })), error: null }
+      : t === 'banco_questoes' ? { data: ps.map(([id]) => ({ origem_geral: 'g' + id, gabarito: 'A', anulada: false })), error: null }
+      : { data: [], error: null }
+    let html = renderToStaticMarkup(await Provas({ searchParams: Promise.resolve({}) }))
+    expect(html).toContain('aria-label="Filtrar provas"'); expect(html).toContain('<option value="UEPA">UEPA</option>'); expect(html).toContain('<option value="2025">2025</option>')
+    expect(html).not.toContain('Limpar')
+    html = renderToStaticMarkup(await Provas({ searchParams: Promise.resolve({ banca: 'UFMA' }) }))
+    expect(html).toContain('UFMA 2024</b>'); expect(html).toContain('UFMA 2023</b>'); expect(html).not.toContain('USP-SP 2025</b>'); expect(html).toContain('2 de 4 provas'); expect(html).toContain('Limpar')
+    html = renderToStaticMarkup(await Provas({ searchParams: Promise.resolve({ busca: 'xyz' }) }))
+    expect(html).toContain('Nenhuma prova com esse filtro')
+  })
   it('Provas sem nenhuma prova no banco: explica', async () => {
     const html = renderToStaticMarkup(await Provas({ searchParams: Promise.resolve({}) }))
     expect(html).toContain('Ainda não há provas no banco')
