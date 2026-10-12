@@ -17,6 +17,7 @@ import { carregarFilaRefazer } from '@/lib/banco-data'
 import { fraseDoDia, primeiroPasso } from '@/lib/engine/hoje'
 import PrimeirosPassos from '@/components/PrimeirosPassos'
 import ConviteGrupo from '@/components/ConviteGrupo'
+import GrupoNoHoje from '@/components/GrupoNoHoje'
 
 function Card({ titulo, valor, detalhe, cor = 'text-brand' }: { titulo: string; valor: string; detalhe?: string; cor?: string }) {
   return (
@@ -88,6 +89,7 @@ export default async function Inicio() {
       </div>
       {ritmo && <RitmoCard r={ritmo} modo={modoRitmo} onde="inicio" />}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"><NivelCard g={gam} /><RankCard g={gam} /><SequenciaCard g={gam} /></div>
+      <GrupoNoHoje hoje={hoje} />
     </div>
   )
 }

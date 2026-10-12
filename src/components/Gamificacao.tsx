@@ -45,6 +45,7 @@ export function RankCard({ g }: { g: G }) {
             ? <><div className="my-2"><Bar pct={r.progresso} cor={r.cor} /></div><p className="text-sm text-muted">Faltam {r.proximo.faltam} {r.proximo.faltam === 1 ? 'assunto' : 'assuntos'} para {r.proximo.rotulo}</p></>
             : <p className="mt-2 text-sm text-brand">{r.pct >= 100 ? 'Todos os assuntos concluídos. Ranking máximo!' : 'Topo do ranking. Falta só terminar o que sobrou.'}</p>}
         </>}
+      <a href="/grupos" className="mt-3 inline-block text-sm text-brand hover:underline">Comparar a semana com amigos ›</a>
     </section>)
 }
 

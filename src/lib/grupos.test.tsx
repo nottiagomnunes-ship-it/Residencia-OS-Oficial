@@ -16,7 +16,7 @@ vi.mock('@/lib/supabase/server', () => ({ supabaseServer: async () => ({
   rpc: async (n: string, a: any) => { h.rpc.push({ n, a }); return n === 'ranking_do_grupo' ? { data: h.ranking, error: null } : (h.resp[n] ?? { data: null, error: null }) },
   from: (t: string) => {
     const q: any = {
-      select: () => q, eq: () => q, order: () => q, single: async () => ({ data: { nome: 'Ana Souza' } }),
+      select: () => q, eq: () => q, order: () => q, limit: () => q, single: async () => ({ data: { nome: 'Ana Souza' } }),
       update: (d: any) => { h.update.push(d); return q },
       then: (r: (v: unknown) => void) => r(t === 'grupo_membros' ? { data: h.meus, error: h.meusErro } : { data: null, error: null }),
     }
@@ -26,6 +26,7 @@ vi.mock('@/lib/supabase/server', () => ({ supabaseServer: async () => ({
 
 import { criarGrupo, entrarNoGrupo, sairDoGrupo, mudarApelido } from './grupos'
 import Grupos from '@/app/(app)/grupos/page'
+import GrupoNoHoje from '@/components/GrupoNoHoje'
 
 const fd = (o: Record<string, string>) => { const f = new FormData(); for (const [k, v] of Object.entries(o)) f.set(k, v); return f }
 const rodar = (p: Promise<unknown>) => expect(p).rejects.toThrow('REDIRECT')
@@ -117,5 +118,22 @@ describe('convite aberto sem conta', () => {
     const r2 = await mw(new NextRequest('https://r1tmo.com.br/inicio'))
     expect(r2.cookies.get('convite')).toBeUndefined()
     vi.doUnmock('@supabase/ssr')
+  })
+})
+
+describe('grupos em Hoje', () => {
+  const html = async () => { const el = await GrupoNoHoje({ hoje: '2026-10-14' }); return el ? renderToStaticMarkup(el) : '' }
+  it('sem grupo: só um convite discreto para criar', async () => {
+    expect(await html()).toContain('Crie um grupo')
+  })
+  it('com grupo: a posição da semana e o link para o ranking', async () => {
+    h.meus = [{ grupo_id: 'g1', grupos: { nome: 'Turma' } }, { grupo_id: 'g2', grupos: { nome: 'Outro' } }]
+    h.ranking = [L({ apelido: 'Ana', eu: true, feito: 64 }), L({ apelido: 'Bia', feito: 90 }), L({ apelido: 'Caio', feito: 10 })]
+    const t = await html()
+    expect(t).toContain('Turma · semana · +1 grupo'); expect(t).toContain('Você está em 2º de 3'); expect(t).toContain('64% do plano'); expect(t).toContain('href="/grupos?g=g1"')
+    expect(h.rpc[0].a).toEqual({ p_grupo: 'g1', p_ini: '2026-10-12', p_hoje: '2026-10-14' })
+  })
+  it('sem a migração: não mostra nada', async () => {
+    h.meusErro = { message: 'relation does not exist' }; expect(await html()).toBe('')
   })
 })
