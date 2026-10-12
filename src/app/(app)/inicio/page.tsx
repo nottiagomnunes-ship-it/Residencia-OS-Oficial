@@ -16,6 +16,7 @@ import { supabaseServer } from '@/lib/supabase/server'
 import { carregarFilaRefazer } from '@/lib/banco-data'
 import { fraseDoDia, primeiroPasso } from '@/lib/engine/hoje'
 import PrimeirosPassos from '@/components/PrimeirosPassos'
+import ConviteGrupo from '@/components/ConviteGrupo'
 
 function Card({ titulo, valor, detalhe, cor = 'text-brand' }: { titulo: string; valor: string; detalhe?: string; cor?: string }) {
   return (
@@ -70,6 +71,7 @@ export default async function Inicio() {
         <h1 className="text-2xl font-semibold">{saudacao}, {p?.nome?.split(' ')[0]} 👋</h1>
         <p className="text-muted">{fraseDoDia(rev, atras, (nAssuntos ?? 0) > 0 || (itensHoje ?? []).length > 0, (itensHoje ?? []).length)}</p>
       </header>
+      <ConviteGrupo />
       <PrimeirosPassos passo={primeiroPasso((nConcluidas ?? 0) > 0, (nAssuntos ?? 0) > 0 || (itensHoje ?? []).length > 0, itensHoje ?? [])} />
       <AvisosPlano desatualizado={desatualizado} semana={semanaAviso} semanaAtual={!!semanaAviso && semanaAviso <= hoje} />
       <TarefasHoje itens={itensHoje ?? []} hoje={hoje} concluidasHoje={concluidasHoje ?? 0} minutosHoje={tempoHoje.minutos} informado={tempoHoje.informado} minutosFeitos={minutosFeitos} adiantaveis={adi ?? []} recursos={recursos} agenda={agendaHoje} />

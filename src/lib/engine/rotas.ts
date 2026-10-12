@@ -15,3 +15,10 @@ export function destinoDoLogin(caminho: string, logado: boolean): string | null 
   if (logado && (caminho === '/' || ehEntrada(caminho))) return '/inicio'
   return null
 }
+
+/** Link de convite de grupo (/grupos?codigo=XXXXXX): o código, se for válido. */
+export function conviteDoCaminho(caminho: string, codigo: string | null) {
+  if (caminho !== '/grupos' || !codigo) return null
+  const c = codigo.toUpperCase().replace(/[^A-Z0-9]/g, '')
+  return /^[A-HJ-NP-Z2-9]{6}$/.test(c) ? c : null
+}

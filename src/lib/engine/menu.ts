@@ -12,7 +12,7 @@ export const SECOES: readonly Secao[] = [
     filhas: { '/importar': '/cronograma' } },
   { nome: 'Questões', href: '/banco', icone: 'questoes', abas: [['Praticar', '/banco'], ['Banco', '/banco/questoes'], ['Provas', '/provas'], ['Registrar', '/questoes'], ['Erros', '/caderno-de-erros']] },
   { nome: 'Matérias', href: '/disciplinas', icone: 'materias', abas: [['Disciplinas', '/disciplinas'], ['Assuntos', '/conteudos']] },
-  { nome: 'Progresso', href: '/desempenho', icone: 'progresso', abas: [['Desempenho', '/desempenho'], ['Metas', '/metas'], ['Simulados', '/simulados']] },
+  { nome: 'Progresso', href: '/desempenho', icone: 'progresso', abas: [['Desempenho', '/desempenho'], ['Metas', '/metas'], ['Simulados', '/simulados'], ['Grupos', '/grupos']] },
 ]
 /** Fora das 5 seções: no rodapé do menu (computador) e na engrenagem do topo (celular). */
 export const AJUSTES: Secao = { nome: 'Ajustes', href: '/configuracoes', icone: 'ajustes', abas: [['Configurações', '/configuracoes'], ['Ajuda', '/ajuda'], ['Sugestões', '/contato']], filhas: { '/diagnostico': '/configuracoes' } }
