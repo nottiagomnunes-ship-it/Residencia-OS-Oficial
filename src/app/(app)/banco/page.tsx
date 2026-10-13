@@ -51,7 +51,8 @@ export default async function PraticarInicio({ searchParams }: { searchParams: P
         </div>
         : <>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {card('Questões no banco', String(disponiveis))}{card('Já feitas', String(feitas.length))}
+          <div className="rounded-2xl border border-line bg-surface p-4"><p className="text-sm text-muted">Prontas para praticar</p><p className="mt-1 text-2xl font-semibold">{disponiveis}</p>
+            {T.length > disponiveis && <p className="mt-1 text-xs text-muted">de {T.length} no banco ({T.length - disponiveis} {T.length - disponiveis === 1 ? 'anulada ou sem gabarito' : 'anuladas ou sem gabarito'})</p>}</div>{card('Já feitas', String(feitas.length))}
           {card('Acerto', vezesTot ? `${pct(acertosTot, vezesTot)}%` : '—')}
           {refazer && refazer.hoje > 0
             ? <Link href="/banco/praticar?revisao=1" className="rounded-2xl border border-brand/50 bg-surface p-4 hover:border-brand">

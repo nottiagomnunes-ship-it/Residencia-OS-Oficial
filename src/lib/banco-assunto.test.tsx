@@ -69,7 +69,8 @@ describe('telas', () => {
     h.dados.banco_questoes = [{ id: Q1, gabarito: 'A', anulada: false, vezes: 0, acertos: 0 }, { id: Q2, gabarito: 'B', anulada: true, vezes: 0, acertos: 0 }]
     h.dados.revisao_questoes = [{ questao_id: Q1 }]
     const html = renderToStaticMarkup(await PraticarInicio({ searchParams: Promise.resolve({}) }))
-    expect(html).not.toContain('Com gabarito'); expect(html).toMatch(/Questões no banco<\/p><p[^>]*>1</)
+    expect(html).not.toContain('Com gabarito'); expect(html).toMatch(/Prontas para praticar<\/p><p[^>]*>1</)
+    expect(html).toContain('de 2 no banco (1 anulada ou sem gabarito)')
     expect(html).toContain('Para refazer hoje'); expect(html).toContain('href="/banco/praticar?revisao=1"')
   })
   it('Praticar com o banco vazio: leva a importar', async () => {
